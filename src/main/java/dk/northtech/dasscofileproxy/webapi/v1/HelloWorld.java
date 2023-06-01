@@ -12,7 +12,7 @@ public class HelloWorld {
 
     @GET
     @Produces(MediaType.APPLICATION_JSON)
-    @RolesAllowed({SecurityRoles.ADMIN, SecurityRoles.DEVELOPER})
+    //@RolesAllowed({SecurityRoles.ADMIN, SecurityRoles.DEVELOPER})
     public String getAssets() {
         return "HelloWorld";
     }
