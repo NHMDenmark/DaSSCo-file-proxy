@@ -1,0 +1,14 @@
+services:
+  keycloak:
+    extends:
+      file: ./docker-compose-keycloak.yaml
+      service: keycloak
+  database:
+    extends:
+      file: ./docker-compose-postgres.yaml
+      service: database
+#  app:
+#    extends:
+#      file: ./docker-compose-app.yaml
+#      service: app
+

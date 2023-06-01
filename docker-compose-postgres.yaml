@@ -1,0 +1,9 @@
+services:
+  database:
+    image: apache/age:v1.1.0
+    environment:
+      POSTGRES_DB: dassco_file_proxy
+      POSTGRES_USER: dassco_file_proxy
+      POSTGRES_PASSWORD: dassco_file_proxy
+    ports:
+      - "5433:5432"
