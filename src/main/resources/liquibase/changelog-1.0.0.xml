@@ -1,0 +1,132 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.4.xsd">
+
+  <changeSet id="1.0.0:dassco_file_proxy:access_type_enum" author="Christoffer Grand Hansen" context="default">
+    <sql>CREATE TYPE access_type AS ENUM ('READ','WRITE','ADMIN')</sql>
+  </changeSet>
+
+  <changeSet id="1.0.0:dassco_file_proxy:samba_servers" author="Christoffer Grand Hansen">
+    <createTable tableName="samba_servers" remarks="Active Samba servers">
+      <column name="samba_server_id" type="bigint" autoIncrement="true" generationType="always">
+        <constraints nullable="false" primaryKey="true"/>
+      </column>
+      <column name="share_path" type="text">
+        <constraints nullable="false"/>
+      </column>
+      <column name="shared" type="boolean" defaultValueBoolean="true">
+        <constraints nullable="false"/>
+      </column>
+      <column name="container_port" type="int">
+        <constraints nullable="false" unique="true"/>
+      </column>
+      <column name="access" type="access_type">
+        <constraints nullable="false"/>
+      </column>
+      <column name="creation_datetime" type="datetime">
+        <constraints nullable="false"/>
+      </column>
+    </createTable>
+  </changeSet>
+
+  <changeSet id="1.0.0:dassco_file_proxy:shared_assets" author="Christoffer Grand Hansen" context="default">
+    <createTable tableName="shared_assets" remarks="All assets shared on the specific samba server">
+      <column name="shared_asset_id" type="bigint" autoIncrement="true" generationType="always">
+        <constraints nullable="false" primaryKey="true"/>
+      </column>
+      <column name="samba_server_id" type="bigint">
+        <constraints nullable="false"/>
+      </column>
+      <column name="asset_guid" type="text">
+        <constraints nullable="false"/>
+      </column>
+      <column name="creation_datetime" type="datetime">
+        <constraints nullable="false"/>
+      </column>
+    </createTable>
+    <addForeignKeyConstraint  baseColumnNames="samba_server_id"
+                              baseTableName="shared_assets"
+                              constraintName="fk_shared_assets_samba_server"
+                              onDelete="CASCADE"
+                              referencedColumnNames="samba_server_id"
+                              referencedTableName="samba_servers"
+                              validate="true"/>
+  </changeSet>
+
+  <changeSet id="1.0.0:dassco_file_proxy:user_access" author="Christoffer Grand Hansen" context="default">
+    <createTable tableName="user_access" remarks="All users that have access to the specific Samba server">
+      <column name="user_access_id" type="bigint" autoIncrement="true" generationType="always">
+        <constraints nullable="false" primaryKey="true"/>
+      </column>
+      <column name="samba_server_id" type="bigint">
+        <constraints nullable="false"/>
+      </column>
+      <column name="username" type="text">
+        <constraints nullable="false"/>
+      </column>
+      <column name="token" type="text">
+        <constraints nullable="false"/>
+      </column>
+      <column name="creation_datetime" type="datetime">
+        <constraints nullable="false"/>
+      </column>
+    </createTable>
+    <addForeignKeyConstraint  baseColumnNames="samba_server_id"
+                              baseTableName="user_access"
+                              constraintName="fk_user_access_samba_server"
+                              onDelete="CASCADE"
+                              referencedColumnNames="samba_server_id"
+                              referencedTableName="samba_servers"
+                              validate="true"/>
+  </changeSet>
+
+  <changeSet id="1.0.0:dassco_file_proxy:asset_caches" author="Christoffer Grand Hansen" context="default">
+    <createTable tableName="asset_caches" remarks="All users that have access to the specific Samba server">
+      <column name="asset_cache_id" type="bigint" autoIncrement="true" generationType="always">
+        <constraints nullable="false" primaryKey="true"/>
+      </column>
+      <column name="asset_path" type="text">
+        <constraints nullable="false"/>
+      </column>
+      <column name="asset_guid_filename" type="text">
+        <constraints nullable="false"/>
+      </column>
+      <column name="file_state" type="text">
+        <constraints nullable="false"/>
+      </column>
+      <column name="expiration_datetime" type="datetime">
+        <constraints nullable="false"/>
+      </column>
+      <column name="creation_datetime" type="datetime">
+        <constraints nullable="false"/>
+      </column>
+    </createTable>
+  </changeSet>
+
+  <changeSet id="1.0.0:dassco_file_proxy:cache_restrictions" author="Christoffer Grand Hansen" context="default">
+    <createTable tableName="cache_restrictions" remarks="All users that have access to the specific Samba server">
+      <column name="cache_restriction_id" type="bigint" autoIncrement="true" generationType="always">
+        <constraints nullable="false" primaryKey="true"/>
+      </column>
+      <column name="asset_cache_id" type="bigint">
+        <constraints nullable="false"/>
+      </column>
+      <column name="restriction" type="text">
+        <constraints nullable="false"/>
+      </column>
+    </createTable>
+    <addForeignKeyConstraint  baseColumnNames="asset_cache_id"
+                              baseTableName="cache_restrictions"
+                              constraintName="fk_cache_restrictions_asset_caches"
+                              onDelete="CASCADE"
+                              referencedColumnNames="asset_cache_id"
+                              referencedTableName="asset_caches"
+                              validate="true"/>
+  </changeSet>
+
+  <changeSet id="VERSION-1.0.0" author="Christoffer Grand Hansen" context="default">
+    <tagDatabase tag="VERSION-1.0.0" />
+  </changeSet>
+
+</databaseChangeLog>

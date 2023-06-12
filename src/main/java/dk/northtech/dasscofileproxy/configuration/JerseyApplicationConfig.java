@@ -1,6 +1,6 @@
 package dk.northtech.dasscofileproxy.configuration;
 
-import dk.northtech.dasscofileproxy.webapi.v1.HelloWorld;
+import dk.northtech.dasscofileproxy.webapi.v1.SambaServerApi;
 import jakarta.ws.rs.ApplicationPath;
 import org.glassfish.jersey.server.ResourceConfig;
 import org.glassfish.jersey.server.filter.RolesAllowedDynamicFeature;
@@ -11,7 +11,7 @@ import org.springframework.stereotype.Component;
 public class JerseyApplicationConfig extends ResourceConfig {
   public JerseyApplicationConfig() {
     // Activate the designated JaxRs classes with API endpoints:
-    register(HelloWorld.class);
+    register(SambaServerApi.class);
 
     register(RolesAllowedDynamicFeature.class);
     register(ClientAbortInterceptor.class);

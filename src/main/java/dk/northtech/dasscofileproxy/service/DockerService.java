@@ -3,6 +3,8 @@ package dk.northtech.dasscofileproxy.service;
 import com.github.dockerjava.api.DockerClient;
 import com.github.dockerjava.api.model.*;
 import com.google.common.collect.Lists;
+import dk.northtech.dasscofileproxy.configuration.DockerConfig;
+import dk.northtech.dasscofileproxy.domain.SambaServer;
 import jakarta.inject.Inject;
 import org.springframework.stereotype.Service;
 
@@ -12,13 +14,15 @@ import java.util.List;
 @Service
 public class DockerService {
     DockerClient dockerClient;
+    DockerConfig dockerConfig;
 
     @Inject
-    public DockerService(DockerClient dockerClient) {
+    public DockerService(DockerClient dockerClient, DockerConfig dockerConfig) {
         this.dockerClient = dockerClient;
+        this.dockerConfig = dockerConfig;
     }
 
-    public void startContainer() {
+    public boolean startService(SambaServer sambaServer) {
         ArrayList<String> environments = new ArrayList<>();
         ArrayList<PortConfig> ports = new ArrayList<>();
         ArrayList<String> args = new ArrayList<>();
@@ -30,24 +34,32 @@ public class DockerService {
 
         ports.add(new PortConfig()
                 .withProtocol(PortConfigProtocol.TCP)
-                .withPublishedPort(6060)
+                .withPublishedPort(sambaServer.containerPort())
                 .withTargetPort(445)
                 .withPublishMode(PortConfig.PublishMode.ingress)
         );
 
-        args.add("-u");
-        args.add("refinery1;badpass");
+        StringBuilder sb = new StringBuilder();
+        sb.append("share_").append(sambaServer.sambaServerId()).append(";/share;no;no;no;");
+        sambaServer.userAccess().forEach(userAccess -> {
+            args.add("-u");
+            args.add(String.format("%1$s;%2$s", userAccess.username(), userAccess.token()));
+            sb.append(userAccess.username());
+            sb.append(",");
+        });
+        sb.deleteCharAt(sb.length() - 1);
+        sb.append(";none");
         args.add("-s");
-        args.add("share;/share;no;no;no;refinery1;none");
+        args.add(sb.toString());
 
         volumes.add(new Mount()
                 .withType(MountType.BIND)
-                .withSource("/host_mnt/Users/christofferhansen/dev/baseImage/jfileserver/test_folder")
+                .withSource(dockerConfig.mountFolder() + "share_" + sambaServer.sambaServerId())
                 .withTarget("/share")
         );
 
         dockerClient.createServiceCmd(new ServiceSpec()
-                .withName("samba")
+                .withName("share_" + sambaServer.sambaServerId())
                 .withTaskTemplate(new TaskSpec()
                         .withResources(new ResourceRequirements()
                                 .withLimits(new ResourceSpecs()
@@ -65,15 +77,17 @@ public class DockerService {
                         .withPorts(ports)
                 )
         ).exec();
+
+        return listServices("share_").size() > 0;
     }
 
-    public List<com.github.dockerjava.api.model.Service> listContainers() {
+    public List<com.github.dockerjava.api.model.Service> listServices(String serviceName) {
         return dockerClient.listServicesCmd()
-                .withNameFilter(Lists.newArrayList("samba"))
+                .withNameFilter(Lists.newArrayList(serviceName))
                 .exec();
     }
 
-    public void removeContainer() {
-        dockerClient.removeServiceCmd("samba").exec();
+    public void removeContainer(String serviceName) {
+        dockerClient.removeServiceCmd(serviceName).exec();
     }
 }
