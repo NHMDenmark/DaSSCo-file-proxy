@@ -30,6 +30,14 @@ public class FtpsService {
         this.password = properties.password();
     }
 
+    public FtpsService(String server, int port, String user, String password) {
+        // Initialize FTP service parameter values
+        this.server = server;
+        this.port = port;
+        this.user = user;
+        this.password = password;
+    }
+
     /**
      * Opens the FTP service connection.
      */
@@ -146,5 +154,9 @@ public class FtpsService {
         try (FileOutputStream out = new FileOutputStream(destination)) {
             ftps.retrieveFile(source, out);
         }
+    }
+
+    public void setFtpsClient(FTPSClient ftpsClient) {
+        this.ftps=ftpsClient;
     }
 }
