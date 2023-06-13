@@ -5,12 +5,15 @@ import dk.northtech.dasscofileproxy.service.FtpsService;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.MediaType;
+import jakarta.ws.rs.core.Response;
 import org.apache.commons.net.ftp.FTPFile;
+import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.stereotype.Component;
 
-import java.io.File;
-import java.io.IOException;
+import java.io.*;
 import java.util.*;
 
+@Component
 @Path("/v1/ftps")
 public class FtpsClient {
 
@@ -21,23 +24,57 @@ public class FtpsClient {
         this.ftpsService = ftpsService;
     }
 
+
     @GET
-    @Path("listfiles")
+    @Path("listfiles/{path : .+}")
     @Produces(MediaType.APPLICATION_JSON)
-    public Collection<String> test(@QueryParam("path") String path) throws IOException {
-        System.out.println("opening connection");
+    public Collection<String> test(@Encoded @PathParam("path") String path) throws IOException {
         this.ftpsService.open();
-        System.out.println("getting files");
-        var files = this.ftpsService.listFiles(path);
-        System.out.println("closing connection");
+        var files = this.ftpsService.listFiles("DaSSCoStorage/" + path);
         this.ftpsService.close();
         return files;
     }
+    @GET
+    @Path("{path : .+}")
+    @Produces(MediaType.APPLICATION_OCTET_STREAM)
+    public Response get(@Encoded @PathParam("path") String path) throws IOException {
+        // Check if the file is already cached
+        InputStream cached = ftpsService.getCached(path);
+        if (cached != null) {
+            // Refresh the time to live for the cached file
+            ftpsService.refreshTimeToLive(path);
+            return Response.ok(cached).build(); // Return the cached file
+        }
+
+        // Open the FTP service connection
+        ftpsService.open();
+
+        // Download the file from the FTP server
+        InputStream fileStream = ftpsService.downloadFile("DaSSCoStorage/" + path);
+        if (fileStream == null) {
+            // File not found on the FTP server
+            return Response.status(404).entity("The requested resource could not be found.").build();
+        }
+
+        // Read the file content into a byte array
+        byte[] bytes = fileStream.readAllBytes();
+
+        // Close the FTP service connection
+        ftpsService.close();
+
+        // Cache the file locally
+        ftpsService.cacheFile(path, new ByteArrayInputStream(bytes));
+
+        // Return the file as a response
+        return Response.ok(new ByteArrayInputStream(bytes)).build();
+    }
+
+
 
     @PUT
-    @Path("upload/{path}")
+    @Path("upload")
     @Produces(MediaType.APPLICATION_JSON)
-    public boolean update(@PathParam("path") String path, Asset asset) {
+    public boolean update(Asset asset) {
         try {
             // Open the FTPS service connection
             this.ftpsService.open();
@@ -61,7 +98,7 @@ public class FtpsClient {
             this.ftpsService.makeDirectory(assetPath);
 
             // Get the files from the local folder
-            File folder = new File(path);
+            File folder = new File("DaSSCo_upload");
             File[] files = folder.listFiles();
 
             // Check if there are files in the folder
@@ -87,7 +124,7 @@ public class FtpsClient {
 
                         if (remoteFile.isPresent()) {
                             if (localFile.length() != remoteFile.get().getSize()) {
-                                throw new RuntimeException("Sizes of remote and local files do not match. Aborting. Note that files have still been uploaded to the server.");
+                                throw new RuntimeException("Sizes of remote and local files do not match. Size of local file is: " + localFile.length() + ", size of remote file is: " + remoteFile.get().getSize());
                             }
                         }
                     }
@@ -95,16 +132,12 @@ public class FtpsClient {
 
                 // Delete the local files
                 for (File file : files) {
-                    var deleted = file.delete();
-                    if (!deleted) {
-                        throw new RuntimeException("Couldn't delete file: " + file.getName() + ".");
+                    if (!file.isDirectory()) {
+                        var deleted = file.delete();
+                        if (!deleted) {
+                            throw new RuntimeException("Couldn't delete file: " + file.getName() + ".");
+                        }
                     }
-                }
-
-                // Delete the local folder
-                var deleted = folder.delete();
-                if (!deleted) {
-                    throw new RuntimeException("Couldn't delete folder: " + folder.getName() + ".");
                 }
             }
 
@@ -114,5 +147,10 @@ public class FtpsClient {
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
+    }
+
+    @Scheduled(cron = "0 0 * * * *") // hourly
+    public void removedExpiredCaches() {
+        this.ftpsService.removedExpiredCaches();
     }
 }

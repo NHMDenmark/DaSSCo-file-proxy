@@ -89,10 +89,7 @@
       <column name="asset_path" type="text">
         <constraints nullable="false"/>
       </column>
-      <column name="asset_guid_filename" type="text">
-        <constraints nullable="false"/>
-      </column>
-      <column name="file_state" type="text">
+      <column name="file_size" type="bigint">
         <constraints nullable="false"/>
       </column>
       <column name="expiration_datetime" type="datetime">
