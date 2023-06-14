@@ -4,6 +4,8 @@ import dk.northtech.dasscofileproxy.domain.Asset;
 import dk.northtech.dasscofileproxy.service.FtpsService;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.*;
+import jakarta.ws.rs.container.AsyncResponse;
+import jakarta.ws.rs.container.Suspended;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import org.apache.commons.net.ftp.FTPFile;
@@ -12,6 +14,8 @@ import org.springframework.stereotype.Component;
 
 import java.io.*;
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
+import java.util.function.Supplier;
 
 @Component
 @Path("/v1/ftps")
@@ -39,7 +43,7 @@ public class FtpsClient {
     @Produces(MediaType.APPLICATION_OCTET_STREAM)
     public Response get(@Encoded @PathParam("path") String path) throws IOException {
         // Check if the file is already cached
-        InputStream cached = ftpsService.getCached(path);
+        InputStream cached = ftpsService.getCached("cached/" + path);
         if (cached != null) {
             // Refresh the time to live for the cached file
             ftpsService.refreshTimeToLive(path);
@@ -56,25 +60,21 @@ public class FtpsClient {
             return Response.status(404).entity("The requested resource could not be found.").build();
         }
 
-        // Read the file content into a byte array
-        byte[] bytes = fileStream.readAllBytes();
-
-        // Close the FTP service connection
-        ftpsService.close();
-
-        // Cache the file locally
-        ftpsService.cacheFile(path, new ByteArrayInputStream(bytes));
+        // Asynchronously start caching file
+        CompletableFuture.supplyAsync(() -> {
+            ftpsService.cacheFile("DaSSCoStorage/" + path);
+            return null;
+        });
 
         // Return the file as a response
-        return Response.ok(new ByteArrayInputStream(bytes)).build();
+        return Response.ok(fileStream).build();
     }
 
 
-
     @PUT
-    @Path("upload")
+    @Path("upload/{path}")
     @Produces(MediaType.APPLICATION_JSON)
-    public boolean update(Asset asset) {
+    public boolean update(@PathParam("path")String path, Asset asset) {
         try {
             // Open the FTPS service connection
             this.ftpsService.open();
@@ -98,7 +98,7 @@ public class FtpsClient {
             this.ftpsService.makeDirectory(assetPath);
 
             // Get the files from the local folder
-            File folder = new File("DaSSCo_upload");
+            File folder = new File(path);
             File[] files = folder.listFiles();
 
             // Check if there are files in the folder

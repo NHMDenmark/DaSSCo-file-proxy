@@ -11,6 +11,7 @@ import org.apache.commons.net.ftp.FTPSClient;
 import org.jdbi.v3.core.Jdbi;
 import org.jdbi.v3.core.mapper.reflect.ConstructorMapper;
 import org.jdbi.v3.sqlobject.SqlObjectPlugin;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 import javax.sql.DataSource;
@@ -190,7 +191,7 @@ public class FtpsService {
      * @return the InputStream for the cached file, or null if the file is not found.
      */
     public InputStream getCached(String path) {
-        File file = new File("cached", path);
+        File file = new File(path);
         try {
             return new FileInputStream(file);
         } catch (FileNotFoundException e) {
@@ -237,7 +238,7 @@ public class FtpsService {
      * @param file the InputStream containing the file data.
      * @return true if the file was successfully cached, false otherwise.
      */
-    public boolean cacheFile(String path, InputStream file) {
+    public void cacheFile(String path) {
         File tempFile = null;
         try {
             // Create a temporary file to save the InputStream
@@ -245,11 +246,7 @@ public class FtpsService {
 
             // Copy the InputStream to the temporary file
             try (FileOutputStream outputStream = new FileOutputStream(tempFile)) {
-                byte[] buffer = new byte[1024];
-                int bytesRead;
-                while ((bytesRead = file.read(buffer)) != -1) {
-                    outputStream.write(buffer, 0, bytesRead);
-                }
+                this.ftps.retrieveFile(path, outputStream);
             }
 
             // Check if the size of the saved file matches the InputStream size
@@ -285,11 +282,9 @@ public class FtpsService {
                         .mapTo(AssetCache.class)
                         .findOne()
                 );
-                return true;
             } else {
                 // Delete the potential file saved due to size mismatch
                 tempFile.delete();
-                return false;
             }
         } catch (IOException e) {
             e.printStackTrace();
@@ -297,7 +292,6 @@ public class FtpsService {
             if (tempFile != null) {
                 tempFile.delete();
             }
-            return false;
         }
     }
 
