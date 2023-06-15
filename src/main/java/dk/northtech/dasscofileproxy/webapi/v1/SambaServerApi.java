@@ -12,6 +12,9 @@ import jakarta.ws.rs.core.MediaType;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
+
+import static jakarta.ws.rs.core.MediaType.APPLICATION_JSON;
 
 @Path("/samba")
 public class SambaServerApi {
@@ -32,7 +35,8 @@ public class SambaServerApi {
     @POST
     @Path("/createShare")
     @Produces(MediaType.APPLICATION_JSON)
-    public SambaConnection createSambaServer(CreationObj creationObj) {
+    @Consumes(APPLICATION_JSON)
+    public SambaInfo createSambaServer(CreationObj creationObj) {
         Instant creationDatetime = Instant.now();
         Integer port = findUnusedPort();
 
@@ -40,10 +44,10 @@ public class SambaServerApi {
             throw new BadRequestException("All ports are in use");
         }
 
-        if (creationObj.users().size() > 0 && creationObj.assetGuids().size() > 0) {
+        if (creationObj.users().size() > 0 && creationObj.assets().size() > 0) {
 
-            SambaServer sambaServer = new SambaServer(null, dockerConfig.mountFolder(), true, port
-                    , AccessType.WRITE, creationDatetime, setupSharedAssets(creationObj.assetGuids(), creationDatetime)
+            SambaServer sambaServer = new SambaServer(null, dockerConfig.mountFolder(), true, port//TODO parents
+                    , AccessType.WRITE, creationDatetime, setupSharedAssets(creationObj.assets().stream().map(asset -> asset.guid()).collect(Collectors.toList()), creationDatetime)
                     , setupUserAccess(creationObj.users(), creationDatetime));
 
             sambaServer = new SambaServer(sambaServer, sambaServerService.createSambaServer(sambaServer));
@@ -51,13 +55,30 @@ public class SambaServerApi {
             fileService.createShareFolder(sambaServer.sambaServerId());
 
             dockerService.startService(sambaServer);
-
-            return new SambaConnection("127.0.0.2", sambaServer.containerPort(), "share_" + sambaServer.sambaServerId(), sambaServer.userAccess().get(0).token());
+            return new SambaInfo(sambaServer.containerPort(), "127.0.0.2", "share_" + sambaServer.sambaServerId(), sambaServer.userAccess().get(0).token(), SambaRequestStatus.OK_OPEN, null);
+//            return new SambaConnection("127.0.0.2", sambaServer.containerPort(), "share_" + sambaServer.sambaServerId(), sambaServer.userAccess().get(0).token());
 
         } else {
             throw new BadRequestException("You have to provide users in this call");
         }
     }
+
+    @POST
+    @Path("/disconnectShare")
+    @Produces(MediaType.APPLICATION_JSON)
+    @Consumes(APPLICATION_JSON)
+    public SambaInfo disconnectSambaServer(AssetSmbRequest assetSmbRequest) {
+       return new SambaInfo(null, null, "share_1234", null, SambaRequestStatus.OK_DISCONNECTED, null);
+    }
+
+    @POST
+    @Path("/closeShare")
+    @Produces(MediaType.APPLICATION_JSON)
+    @Consumes(APPLICATION_JSON)
+    public SambaInfo closeSambaServer(AssetSmbRequest assetSmbRequest, @QueryParam("syncERDA") Boolean syncERDA) {
+        return new SambaInfo(null, null, "share_1234", null, SambaRequestStatus.OK_CLOSED, null);
+    }
+
 
     public List<UserAccess> setupUserAccess(List<String> users, Instant creationDateTime) {
         ArrayList<UserAccess> userAccess = new ArrayList<>();
