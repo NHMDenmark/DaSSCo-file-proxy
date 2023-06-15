@@ -11,7 +11,6 @@ import org.apache.commons.net.ftp.FTPSClient;
 import org.jdbi.v3.core.Jdbi;
 import org.jdbi.v3.core.mapper.reflect.ConstructorMapper;
 import org.jdbi.v3.sqlobject.SqlObjectPlugin;
-import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 import javax.sql.DataSource;
@@ -47,13 +46,11 @@ public class FtpsService {
                 .registerRowMapper(ConstructorMapper.factory(AssetCache.class));
     }
 
-    public FtpsService(String server, int port, String user, String password) {
-        // Initialize FTP service parameter values
+    public void setProperties(String server, int port, String user, String password){
         this.server = server;
         this.port = port;
         this.user = user;
         this.password = password;
-        this.jdbi = null;
     }
 
     /**
@@ -235,7 +232,6 @@ public class FtpsService {
      * Caches a file by saving it to the specified path.
      *
      * @param path the path to save the file to.
-     * @param file the InputStream containing the file data.
      * @return true if the file was successfully cached, false otherwise.
      */
     public void cacheFile(String path) {

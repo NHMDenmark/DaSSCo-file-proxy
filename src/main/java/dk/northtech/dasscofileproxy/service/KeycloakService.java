@@ -1,0 +1,106 @@
+package dk.northtech.dasscofileproxy.service;
+
+import com.fasterxml.jackson.core.Version;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.module.SimpleModule;
+import dk.northtech.dasscofileproxy.assets.KeycloakAdminConfig;
+import dk.northtech.dasscofileproxy.domain.KeycloakToken;
+import dk.northtech.dasscofileproxy.utils.CustomKeycloakTokenDeserializer;
+import dk.northtech.dasscofileproxy.utils.KeycloakAuthenticator;
+import jakarta.inject.Inject;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.stereotype.Service;
+
+import java.io.IOException;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.time.Instant;
+import java.util.Base64;
+
+@Service
+public class KeycloakService {
+    private static final Logger LOGGER = LoggerFactory.getLogger(KeycloakService.class);
+    KeycloakAuthenticator keycloakAuthenticator;
+    KeycloakAdminConfig keycloakAdminConfig;
+    ObjectMapper objectMapper = new ObjectMapper();
+    SimpleModule module = new SimpleModule("CustomKeycloakTokenDeserializer", new Version(1, 0, 0, null, null, null));
+    private static KeycloakToken keycloakToken;
+    private static HttpClient httpClient;
+
+    @Inject
+    public KeycloakService(KeycloakAuthenticator keycloakAuthenticator, KeycloakAdminConfig keycloakAdminConfig) {
+        this.keycloakAuthenticator = keycloakAuthenticator;
+        this.keycloakAdminConfig = keycloakAdminConfig;
+        this.module.addDeserializer(KeycloakToken.class, new CustomKeycloakTokenDeserializer());
+        this.objectMapper.registerModule(module);
+
+    }
+
+    public String getAdminToken() {
+        // Given we have an access token
+        if (keycloakToken != null) {
+            return keycloakToken.accessToken();
+        }
+        LOGGER.debug("KeycloakService: Create new AccessToken");
+        return newAccessToken().accessToken();
+    }
+
+
+    /*
+    public KeycloakToken refreshToken() {
+        try {
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(new URI(this.keycloakAdminConfig.keycloakUrl() + "realms/" + this.keycloakAdminConfig.adminRealm() + "/protocol/openid-connect/token"))
+                    .header("Content-Type", "application/x-www-form-urlencoded")
+                    .POST(HttpRequest.BodyPublishers.ofString("grant_type=refresh_token&" +
+                            "refresh_token=" + keycloakToken.refreshToken() + "&" +
+                            "scope=openid offline_access&" +
+                            "client_id=" + this.keycloakAdminConfig.clientId()))
+                    .build();
+
+            HttpResponse<String> response = HttpClient.newBuilder()
+                    .build()
+                    .send(request, HttpResponse.BodyHandlers.ofString());
+
+            String json = response.body();
+
+            keycloakToken = objectMapper.readValue(json, KeycloakToken.class);
+            return keycloakToken;
+        } catch (URISyntaxException | InterruptedException | IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+     */
+
+    public KeycloakToken newAccessToken() {
+        //Order new token token
+        try {
+            String clientCredentials = this.keycloakAdminConfig.clientId() + ":" + this.keycloakAdminConfig.clientSecret();
+            String base64ClientCredentials = Base64.getEncoder().encodeToString(clientCredentials.getBytes());
+
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(new URI(this.keycloakAdminConfig.keycloakUrl() + "realms/" + this.keycloakAdminConfig.adminRealm() + "/protocol/openid-connect/token"))
+                    .header("Content-Type", "application/x-www-form-urlencoded")
+                    .header("Authorization", "Basic " + base64ClientCredentials)
+                    .POST(HttpRequest.BodyPublishers.ofString("grant_type=client_credentials"))
+                    .build();
+
+            HttpResponse<String> response = HttpClient.newBuilder()
+                    .build()
+                    .send(request, HttpResponse.BodyHandlers.ofString());
+
+            String json = response.body();
+            keycloakToken = objectMapper.readValue(json, KeycloakToken.class);
+            return keycloakToken;
+        } catch (URISyntaxException | InterruptedException | IOException e) {
+            throw new RuntimeException(e);
+        }
+
+    }
+
+}
