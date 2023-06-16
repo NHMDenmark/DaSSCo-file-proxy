@@ -22,7 +22,6 @@ public class DockerClientProperties {
 
     @Bean
     public DefaultDockerClientConfig dockerConfig() {
-        System.out.println(dockerConfig.dockerHost());
         return DefaultDockerClientConfig.createDefaultConfigBuilder()
                 .withDockerHost(dockerConfig.dockerHost()).build();
     }

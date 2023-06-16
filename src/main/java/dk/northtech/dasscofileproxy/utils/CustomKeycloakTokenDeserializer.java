@@ -38,16 +38,16 @@ public class CustomKeycloakTokenDeserializer extends StdDeserializer<KeycloakTok
         long expiresIn = expiresInNode.asLong();
 
         // Used to validate if the access token should be refreshed
-        //Instant accessExpirationTimeStamp = Instant.now().plusSeconds(expiresIn);
+        Instant accessExpirationTimeStamp = Instant.now().plusSeconds(expiresIn);
 
         JsonNode refreshExpiresInNode = node.get("refresh_expires_in");
         long refreshExpiresIn = refreshExpiresInNode.asLong();
 
         // Used to validate if the refresh token is still valid
-        //Instant refreshExpirationTimeStamp = Instant.now().plusSeconds(refreshExpiresIn);
+        Instant refreshExpirationTimeStamp = Instant.now().plusSeconds(refreshExpiresIn);
 
-        //JsonNode refreshTokenNode = node.get("refresh_token");
-        //String refreshToken = refreshTokenNode.asText();
+        JsonNode refreshTokenNode = node.get("refresh_token");
+        String refreshToken = refreshTokenNode.asText();
 
         JsonNode tokenTypeNode = node.get("token_type");
         String tokenType = tokenTypeNode.asText();
@@ -61,6 +61,6 @@ public class CustomKeycloakTokenDeserializer extends StdDeserializer<KeycloakTok
         JsonNode scopeNode = node.get("scope");
         String scope = scopeNode.asText();
 
-        return new KeycloakToken(accessToken, expiresIn, refreshExpiresIn, tokenType, scope);
+        return new KeycloakToken(accessToken, expiresIn, accessExpirationTimeStamp, refreshExpiresIn, refreshExpirationTimeStamp, refreshToken, tokenType, scope);
     }
 }

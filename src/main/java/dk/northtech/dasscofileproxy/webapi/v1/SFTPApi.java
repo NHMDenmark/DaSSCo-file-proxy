@@ -2,61 +2,66 @@ package dk.northtech.dasscofileproxy.webapi.v1;
 
 import com.auth0.jwt.JWT;
 import com.auth0.jwt.interfaces.DecodedJWT;
+import com.jcraft.jsch.ChannelSftp;
+import com.jcraft.jsch.JSchException;
+import com.jcraft.jsch.SftpException;
 import dk.northtech.dasscofileproxy.domain.Asset;
 import dk.northtech.dasscofileproxy.domain.AssetFull;
 import dk.northtech.dasscofileproxy.service.AssetService;
-import dk.northtech.dasscofileproxy.service.FtpsService;
+import dk.northtech.dasscofileproxy.service.SFTPService;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.*;
-import jakarta.ws.rs.core.*;
-import org.apache.commons.net.ftp.FTPFile;
+import jakarta.ws.rs.core.Context;
+import jakarta.ws.rs.core.HttpHeaders;
+import jakarta.ws.rs.core.MediaType;
+import jakarta.ws.rs.core.Response;
+import org.apache.tika.Tika;
 import org.json.JSONArray;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
-import java.io.*;
+import java.io.IOException;
+import java.io.InputStream;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 @Component
-@Path("/v1/ftps")
-public class FtpsClient {
+@Path("/v1/sftp")
+public class SFTPApi {
 
-    private final FtpsService ftpsService;
+    private final SFTPService sftpService;
 
     private final AssetService assetService;
 
     @Inject
-    public FtpsClient(FtpsService ftpsService, AssetService assetService) {
-        this.ftpsService = ftpsService;
+    public SFTPApi(SFTPService sftpService, AssetService assetService) {
+        this.sftpService = sftpService;
         this.assetService = assetService;
     }
 
 
     @GET
-    @Path("listfiles/{path : .+}")
+    @Path("/hello")
     @Produces(MediaType.APPLICATION_JSON)
-    public Collection<String> test(@Encoded @PathParam("path") String path) throws IOException {
-        this.ftpsService.open();
-        var files = this.ftpsService.listFiles("DaSSCoStorage/" + path);
-        this.ftpsService.close();
-        return files;
+    public String hello() {
+        return "Hello!";
+    }
+
+
+    @GET
+    @Path("/institutions/{institution}/collections/{collection}/assets/{guid}")
+    @Produces(MediaType.APPLICATION_JSON)
+    public Collection<String> listItems(@PathParam("institution") String institution
+            , @PathParam("collection") String collection
+            , @PathParam("guid") String guid) throws JSchException, SftpException {
+        System.out.println("/DaSSCoStorage/" + institution + "/" + collection + "/" + guid);
+        return this.sftpService.listFiles("/DaSSCoStorage/" + institution + "/" + collection + "/" + guid);
     }
 
     @GET
-    @Path("{params : .+}")
+    @Path("/assets/{guid}/files/{file}")
     @Produces(MediaType.APPLICATION_OCTET_STREAM)
-    public Response get(@Encoded @PathParam("params") String params, @Context HttpHeaders headers) throws IOException {
-
-        // Split path param into guid and filename
-        var strings = params.split("/");
-        // Throw exception if path param doesn't contain exactly two arguments
-        if (strings.length != 2)
-            return Response.status(Response.Status.BAD_REQUEST).entity("Path must consist of a asset guid and filename using the following format \"{assetGUID}/{filename.extension}\"").build();
-        var guid = strings[0];
-        var file = strings[1];
-
+    public Response get(@PathParam("guid") String guid, @PathParam("file") String file, @Context HttpHeaders headers) throws IOException, SftpException {
         // Read the asset from the asset service to obtain restricted status and remaining path for the asset
         AssetFull assetFull = assetService.getFullAsset(guid);
         // If there is no asset for the guid in asset service throw exception, as the client needs institution and collection to locate file
@@ -94,25 +99,13 @@ public class FtpsClient {
         if (!userHasAccess.get()) return Response.status(Response.Status.UNAUTHORIZED).entity("The requested asset has restricted access and the user does not have any of the required roles.").build();
 
         // Build full path for requested file
-        String path = "DaSSCoStorage/" + assetFull.institution + "/" + assetFull.collection + "/" + guid + "/" + file;
+        String localPath = sftpService.getLocalFolder(assetFull.institution, assetFull.collection, assetFull.guid);
+        String remotePath = sftpService.getRemotePath(assetFull.institution, assetFull.collection, assetFull.guid);
 
-        System.out.println(path);
-        // Check if the file is already cached
-        // TODO: Fix caching after demo
-        /*
-        InputStream cached = ftpsService.getCached("cached/" + path);
-        if (cached != null) {
-            // Refresh the time to live for the cached file
-            ftpsService.refreshTimeToLive(path);
-            return Response.ok(cached).build(); // Return the cached file
-        }
-         */
 
-        // Open the FTP service connection
-        ftpsService.open();
 
-        // Download the file from the FTP server
-        InputStream fileStream = ftpsService.downloadFile(path);
+        // Download the file from the SFTP server
+        InputStream fileStream = sftpService.getFileInputStream(remotePath + "/" + file);
         if (fileStream == null) {
             // File not found on the FTP server
             return Response.status(404).entity("The requested resource could not be found.").build();
@@ -120,14 +113,21 @@ public class FtpsClient {
 
         // Asynchronously start caching file
         CompletableFuture.supplyAsync(() -> {
-            ftpsService.cacheFile(path);
+            sftpService.cacheFile(remotePath + "/" + file, localPath + "/" + file);
             return null;
         });
 
         // Return the file as a response
-        return Response.ok(fileStream).build();
+        return Response.ok(fileStream).header("Content-Disposition", "attachment; filename=\"" + file + "\"")
+                .header("Content-Type", getContentTypeFromFileName(file)).build();
     }
 
+    public String getContentTypeFromFileName(String fileName) {
+        Tika tika = new Tika();
+        return tika.detect(fileName);
+    }
+
+/*
     @PUT
     @Path("upload/{path}")
     @Produces(MediaType.APPLICATION_JSON)
@@ -220,4 +220,5 @@ public class FtpsClient {
     public void removedExpiredCaches() {
         this.ftpsService.removedExpiredCaches();
     }
+ */
 }

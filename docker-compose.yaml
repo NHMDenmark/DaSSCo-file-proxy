@@ -1,8 +1,8 @@
 services:
-  keycloak:
-    extends:
-      file: ./docker-compose-keycloak.yaml
-      service: keycloak
+#  keycloak:
+#    extends:
+#      file: ./docker-compose-keycloak.yaml
+#      service: keycloak
   database:
     extends:
       file: ./docker-compose-postgres.yaml
@@ -11,4 +11,8 @@ services:
 #    extends:
 #      file: ./docker-compose-app.yaml
 #      service: app
+#  nginx:
+#    extends:
+#      file: ./docker-compose-nginx.yaml
+#      service: nginx
 

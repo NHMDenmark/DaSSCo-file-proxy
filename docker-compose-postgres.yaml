@@ -6,4 +6,4 @@ services:
       POSTGRES_USER: dassco_file_proxy
       POSTGRES_PASSWORD: dassco_file_proxy
     ports:
-      - "5433:5432"
+      - "5432:5432"

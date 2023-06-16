@@ -10,7 +10,7 @@
     </parent>
     <groupId>dk.northtech</groupId>
     <artifactId>dassco-file-proxy</artifactId>
-    <version>0.0.1-SNAPSHOT</version>
+    <version>1.0.0</version>
     <name>dassco-file-proxy</name>
     <description>dassco-file-proxy</description>
     <properties>
@@ -86,10 +86,20 @@
             <version>5.2.1</version>
         </dependency>
         <dependency>
+            <groupId>com.jcraft</groupId>
+            <artifactId>jsch</artifactId>
+            <version>0.1.55</version>
+        </dependency>
+        <dependency>
             <groupId>com.google.truth</groupId>
             <artifactId>truth</artifactId>
             <version>1.1.4</version>
             <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.tika</groupId>
+            <artifactId>tika-core</artifactId>
+            <version>1.27</version>
         </dependency>
 
 
@@ -98,6 +108,12 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-test</artifactId>
             <scope>test</scope>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.skyscreamer</groupId>
+                    <artifactId>jsonassert</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
         <dependency>
             <groupId>org.testcontainers</groupId>

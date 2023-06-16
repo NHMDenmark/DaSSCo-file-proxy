@@ -43,14 +43,29 @@ public class KeycloakService {
     public String getAdminToken() {
         // Given we have an access token
         if (keycloakToken != null) {
-            return keycloakToken.accessToken();
+            // Validate the expiration
+            // If it's almost ran out, try to refresh
+            if (keycloakToken.accessExpirationTimeStamp().isBefore(Instant.now().plusSeconds(30))) {
+                LOGGER.debug("KeycloakService: Attempt refresh!");
+                // If the refresh token is still valid, use refresh token
+                if (keycloakToken.refreshExpirationTimeStamp().isBefore(Instant.now().plusSeconds(30))) {
+                    LOGGER.debug("KeycloakService: Refreshing!");
+                    return refreshToken().accessToken();
+                }
+                // If it's not valid, then fall through and create a new token
+
+                // else: Just reuse the old access token.
+            } else {
+                LOGGER.debug("KeycloakService: Using old AccessToken for: " + (keycloakToken.accessExpirationTimeStamp().getEpochSecond() - Instant.now().plusSeconds(30).getEpochSecond()) + " seconds");
+                return keycloakToken.accessToken();
+            }
         }
         LOGGER.debug("KeycloakService: Create new AccessToken");
         return newAccessToken().accessToken();
     }
 
 
-    /*
+
     public KeycloakToken refreshToken() {
         try {
             HttpRequest request = HttpRequest.newBuilder()
@@ -75,8 +90,6 @@ public class KeycloakService {
         }
     }
 
-     */
-
     public KeycloakToken newAccessToken() {
         //Order new token token
         try {
@@ -87,7 +100,8 @@ public class KeycloakService {
                     .uri(new URI(this.keycloakAdminConfig.keycloakUrl() + "realms/" + this.keycloakAdminConfig.adminRealm() + "/protocol/openid-connect/token"))
                     .header("Content-Type", "application/x-www-form-urlencoded")
                     .header("Authorization", "Basic " + base64ClientCredentials)
-                    .POST(HttpRequest.BodyPublishers.ofString("grant_type=client_credentials"))
+                    .POST(HttpRequest.BodyPublishers.ofString("grant_type=client_credentials&"
+                            + "scope=openid offline_access"))
                     .build();
 
             HttpResponse<String> response = HttpClient.newBuilder()
@@ -95,6 +109,7 @@ public class KeycloakService {
                     .send(request, HttpResponse.BodyHandlers.ofString());
 
             String json = response.body();
+            System.out.println(json);
             keycloakToken = objectMapper.readValue(json, KeycloakToken.class);
             return keycloakToken;
         } catch (URISyntaxException | InterruptedException | IOException e) {

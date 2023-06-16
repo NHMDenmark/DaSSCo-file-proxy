@@ -1,7 +1,7 @@
 services:
   app:
     build: .
-    image: granddock/dassco_asset_service:1.0.0
+    image: granddock/dassco_file_proxy:1.0.2
     ports:
       - 8080:8080
     environment:
@@ -12,3 +12,10 @@ services:
       KEYCLOAK_REALM: dassco
       KEYCLOAK_AUTH_SERVER_URL: http://keycloak:8080/
       KEYCLOAK_RESOURCE: dassco-asset-service
+      ERDA_SERVER: io.erda.dk
+      ERDA_PORT: 21
+      ERDA_USER: christoffer@northtech.dk
+      ERDA_PASSWORD: qLJqjEga8zpAeYkwtlflLw==
+      SFTP_PRIVATE_KEY_LOCATION: /private_key
+    volumes:
+      - ./private_key:/private_key
