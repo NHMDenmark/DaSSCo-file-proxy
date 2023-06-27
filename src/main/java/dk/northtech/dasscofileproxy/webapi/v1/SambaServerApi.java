@@ -79,6 +79,14 @@ public class SambaServerApi {
         return new SambaInfo(null, null, "share_1234", null, SambaRequestStatus.OK_CLOSED, null);
     }
 
+    @POST
+    @Path("/openShare")
+    @Produces(MediaType.APPLICATION_JSON)
+    @Consumes(APPLICATION_JSON)
+    public SambaInfo openSambaServer(AssetSmbRequest assetSmbRequest) {
+        return new SambaInfo(null, null, "share_1234", null, SambaRequestStatus.OK_CLOSED, null);
+    }
+
 
     public List<UserAccess> setupUserAccess(List<String> users, Instant creationDateTime) {
         ArrayList<UserAccess> userAccess = new ArrayList<>();

@@ -1,5 +1,7 @@
 package dk.northtech.dasscofileproxy.configuration;
 
+import dk.northtech.dasscofileproxy.webapi.exceptionmappers.DasscoIllegalActionExceptionMapper;
+import dk.northtech.dasscofileproxy.webapi.exceptionmappers.IllegalArguementExceptionMapper;
 import dk.northtech.dasscofileproxy.webapi.v1.SFTPApi;
 import dk.northtech.dasscofileproxy.webapi.v1.SambaServerApi;
 import dk.northtech.dasscofileproxy.webapi.v1.FtpsClient;
@@ -16,8 +18,9 @@ public class JerseyApplicationConfig extends ResourceConfig {
     register(SambaServerApi.class);
     register(FtpsClient.class);
     register(SFTPApi.class);
-
     register(RolesAllowedDynamicFeature.class);
     register(ClientAbortInterceptor.class);
+    register(IllegalArguementExceptionMapper.class);
+    register(DasscoIllegalActionExceptionMapper.class);
   }
 }

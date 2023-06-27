@@ -59,7 +59,6 @@ public class SambaServerServiceTest {
     public void randomToken() {
         String first = sambaServerService.generateRandomToken();
         String second = sambaServerService.generateRandomToken();
-
         assertThat(first.equals(second)).isFalse();
     }
 
