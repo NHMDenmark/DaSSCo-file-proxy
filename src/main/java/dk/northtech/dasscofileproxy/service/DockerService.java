@@ -64,6 +64,7 @@ public class DockerService {
                         .withResources(new ResourceRequirements()
                                 .withLimits(new ResourceSpecs()
                                         .withNanoCPUs(100000000)
+                                        .withMemoryBytes(250000000)
                                 )
                         )
                         .withContainerSpec(new ContainerSpec()
@@ -87,7 +88,13 @@ public class DockerService {
                 .exec();
     }
 
-    public void removeContainer(String serviceName) {
-        dockerClient.removeServiceCmd(serviceName).exec();
+    public boolean removeContainer(String serviceName) {
+        List<com.github.dockerjava.api.model.Service> services = listServices(serviceName);
+        if(services.size() > 0) {
+            dockerClient.removeServiceCmd(serviceName).exec();
+            return true;
+        }
+        return false;
+
     }
 }

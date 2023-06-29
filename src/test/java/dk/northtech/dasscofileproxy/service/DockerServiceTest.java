@@ -39,13 +39,13 @@ public class DockerServiceTest {
 
     @DynamicPropertySource
     static void dataSourceProperties(DynamicPropertyRegistry registry) {
-        registry.add("datasource.jdbcUrl", () -> "jdbc:postgresql://localhost:" + postgreSQL.getFirstMappedPort() + "/dassco_file_proxy");
+//        registry.add("datasource.jdbcUrl", () -> "jdbc:postgresql://localhost:" + postgreSQL.getFirstMappedPort() + "/dassco_file_proxy");
     }
 
 
     @Test
     @Disabled
-    public void createSambaShare () {
+    public void createSambaShare() {
         SambaServer sambaServer = new SambaServer(null, dockerConfig.mountFolder() + "/share_16", true, 6060
                 , AccessType.WRITE, Instant.now(), List.of(new SharedAsset(null, null
                 , "guid", Instant.now())), List.of(new UserAccess(null, null
@@ -60,6 +60,6 @@ public class DockerServiceTest {
             throw new RuntimeException(e);
         }
 
-        dockerService.removeContainer("share_" + sambaServer.sambaServerId());
+//        dockerService.removeContainer("share_" + sambaServer.sambaServerId());
     }
 }
