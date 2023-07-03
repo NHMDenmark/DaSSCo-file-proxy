@@ -35,8 +35,8 @@ public class SambaServerService {
     public Long createSambaServer(SambaServer sambaServer) {
         return jdbi.inTransaction(h -> {
                     Long sambaServerId = h.createUpdate("""
-                                    insert into "samba_servers"(share_path, container_port, access, creation_datetime)
-                                    values(:sharePath, :containerPort, :access::access_type, :creationDatetime)""")
+                                    insert into "samba_servers"(share_path, host, container_port, access, creation_datetime)
+                                    values(:sharePath, :host, :containerPort, :access::access_type, :creationDatetime)""")
                             .bindMethods(sambaServer)
                             .executeAndReturnGeneratedKeys()
                             .mapTo(Long.class)
@@ -90,7 +90,9 @@ public class SambaServerService {
             SharedAssetList attach = h.attach(SharedAssetList.class);
             UserAccessList userAccessList = h.attach(UserAccessList.class);
             if(sambaServer != null) {
-                return new SambaServer(sambaServer, attach.getSambaServer(sambaServerId), userAccessList.getUserAccess(sambaServerId));
+                return new SambaServer(sambaServer,
+                        attach.getSharedAssetsBySambaServer(sambaServerId),
+                        userAccessList.getUserAccess(sambaServerId));
             } else {
                 return Optional.empty();
             }
@@ -113,7 +115,22 @@ public class SambaServerService {
         }
     }
 
-    public boolean disconnect(AssetSmbRequest assetSmbRequest, User user, boolean force) {
+    public SambaInfo disconnect(AssetSmbRequest assetSmbRequest, User user) {
+        Optional<SambaServer> sambaServerOpt = getSambaServer(assetSmbRequest.shareName());
+        if(sambaServerOpt.isPresent()) {
+            SambaServer sambaServer = sambaServerOpt.get();
+            checkAccess(sambaServer, user);
+            if(checkAccess(sambaServer, user)) {
+                dockerService.removeContainer(assetSmbRequest.shareName());
+            } else {
+                throw new DasscoIllegalActionException();
+            }
+            return new SambaInfo(null, null, "share_" + sambaServer.sambaServerId(), null, SambaRequestStatus.OK_DISCONNECTED, null);
+        }
+        return new SambaInfo(null, null, null, null, SambaRequestStatus.SMB_FAILED, "Share was not found");
+    }
+
+    public boolean close(AssetSmbRequest assetSmbRequest, User user, boolean force, boolean syncERDA) {
         Optional<SambaServer> sambaServerOpt = getSambaServer(assetSmbRequest.shareName());
         if(sambaServerOpt.isPresent()) {
             SambaServer sambaServer = sambaServerOpt.get();
@@ -123,14 +140,15 @@ public class SambaServerService {
             } else {
                 throw new DasscoIllegalActionException();
             }
+        } else if (force) {
+            dockerService.removeContainer(assetSmbRequest.shareName());
         }
         return false;
     }
 
-    public boolean close(AssetSmbRequest assetSmbRequest, User user, boolean force, boolean syncERDA) {
+    public boolean open(AssetSmbRequest assetSmbRequest, User user, boolean force, boolean syncERDA) {
         Optional<SambaServer> sambaServerOpt = getSambaServer(assetSmbRequest.shareName());
         if(sambaServerOpt.isPresent()) {
-            boolean userHasAccess = false;
             SambaServer sambaServer = sambaServerOpt.get();
             checkAccess(sambaServer, user);
             if(checkAccess(sambaServer, user)) {
@@ -161,8 +179,8 @@ interface SharedAssetList {
     @SqlQuery("SELECT count(1) FROM shared_assets")
     int countBatch();
 
-    @SqlQuery("SELECT * FROM shared_assets WHERE samba_server_id = :samba_server_id")
-    List<SharedAsset> getSambaServer(@Bind long sambaServerId);
+    @SqlQuery("SELECT * FROM shared_assets WHERE samba_server_id = :sambaServerId")
+    List<SharedAsset> getSharedAssetsBySambaServer(@Bind long sambaServerId);
 
     @SqlUpdate("DELETE FROM shared_assets WHERE samba_server_id = :samba_server_id")
     void deleteService(@Bind long sambaServerId);
@@ -183,7 +201,7 @@ interface UserAccessList {
     @SqlQuery("SELECT count(1) FROM shared_assets")
     int countBatch();
 
-    @SqlQuery("SELECT * FROM user_access WHERE samba_server_id = :samba_server_id")
+    @SqlQuery("SELECT * FROM user_access WHERE samba_server_id = :sambaServerId")
     List<UserAccess> getUserAccess(@Bind long sambaServerId);
 
     @SqlUpdate("DELETE FROM user_access WHERE samba_server_id = :samba_server_id")

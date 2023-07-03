@@ -7,5 +7,6 @@
   </preConditions>
 
   <include file="/liquibase/changelog-1.0.0.xml"/>
+  <include file="/liquibase/changelog-1.0.1.xml"/>
 
 </databaseChangeLog>

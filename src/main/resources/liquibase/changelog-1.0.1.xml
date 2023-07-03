@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.4.xsd">
+
+  <changeSet id="1.0.0:add_host_to_server" author="Thomas Skov Bornerup">
+    <addColumn tableName="samba_servers">
+      <column name="host" type="text">
+      </column>
+    </addColumn>
+  </changeSet>
+
+  <changeSet id="1.0.0:set_default_value" author="Thomas Skov Bornerup">
+    <sql>
+      UPDATE samba_servers SET host = '127.0.0.2'
+    </sql>
+    <addUniqueConstraint tableName="samba_servers" columnNames="container_port,host">
+
+    </addUniqueConstraint>
+    <addNotNullConstraint tableName="samba_servers" columnName="host"/>
+  </changeSet>
+
+  <changeSet id="VERSION-1.0.0" author="Christoffer Grand Hansen" context="default">
+    <tagDatabase tag="VERSION-1.0.0" />
+  </changeSet>
+
+</databaseChangeLog>
