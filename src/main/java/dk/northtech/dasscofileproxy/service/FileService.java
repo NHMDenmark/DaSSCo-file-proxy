@@ -23,6 +23,7 @@ public class FileService {
         return newDirectory.mkdirs();
     }
 
+
     public boolean removeShareFolder(Long shareId) {
         System.out.println(dockerConfig.mountFolder() + shareId);
         if (Strings.isNullOrEmpty(dockerConfig.mountFolder())) {

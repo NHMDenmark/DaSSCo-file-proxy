@@ -1,14 +1,22 @@
 package dk.northtech.dasscofileproxy.service;
 
 import com.jcraft.jsch.*;
+import dk.northtech.dasscofileproxy.configuration.DockerConfig;
 import dk.northtech.dasscofileproxy.configuration.SFTPConfig;
 import dk.northtech.dasscofileproxy.domain.AssetCache;
+import dk.northtech.dasscofileproxy.domain.AssetFull;
+import dk.northtech.dasscofileproxy.domain.InternalStatus;
+import dk.northtech.dasscofileproxy.domain.SambaServer;
 import jakarta.inject.Inject;
 import org.apache.commons.net.ftp.FTPFile;
 import org.apache.commons.net.ftp.FTPSClient;
 import org.jdbi.v3.core.Jdbi;
 import org.jdbi.v3.core.mapper.reflect.ConstructorMapper;
 import org.jdbi.v3.sqlobject.SqlObjectPlugin;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.context.annotation.Lazy;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
 import javax.sql.DataSource;
@@ -26,10 +34,22 @@ public class SFTPService {
     private final SFTPConfig sftpConfig;
     private final Jdbi jdbi;
     private Session session;
+    private FileService fileService;
+    private DockerConfig dockerConfig;
+    private AssetService assetService;
+    private SambaServerService sambaServerService;
+
+    private static final Logger logger = LoggerFactory.getLogger(SFTPService.class);
+
+    private final List<SambaServer> filesToMove = new ArrayList<>();
 
     @Inject
-    public SFTPService(SFTPConfig sftpConfig, DataSource dataSource) {
+    public SFTPService(SFTPConfig sftpConfig, DataSource dataSource, FileService fileService, DockerConfig dockerConfig, AssetService assetService, @Lazy SambaServerService sambaServerService) {
         this.sftpConfig = sftpConfig;
+        this.assetService = assetService;
+        this.fileService = fileService;
+        this.dockerConfig = dockerConfig;
+        this.sambaServerService = sambaServerService;
         this.jdbi = Jdbi.create(dataSource)
                 .installPlugin(new SqlObjectPlugin())
                 .registerRowMapper(ConstructorMapper.factory(AssetCache.class));
@@ -100,6 +120,48 @@ public class SFTPService {
         return fileList;
     }
 
+    @Scheduled(cron = "0 * * * * *")
+    public void moveToERDA() {
+        logger.info("checking files");
+        List<SambaServer> serversToFlush = new ArrayList<>();
+        List<String> failedGuids = new ArrayList<>();
+        synchronized (filesToMove) {
+            serversToFlush.addAll(filesToMove);
+            filesToMove.clear();
+        }
+        for(SambaServer sambaServer : serversToFlush) {
+            if(sambaServer.sharedAssets().size() != 1) {
+                logger.error("Share that didnt have exactly one asset cannot be moved to ERDA");
+            }
+            AssetFull fullAsset = assetService.getFullAsset(sambaServer.sharedAssets().get(0).assetGuid());
+            String localPath = dockerConfig.mountFolder() + "share_" + sambaServer.sambaServerId() + "/";
+            String remotePath = getRemotePath(fullAsset) + "/";
+            File newDirectory = new File(dockerConfig.mountFolder() + "share_" + sambaServer.sambaServerId());
+            File[] allFiles = newDirectory.listFiles();
+            if(allFiles == null) {
+                failedGuids.add(fullAsset.guid);
+                continue;
+            }
+            try {
+                if(!exists(remotePath)) {
+                    makeDirectory(remotePath);
+                }
+                for(File file: allFiles) {
+                    if(!file.isDirectory()){
+                        putFileToPath(localPath + file.getName(), remotePath + file.getName());
+                    }
+                }
+                assetService.completeAsset(fullAsset.guid);
+            } catch (Exception e) {
+                failedGuids.add(fullAsset.guid);
+                throw new RuntimeException(e);
+            }
+            for(String s: failedGuids) {
+                assetService.setFailedStatus(s, InternalStatus.ERDA_ERROR);
+            }
+        }
+    }
+
     public void putFileToPath(String localPath, String remotePath) throws JSchException {
         ChannelSftp channel = startChannelSftp();
         try {
@@ -157,6 +219,10 @@ public class SFTPService {
 
     public String getRemotePath(String institution, String collection, String assetGuid) {
         return sftpConfig.remoteFolder() + institution + "/" + collection + "/" + assetGuid;
+    }
+
+    public String getRemotePath(AssetFull asset) {
+        return sftpConfig.remoteFolder() + asset.institution + "/" + asset.collection + "/" + asset.guid;
     }
 
     public String getLocalFolder(String institution, String collection, String assetGuid) {

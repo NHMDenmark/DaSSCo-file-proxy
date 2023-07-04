@@ -75,7 +75,9 @@ public class SFTPApi {
 
             String authHeader = headers.getHeaderString(HttpHeaders.AUTHORIZATION);
             String[] parts = authHeader.split(" ");
-            if (parts.length!=2) return Response.status(Response.Status.BAD_REQUEST).entity("Authorization header must comply with basic auth headers, i.e. the headers content should look like \"Bearer {token}\".").build();
+            if (parts.length!=2) {
+                return Response.status(Response.Status.BAD_REQUEST).entity("Authorization header must comply with basic auth headers, i.e. the headers content should look like \"Bearer {token}\".").build();
+            }
             DecodedJWT jwt = JWT.decode(parts[1]);
 
             System.out.println(jwt.getClaims().get("realm_access").toString());
@@ -91,12 +93,18 @@ public class SFTPApi {
             }
 
             assetFull.restricted_access.forEach(role -> {
-                if (roles.contains(role.name())) userHasAccess.set(true);
+                if (roles.contains(role.name())) {
+                    userHasAccess.set(true);
+                }
             });
 
 
-        } else userHasAccess.set(true);
-        if (!userHasAccess.get()) return Response.status(Response.Status.UNAUTHORIZED).entity("The requested asset has restricted access and the user does not have any of the required roles.").build();
+        } else {
+            userHasAccess.set(true);
+        }
+        if (!userHasAccess.get()) {
+            return Response.status(Response.Status.UNAUTHORIZED).entity("The requested asset has restricted access and the user does not have any of the required roles.").build();
+        }
 
         // Build full path for requested file
         String localPath = sftpService.getLocalFolder(assetFull.institution, assetFull.collection, assetFull.guid);

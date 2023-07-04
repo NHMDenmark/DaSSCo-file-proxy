@@ -21,10 +21,12 @@ public class SambaServerService {
     private final Jdbi jdbi;
     private final DockerService dockerService;
     private final FileService fileService;
+    private final SFTPService sftpService;
     @Inject
-    public SambaServerService(DataSource dataSource, DockerService dockerService, FileService fileService) {
+    public SambaServerService(DataSource dataSource, DockerService dockerService, FileService fileService, SFTPService sftpService) {
         this.dockerService = dockerService;
         this.fileService = fileService;
+        this.sftpService = sftpService;
         this.jdbi = Jdbi.create(dataSource)
                 .installPlugin(new SqlObjectPlugin())
                 .registerRowMapper(ConstructorMapper.factory(SambaServer.class))
@@ -146,6 +148,8 @@ public class SambaServerService {
         return false;
     }
 
+
+
     public boolean open(AssetSmbRequest assetSmbRequest, User user, boolean force, boolean syncERDA) {
         Optional<SambaServer> sambaServerOpt = getSambaServer(assetSmbRequest.shareName());
         if(sambaServerOpt.isPresent()) {
@@ -170,6 +174,18 @@ public class SambaServerService {
         }
         return false;
     }
+
+    public void deleteSambaServier(long sambaServerId) {
+        jdbi.inTransaction(h -> {
+            SharedAssetList sharedAssetRepository = h.attach(SharedAssetList.class);
+            UserAccessList userAccessRepository = h.attach(UserAccessList.class);
+            SambaServerRepository sambaServerRepository = h.attach(SambaServerRepository.class);
+            userAccessRepository.deleteUserAccess(sambaServerId);
+            sharedAssetRepository.deleteSharedAsset(sambaServerId);
+            sambaServerRepository.deleteServer(sambaServerId);
+            return h;
+        });
+    }
 }
 
 interface SharedAssetList {
@@ -182,16 +198,8 @@ interface SharedAssetList {
     @SqlQuery("SELECT * FROM shared_assets WHERE samba_server_id = :sambaServerId")
     List<SharedAsset> getSharedAssetsBySambaServer(@Bind long sambaServerId);
 
-    @SqlUpdate("DELETE FROM shared_assets WHERE samba_server_id = :samba_server_id")
-    void deleteService(@Bind long sambaServerId);
-}
-
-interface SambaServerRepository {
-    @SqlQuery("SELECT * FROM samba_servers WHERE samba_server_id = :sambaServerId")
-    SambaServer getSambaServer(@Bind long sambaServerId);
-
-    @SqlUpdate("DELETE FROM samba_servers WHERE samba_server_id = :samba_server_id")
-    void deleteService(@Bind long sambaServerId);
+    @SqlUpdate("DELETE FROM shared_assets WHERE samba_server_id = :sambaServerId")
+    void deleteSharedAsset(@Bind long sambaServerId);
 }
 
 interface UserAccessList {
@@ -205,5 +213,5 @@ interface UserAccessList {
     List<UserAccess> getUserAccess(@Bind long sambaServerId);
 
     @SqlUpdate("DELETE FROM user_access WHERE samba_server_id = :samba_server_id")
-    void deleteService(@Bind long sambaServerId);
+    void deleteUserAccess(@Bind long sambaServerId);
 }

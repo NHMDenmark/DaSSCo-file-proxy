@@ -59,7 +59,8 @@ public class SambaServerApi {
                             .stream().map(asset -> asset.guid())
                             .collect(Collectors.toList())
                     , creationDatetime)
-                    , setupUserAccess(creationObj.users(), creationDatetime));
+                    , setupUserAccess(creationObj.users()
+                    , creationDatetime));
 
             sambaServer = new SambaServer(sambaServer, sambaServerService.createSambaServer(sambaServer));
 
@@ -76,12 +77,10 @@ public class SambaServerApi {
     @Path("/disconnectShare")
     @Produces(MediaType.APPLICATION_JSON)
     @Consumes(APPLICATION_JSON)
-    @RolesAllowed({SecurityRoles.USER, SecurityRoles.ADMIN})
+    @RolesAllowed({SecurityRoles.USER, SecurityRoles.ADMIN, SecurityRoles.ADMIN})
     public SambaInfo disconnectSambaServer(AssetSmbRequest assetSmbRequest, @Context HttpHeaders httpHeaders, @Context SecurityContext securityContext) {
-        JwtAuthenticationToken tkn = (JwtAuthenticationToken) securityContext.getUserPrincipal();
-        boolean adminAction = securityContext.isUserInRole(SecurityRoles.ADMIN);
-        User user = UserMapper.from(tkn);
-        sambaServerService.disconnect(assetSmbRequest, user, adminAction);
+        User user = UserMapper.from(securityContext);
+        sambaServerService.disconnect(assetSmbRequest, user);
 //        dockerService.removeContainer(assetSmbRequest.shareName());
         return new SambaInfo(null, null, "share_1234", null, SambaRequestStatus.OK_DISCONNECTED, null);
     }
@@ -90,7 +89,12 @@ public class SambaServerApi {
     @Path("/closeShare")
     @Produces(MediaType.APPLICATION_JSON)
     @Consumes(APPLICATION_JSON)
-    public SambaInfo closeSambaServer(AssetSmbRequest assetSmbRequest, @QueryParam("syncERDA") Boolean syncERDA) {
+    public SambaInfo closeSambaServer(AssetSmbRequest assetSmbRequest
+            , @QueryParam("syncERDA") Boolean syncERDA
+            , @Context SecurityContext securityContext) {
+        boolean adminAction = securityContext.isUserInRole(SecurityRoles.ADMIN);
+        User user = UserMapper.from(securityContext);
+        sambaServerService.close(assetSmbRequest, user, adminAction, syncERDA);
         return new SambaInfo(null, null, "share_1234", null, SambaRequestStatus.OK_CLOSED, null);
     }
 
@@ -98,8 +102,11 @@ public class SambaServerApi {
     @Path("/openShare")
     @Produces(MediaType.APPLICATION_JSON)
     @Consumes(APPLICATION_JSON)
-    public SambaInfo openSambaServer(AssetSmbRequest assetSmbRequest) {
-        return new SambaInfo(null, null, "share_1234", null, SambaRequestStatus.OK_CLOSED, null);
+    public SambaInfo openSambaServer(AssetSmbRequest assetSmbRequest
+            , @Context SecurityContext securityContext) {
+        User user = UserMapper.from(securityContext);
+        sambaServerService.open(assetSmbRequest, user, false, false);
+        return new SambaInfo(null, null, "share_1234", null, SambaRequestStatus.OK_OPEN, null);
     }
 
 
