@@ -89,6 +89,12 @@ public class SambaServerService {
 
             sambaServer = new SambaServer(sambaServer, createSambaServer(sambaServer));
 
+            String shareFolder = fileService.createShareFolder(sambaServer.sambaServerId());
+            try {
+
+            } catch (Exception e) {
+
+            }
             dockerService.startService(sambaServer);
             return new SambaInfo(sambaServer.containerPort(), "127.0.0.2", "share_" + sambaServer.sambaServerId(), sambaServer.userAccess().get(0).token(), SambaRequestStatus.OK_OPEN, null);
 //            return new SambaConnection("127.0.0.2", sambaServer.containerPort(), "share_" + sambaServer.sambaServerId(), sambaServer.userAccess().get(0).token());
