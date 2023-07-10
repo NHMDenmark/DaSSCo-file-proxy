@@ -25,7 +25,9 @@ public class FileService {
     public String createShareFolder(Long shareId) {
         System.out.println(dockerConfig.mountFolder() + shareId);
         File newDirectory = new File(dockerConfig.mountFolder() + "share_" + shareId);
-        newDirectory.mkdirs();
+        if(!newDirectory.exists()){
+            newDirectory.mkdirs();
+        }
         return newDirectory.getPath();
     }
 
