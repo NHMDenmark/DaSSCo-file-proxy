@@ -42,35 +42,10 @@ public class SambaServerApi {
     @Path("/createShare")
     @Produces(MediaType.APPLICATION_JSON)
     @Consumes(APPLICATION_JSON)
-    public SambaInfo createSambaServer(CreationObj creationObj) {
-        Instant creationDatetime = Instant.now();
-        Integer port = findUnusedPort();
-        if (port == null) {
-            throw new BadRequestException("All ports are in use");
-        }
-        if (creationObj.users().size() > 0 && creationObj.assets().size() > 0) {
-            SambaServer sambaServer = new SambaServer(null
-                    , dockerConfig.mountFolder()
-                    , true
-                    , port//TODO parents
-                    , AccessType.WRITE
-                    , creationDatetime
-                    , setupSharedAssets(creationObj.assets()
-                            .stream().map(asset -> asset.guid())
-                            .collect(Collectors.toList())
-                    , creationDatetime)
-                    , setupUserAccess(creationObj.users()
-                    , creationDatetime));
+    public SambaInfo createSambaServer(CreationObj creationObj, @Context SecurityContext securityContext) {
+        User user = UserMapper.from(securityContext);
+        return sambaServerService.createSambaServer(creationObj, user);
 
-            sambaServer = new SambaServer(sambaServer, sambaServerService.createSambaServer(sambaServer));
-
-            fileService.createShareFolder(sambaServer.sambaServerId());
-            dockerService.startService(sambaServer);
-            return new SambaInfo(sambaServer.containerPort(), "127.0.0.2", "share_" + sambaServer.sambaServerId(), sambaServer.userAccess().get(0).token(), SambaRequestStatus.OK_OPEN, null);
-//            return new SambaConnection("127.0.0.2", sambaServer.containerPort(), "share_" + sambaServer.sambaServerId(), sambaServer.userAccess().get(0).token());
-        } else {
-            throw new BadRequestException("You have to provide users in this call");
-        }
     }
 
     @POST
@@ -78,11 +53,9 @@ public class SambaServerApi {
     @Produces(MediaType.APPLICATION_JSON)
     @Consumes(APPLICATION_JSON)
     @RolesAllowed({SecurityRoles.USER, SecurityRoles.ADMIN, SecurityRoles.ADMIN})
-    public SambaInfo disconnectSambaServer(AssetSmbRequest assetSmbRequest, @Context HttpHeaders httpHeaders, @Context SecurityContext securityContext) {
+    public SambaInfo disconnectSambaServer(AssetSmbRequest assetSmbRequest, @Context SecurityContext securityContext) {
         User user = UserMapper.from(securityContext);
-        sambaServerService.disconnect(assetSmbRequest, user);
-//        dockerService.removeContainer(assetSmbRequest.shareName());
-        return new SambaInfo(null, null, "share_1234", null, SambaRequestStatus.OK_DISCONNECTED, null);
+        return sambaServerService.disconnect(assetSmbRequest, user);
     }
 
     @POST
@@ -105,42 +78,7 @@ public class SambaServerApi {
     public SambaInfo openSambaServer(AssetSmbRequest assetSmbRequest
             , @Context SecurityContext securityContext) {
         User user = UserMapper.from(securityContext);
-        sambaServerService.open(assetSmbRequest, user, false, false);
+        sambaServerService.open(assetSmbRequest, user);
         return new SambaInfo(null, null, "share_1234", null, SambaRequestStatus.OK_OPEN, null);
     }
-
-
-    public List<UserAccess> setupUserAccess(List<String> users, Instant creationDateTime) {
-        ArrayList<UserAccess> userAccess = new ArrayList<>();
-
-        users.forEach(username -> {
-            userAccess.add(new UserAccess(null, null, username, sambaServerService.generateRandomToken(), creationDateTime));
-        });
-
-        return userAccess;
-    }
-
-    public List<SharedAsset> setupSharedAssets(List<String> assetGuids, Instant creationDateTime) {
-        ArrayList<SharedAsset> sharedAssets = new ArrayList<>();
-
-        assetGuids.forEach(assetGuid -> {
-            sharedAssets.add(new SharedAsset(null, null, assetGuid, creationDateTime));
-        });
-
-        return sharedAssets;
-    }
-
-    public Integer findUnusedPort() {
-        List<Integer> usedPorts = sambaServerService.findAllUsedPorts();
-
-        for (Integer i = dockerConfig.portRangeStart(); i < dockerConfig.portRangeEnd(); i++) {
-            if (!usedPorts.contains(i)) {
-                System.out.println(i);
-                return i;
-            }
-        }
-
-        return null;
-    }
-
 }

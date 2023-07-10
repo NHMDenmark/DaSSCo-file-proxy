@@ -38,6 +38,6 @@ public class FileServiceTest {
     @Test
     @Disabled
     public void test () {
-        assertThat(fileService.createShareFolder(16L)).isTrue();
+        assertThat(fileService.createShareFolder(16L)).isNull();
     }
 }

@@ -7,6 +7,7 @@ import dk.northtech.dasscofileproxy.domain.AssetCache;
 import dk.northtech.dasscofileproxy.domain.AssetFull;
 import dk.northtech.dasscofileproxy.domain.InternalStatus;
 import dk.northtech.dasscofileproxy.domain.SambaServer;
+import jakarta.annotation.Nullable;
 import jakarta.inject.Inject;
 import org.apache.commons.net.ftp.FTPFile;
 import org.apache.commons.net.ftp.FTPSClient;
@@ -129,8 +130,8 @@ public class SFTPService {
             serversToFlush.addAll(filesToMove);
             filesToMove.clear();
         }
-        for(SambaServer sambaServer : serversToFlush) {
-            if(sambaServer.sharedAssets().size() != 1) {
+        for (SambaServer sambaServer : serversToFlush) {
+            if (sambaServer.sharedAssets().size() != 1) {
                 logger.error("Share that didnt have exactly one asset cannot be moved to ERDA");
             }
             AssetFull fullAsset = assetService.getFullAsset(sambaServer.sharedAssets().get(0).assetGuid());
@@ -138,16 +139,16 @@ public class SFTPService {
             String remotePath = getRemotePath(fullAsset) + "/";
             File newDirectory = new File(dockerConfig.mountFolder() + "share_" + sambaServer.sambaServerId());
             File[] allFiles = newDirectory.listFiles();
-            if(allFiles == null) {
+            if (allFiles == null) {
                 failedGuids.add(fullAsset.guid);
                 continue;
             }
             try {
-                if(!exists(remotePath)) {
+                if (!exists(remotePath)) {
                     makeDirectory(remotePath);
                 }
-                for(File file: allFiles) {
-                    if(!file.isDirectory()){
+                for (File file : allFiles) {
+                    if (!file.isDirectory()) {
                         putFileToPath(localPath + file.getName(), remotePath + file.getName());
                     }
                 }
@@ -156,7 +157,7 @@ public class SFTPService {
                 failedGuids.add(fullAsset.guid);
                 throw new RuntimeException(e);
             }
-            for(String s: failedGuids) {
+            for (String s : failedGuids) {
                 assetService.setFailedStatus(s, InternalStatus.ERDA_ERROR);
             }
         }
@@ -213,7 +214,6 @@ public class SFTPService {
     public void downloadFile(String path, String destination) throws IOException, SftpException {
         ChannelSftp channel = startChannelSftp();
         channel.get(path, destination);
-
         disconnect(channel);
     }
 
@@ -227,6 +227,39 @@ public class SFTPService {
 
     public String getLocalFolder(String institution, String collection, String assetGuid) {
         return sftpConfig.localFolder() + institution + "/" + collection + "/" + assetGuid;
+    }
+
+    public void initAssetShare(String sharePath, String assetGuid) {
+        AssetFull asset = assetService.getFullAsset(assetGuid);
+        String remotePath = getRemotePath(asset);
+        try {
+            Collection<String> fileNames = listFiles(remotePath);
+            for (String s : fileNames) {
+                if (!Files.exists(Path.of(sharePath + "/" + s))) {
+
+                logger.info("Downloading from " + remotePath + "/" + s);
+                downloadFile(remotePath + "/" + s, sharePath);
+                }
+            }
+            //If asset have parent download into parent folder
+            if (asset.parent_guid != null) {
+                AssetFull parent = assetService.getFullAsset(asset.parent_guid);
+                String parentPath = getRemotePath(parent) + "/";
+                Collection<String> parentFileNames = listFiles(remotePath);
+                File parentDir = new File(sharePath + "/parent/");
+                if(!parentDir.exists()) {
+                    parentDir.mkdir();
+                }
+                for (String s : parentFileNames) {
+                    if (!Files.exists(Path.of(sharePath + "/" + s))) {
+                        logger.info("Downloading from " + parentPath + s);
+                        downloadFile(parentPath + s, sharePath);
+                    }
+                }
+            }
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
     }
 
     public void cacheFile(String remotePath, String localPath) {
