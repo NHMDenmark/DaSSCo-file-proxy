@@ -68,7 +68,7 @@ public class SambaServerApi {
         boolean adminAction = securityContext.isUserInRole(SecurityRoles.ADMIN);
         User user = UserMapper.from(securityContext);
         sambaServerService.close(assetSmbRequest, user, adminAction, syncERDA);
-        return new SambaInfo(null, null, "share_1234", null, SambaRequestStatus.OK_CLOSED, null);
+        return new SambaInfo(null, null, assetSmbRequest.shareName(), null, SambaRequestStatus.OK_CLOSED, null);
     }
 
     @POST
@@ -78,7 +78,7 @@ public class SambaServerApi {
     public SambaInfo openSambaServer(AssetSmbRequest assetSmbRequest
             , @Context SecurityContext securityContext) {
         User user = UserMapper.from(securityContext);
-        sambaServerService.open(assetSmbRequest, user);
-        return new SambaInfo(null, null, "share_1234", null, SambaRequestStatus.OK_OPEN, null);
+        SambaServer open = sambaServerService.open(assetSmbRequest, user);
+        return new SambaInfo(open.containerPort(), dockerConfig.dockerHost(), "share_" + open.sambaServerId(), open.userAccess().get(0).token(), SambaRequestStatus.OK_OPEN, null);
     }
 }

@@ -13,6 +13,8 @@ import org.jdbi.v3.sqlobject.customizer.BindMethods;
 import org.jdbi.v3.sqlobject.statement.SqlBatch;
 import org.jdbi.v3.sqlobject.statement.SqlQuery;
 import org.jdbi.v3.sqlobject.statement.SqlUpdate;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import javax.sql.DataSource;
@@ -27,6 +29,7 @@ public class SambaServerService {
     private final DockerConfig dockerConfig;
     private final FileService fileService;
     private final SFTPService sftpService;
+    private static final Logger logger = LoggerFactory.getLogger(SambaServerService.class);
     @Inject
     public SambaServerService(DataSource dataSource, DockerService dockerService, FileService fileService, SFTPService sftpService, DockerConfig dockerConfig) {
         this.dockerService = dockerService;
@@ -42,24 +45,26 @@ public class SambaServerService {
 
     public Long createSambaServer(SambaServer sambaServer) {
         return jdbi.inTransaction(h -> {
+
                     Long sambaServerId = h.createUpdate("""
                                     insert into "samba_servers"(share_path, host, container_port, access, creation_datetime)
-                                    values(:sharePath, :host, :containerPort, :access::access_type, :creationDatetime)""")
+                                    values(:sharePath, :host ,:containerPort, :access::access_type, :creationDatetime)""")
+                            .bind("host", dockerConfig.nodeHost())
                             .bindMethods(sambaServer)
                             .executeAndReturnGeneratedKeys()
                             .mapTo(Long.class)
                             .one();
 
                     if (sambaServer.sharedAssets().size() > 0) {
-                        SharedAssetList batch = h.attach(SharedAssetList.class);
+                        SharedAssetList sharedAssetRepository = h.attach(SharedAssetList.class);
 
-                        batch.fillBatch(sambaServerId, sambaServer.sharedAssets());
+                        sharedAssetRepository.fillBatch(sambaServerId, sambaServer.sharedAssets());
                     }
 
                     if (sambaServer.userAccess().size() > 0) {
-                        UserAccessList batch = h.attach(UserAccessList.class);
+                        UserAccessList userAccessRepository = h.attach(UserAccessList.class);
 
-                        batch.fillBatch(sambaServerId, sambaServer.userAccess());
+                        userAccessRepository.fillBatch(sambaServerId, sambaServer.userAccess());
                     }
 
                     return sambaServerId;
@@ -91,12 +96,14 @@ public class SambaServerService {
 
             String shareFolder = fileService.createShareFolder(sambaServer.sambaServerId());
             try {
-
+                if(creationObj.assets().size() == 1) {
+                    sftpService.initAssetShare(shareFolder, creationObj.assets().get(0).guid());
+                }
             } catch (Exception e) {
-
+                logger.error("Failed to init asset share", e);
             }
             dockerService.startService(sambaServer);
-            return new SambaInfo(sambaServer.containerPort(), "127.0.0.2", "share_" + sambaServer.sambaServerId(), sambaServer.userAccess().get(0).token(), SambaRequestStatus.OK_OPEN, null);
+            return new SambaInfo(sambaServer.containerPort(), dockerConfig.nodeHost(), "share_" + sambaServer.sambaServerId(), sambaServer.userAccess().get(0).token(), SambaRequestStatus.OK_OPEN, null);
 //            return new SambaConnection("127.0.0.2", sambaServer.containerPort(), "share_" + sambaServer.sambaServerId(), sambaServer.userAccess().get(0).token());
         } else {
             throw new BadRequestException("You have to provide users in this call");

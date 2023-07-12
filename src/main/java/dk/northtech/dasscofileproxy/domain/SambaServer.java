@@ -6,8 +6,14 @@ import org.jdbi.v3.core.mapper.reflect.JdbiConstructor;
 import java.time.Instant;
 import java.util.List;
 
-public record SambaServer (Long sambaServerId, String sharePath, boolean shared, Integer containerPort
-        , AccessType access, Instant creationDatetime, @Nullable List<SharedAsset> sharedAssets, @Nullable List<UserAccess> userAccess) {
+public record SambaServer (Long sambaServerId
+        , String sharePath
+        , boolean shared
+        , Integer containerPort
+        , AccessType access
+        , Instant creationDatetime
+        , @Nullable List<SharedAsset> sharedAssets
+        , @Nullable List<UserAccess> userAccess) {
 
     @JdbiConstructor
     public SambaServer {

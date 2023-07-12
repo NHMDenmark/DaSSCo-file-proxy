@@ -9,6 +9,7 @@ import jakarta.inject.Inject;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 @Service
@@ -63,10 +64,11 @@ public class DockerService {
                 .withTaskTemplate(new TaskSpec()
                         .withResources(new ResourceRequirements()
                                 .withLimits(new ResourceSpecs()
-                                        .withNanoCPUs(100000000)
+                                        .withNanoCPUs(500000000)
                                         .withMemoryBytes(250000000)
                                 )
                         )
+                        .withPlacement(new ServicePlacement().withConstraints(List.of("node.hostname == " + dockerConfig.nodeHost())))
                         .withContainerSpec(new ContainerSpec()
                                 .withImage("dperson/samba:latest")
                                 .withEnv(environments)
