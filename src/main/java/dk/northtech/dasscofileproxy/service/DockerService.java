@@ -37,7 +37,7 @@ public class DockerService {
                 .withProtocol(PortConfigProtocol.TCP)
                 .withPublishedPort(sambaServer.containerPort())
                 .withTargetPort(445)
-                .withPublishMode(PortConfig.PublishMode.ingress)
+                .withPublishMode(PortConfig.PublishMode.host)
         );
 
         StringBuilder sb = new StringBuilder();
@@ -62,7 +62,8 @@ public class DockerService {
         dockerClient.createServiceCmd(new ServiceSpec()
                 .withName("share_" + sambaServer.sambaServerId())
                 .withTaskTemplate(new TaskSpec()
-                        .withResources(new ResourceRequirements()
+                        .withResources(
+                                new ResourceRequirements()
                                 .withLimits(new ResourceSpecs()
                                         .withNanoCPUs(500000000)
                                         .withMemoryBytes(250000000)
@@ -74,6 +75,8 @@ public class DockerService {
                                 .withEnv(environments)
                                 .withArgs(args)
                                 .withMounts(volumes)
+//                                .withTty(true)
+//                                .withOpenStdin(true)
                         )
                 )
                 .withEndpointSpec(new EndpointSpec()

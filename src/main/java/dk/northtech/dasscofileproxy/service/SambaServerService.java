@@ -86,7 +86,8 @@ public class SambaServerService {
                     , AccessType.WRITE
                     , creationDatetime
                     , setupSharedAssets(creationObj.assets()
-                            .stream().map(asset -> asset.guid())
+                            .stream()
+                            .map(asset -> asset.guid())
                             .collect(Collectors.toList())
                     , creationDatetime)
                     , setupUserAccess(creationObj.users()
