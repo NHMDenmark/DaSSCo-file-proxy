@@ -6,11 +6,7 @@ import jakarta.inject.Inject;
 import org.springframework.stereotype.Service;
 
 import java.io.File;
-import java.io.IOException;
-import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.Comparator;
-import java.util.stream.Stream;
 
 @Service
 public class FileService {
@@ -26,7 +22,7 @@ public class FileService {
         System.out.println(dockerConfig.mountFolder() + shareId);
         File newDirectory = new File( "/volume/share_" + shareId);
         if(!newDirectory.exists()){
-            boolean mkdirs = newDirectory.mkdirs();
+            newDirectory.mkdirs();
         }
         return newDirectory.getPath();
     }
@@ -38,14 +34,15 @@ public class FileService {
             throw new RuntimeException("Cannot delete share folder, mountFolder is null");
         }
         Path path = Path.of(dockerConfig.mountFolder() + "share_" + shareId);
-        try (Stream<Path> walk = Files.walk(path)) {
-            walk.sorted(Comparator.reverseOrder())
-                    .map(Path::toFile)
-                    .peek(System.out::println)
-                    .forEach(File::delete);
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
+        deleteAll(path.toFile());
+//        try (Stream<Path> walk = Files.walk(path)) {
+//            walk.sorted(Comparator.reverseOrder())
+//                    .map(Path::toFile)
+//                    .peek(System.out::println)
+//                    .forEach(File::delete);
+//        } catch (IOException e) {
+//            throw new RuntimeException(e);
+//        }
 //        File[] allFiles = newDirectory.listFiles();
 //        if (allFiles != null) {
 //            for (File file : allFiles) {
@@ -55,5 +52,13 @@ public class FileService {
 //            }
 //        }
 //        return newDirectory.delete();
+    }
+
+    void deleteAll(File dir) {
+        for (File file: dir.listFiles()) {
+            if (file.isDirectory())
+                deleteAll(file);
+            file.delete();
+        }
     }
 }
