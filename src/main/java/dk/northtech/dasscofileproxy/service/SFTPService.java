@@ -3,14 +3,8 @@ package dk.northtech.dasscofileproxy.service;
 import com.jcraft.jsch.*;
 import dk.northtech.dasscofileproxy.configuration.DockerConfig;
 import dk.northtech.dasscofileproxy.configuration.SFTPConfig;
-import dk.northtech.dasscofileproxy.domain.AssetCache;
-import dk.northtech.dasscofileproxy.domain.AssetFull;
-import dk.northtech.dasscofileproxy.domain.InternalStatus;
-import dk.northtech.dasscofileproxy.domain.SambaServer;
-import jakarta.annotation.Nullable;
+import dk.northtech.dasscofileproxy.domain.*;
 import jakarta.inject.Inject;
-import org.apache.commons.net.ftp.FTPFile;
-import org.apache.commons.net.ftp.FTPSClient;
 import org.jdbi.v3.core.Jdbi;
 import org.jdbi.v3.core.mapper.reflect.ConstructorMapper;
 import org.jdbi.v3.sqlobject.SqlObjectPlugin;
@@ -24,10 +18,8 @@ import javax.sql.DataSource;
 import java.io.*;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
 import java.time.LocalDateTime;
 import java.util.*;
-import java.util.stream.Collectors;
 
 
 @Service
@@ -121,13 +113,22 @@ public class SFTPService {
         return fileList;
     }
 
+    public void moveToERDA(SambaServer sambaserver) {
+        if(sambaserver.sharedAssets().size() == 1) {
+            this.filesToMove.add(sambaserver);
+        } else {
+            throw new IllegalArgumentException("Cannot move share with multiple assets to ERDA");
+        }
+
+    }
+
     @Scheduled(cron = "0 * * * * *")
-    public void moveToERDA() {
+    public void moveFiles() {
         logger.info("checking files");
-        List<SambaServer> serversToFlush = new ArrayList<>();
+        List<SambaServer> serversToFlush;
         List<String> failedGuids = new ArrayList<>();
         synchronized (filesToMove) {
-            serversToFlush.addAll(filesToMove);
+            serversToFlush = new ArrayList<>(filesToMove);
             filesToMove.clear();
         }
         for (SambaServer sambaServer : serversToFlush) {
