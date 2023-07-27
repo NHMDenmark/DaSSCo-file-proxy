@@ -14,6 +14,7 @@ import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.junit.jupiter.Container;
+import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.utility.DockerImageName;
 
 import java.time.Instant;
@@ -23,6 +24,7 @@ import static com.google.common.truth.Truth.assertThat;
 
 @SpringBootTest
 @DirtiesContext
+@Testcontainers
 @Disabled
 public class DockerServiceTest {
     @Inject
@@ -39,7 +41,7 @@ public class DockerServiceTest {
 
     @DynamicPropertySource
     static void dataSourceProperties(DynamicPropertyRegistry registry) {
-//        registry.add("datasource.jdbcUrl", () -> "jdbc:postgresql://localhost:" + postgreSQL.getFirstMappedPort() + "/dassco_file_proxy");
+        registry.add("datasource.jdbcUrl", () -> "jdbc:postgresql://localhost:" + postgreSQL.getFirstMappedPort() + "/dassco_file_proxy");
     }
 
 
