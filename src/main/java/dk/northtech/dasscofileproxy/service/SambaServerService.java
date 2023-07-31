@@ -187,8 +187,11 @@ public class SambaServerService {
         Optional<SambaServer> sambaServerOpt = getSambaServer(assetSmbRequest.shareName());
         if(sambaServerOpt.isPresent()) {
             SambaServer sambaServer = sambaServerOpt.get();
-            checkAccess(sambaServer, user);
+//            checkAccess(sambaServer, user);
             if(checkAccess(sambaServer, user)) {
+                if(syncERDA) {
+                    sftpService.moveToERDA(sambaServer);
+                }
                 return dockerService.removeContainer(assetSmbRequest.shareName());
             } else {
                 throw new DasscoIllegalActionException();
