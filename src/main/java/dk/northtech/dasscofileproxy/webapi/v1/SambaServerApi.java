@@ -62,13 +62,13 @@ public class SambaServerApi {
     @Path("/closeShare")
     @Produces(MediaType.APPLICATION_JSON)
     @Consumes(APPLICATION_JSON)
-    public SambaInfo closeSambaServer(AssetSmbRequest assetSmbRequest
+    public SambaInfo closeSambaServer(AssetUpdateRequest assetUpdateRequest
             , @QueryParam("syncERDA") Boolean syncERDA
             , @Context SecurityContext securityContext) {
         boolean adminAction = securityContext.isUserInRole(SecurityRoles.ADMIN);
         User user = UserMapper.from(securityContext);
-        sambaServerService.close(assetSmbRequest, user, adminAction, syncERDA);
-        return new SambaInfo(null, null, assetSmbRequest.shareName(), null, SambaRequestStatus.OK_CLOSED, null);
+        sambaServerService.close(assetUpdateRequest, user, adminAction, syncERDA);
+        return new SambaInfo(null, null, assetUpdateRequest.shareName(), null, SambaRequestStatus.OK_CLOSED, null);
     }
 
     @POST

@@ -7,6 +7,7 @@ import org.springframework.stereotype.Service;
 
 import java.io.File;
 import java.nio.file.Path;
+import java.util.List;
 
 @Service
 public class FileService {
@@ -29,29 +30,23 @@ public class FileService {
 
 
     public void removeShareFolder(Long shareId) {
-        System.out.println(dockerConfig.mountFolder() + shareId);
         if (Strings.isNullOrEmpty(dockerConfig.mountFolder())) {
             throw new RuntimeException("Cannot delete share folder, mountFolder is null");
         }
         Path path = Path.of(dockerConfig.mountFolder() + "share_" + shareId);
         deleteAll(path.toFile());
-//        try (Stream<Path> walk = Files.walk(path)) {
-//            walk.sorted(Comparator.reverseOrder())
-//                    .map(Path::toFile)
-//                    .peek(System.out::println)
-//                    .forEach(File::delete);
-//        } catch (IOException e) {
-//            throw new RuntimeException(e);
-//        }
-//        File[] allFiles = newDirectory.listFiles();
-//        if (allFiles != null) {
-//            for (File file : allFiles) {
-//                if (!file.isDirectory()) {
-//                    file.delete();
-//                }
-//            }
-//        }
-//        return newDirectory.delete();
+    }
+
+    public void listfiles(File directory, List<File> files) {
+        File[] fList = directory.listFiles();
+        if(fList != null)
+            for (File file : fList) {
+                if (file.isFile()) {
+                    files.add(file);
+                } else if (file.isDirectory()) {
+                    listfiles(new File(file.getAbsolutePath()), files);
+                }
+            }
     }
 
     void deleteAll(File dir) {
@@ -60,5 +55,6 @@ public class FileService {
                 deleteAll(file);
             file.delete();
         }
+        dir.delete();
     }
 }

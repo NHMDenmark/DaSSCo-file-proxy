@@ -183,14 +183,14 @@ public class SambaServerService {
         return new SambaInfo(null, null, null, null, SambaRequestStatus.SMB_FAILED, "Share was not found");
     }
 
-    public boolean close(AssetSmbRequest assetSmbRequest, User user, boolean force, boolean syncERDA) {
+    public boolean close(AssetUpdateRequest assetSmbRequest, User user, boolean force, boolean syncERDA) {
         Optional<SambaServer> sambaServerOpt = getSambaServer(assetSmbRequest.shareName());
         if(sambaServerOpt.isPresent()) {
             SambaServer sambaServer = sambaServerOpt.get();
 //            checkAccess(sambaServer, user);
             if(checkAccess(sambaServer, user)) {
                 if(syncERDA) {
-                    sftpService.moveToERDA(sambaServer);
+                    sftpService.moveToERDA(new SambaToMove(sambaServer, assetSmbRequest));
                 }
                 return dockerService.removeContainer(assetSmbRequest.shareName());
             } else {

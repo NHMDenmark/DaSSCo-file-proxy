@@ -34,7 +34,7 @@ public class SFTPService {
 
     private static final Logger logger = LoggerFactory.getLogger(SFTPService.class);
 
-    private final List<SambaServer> filesToMove = new ArrayList<>();
+    private final List<SambaToMove> filesToMove = new ArrayList<>();
 
     @Inject
     public SFTPService(SFTPConfig sftpConfig, DataSource dataSource, FileService fileService, DockerConfig dockerConfig, AssetService assetService, @Lazy SambaServerService sambaServerService) {
@@ -113,9 +113,9 @@ public class SFTPService {
         return fileList;
     }
 
-    public void moveToERDA(SambaServer sambaserver) {
-        if(sambaserver.sharedAssets().size() == 1) {
-            this.filesToMove.add(sambaserver);
+    public void moveToERDA(SambaToMove sambaToMove) {
+        if(sambaToMove.sambaServer.sharedAssets().size() == 1) {
+            this.filesToMove.add(sambaToMove);
         } else {
             throw new IllegalArgumentException("Cannot move share with multiple assets to ERDA");
         }
@@ -125,21 +125,22 @@ public class SFTPService {
     @Scheduled(cron = "0 * * * * *")
     public void moveFiles() {
         logger.info("checking files");
-        List<SambaServer> serversToFlush;
+        List<SambaToMove> serversToFlush;
         List<String> failedGuids = new ArrayList<>();
         synchronized (filesToMove) {
             serversToFlush = new ArrayList<>(filesToMove);
             filesToMove.clear();
         }
-        for (SambaServer sambaServer : serversToFlush) {
+        for (SambaToMove sambaToMove : serversToFlush) {
+            SambaServer sambaServer = sambaToMove.sambaServer;
             if (sambaServer.sharedAssets().size() != 1) {
-                logger.error("Share that didnt have exactly one asset cannot be moved to ERDA");
+                logger.error("Share that dont have exactly one asset cannot be moved to ERDA");
             }
             AssetFull fullAsset = assetService.getFullAsset(sambaServer.sharedAssets().get(0).assetGuid());
             String localPath = dockerConfig.mountFolder() + "share_" + sambaServer.sambaServerId() + "/";
             String remotePath = getRemotePath(fullAsset) + "/";
-            File newDirectory = new File(dockerConfig.mountFolder() + "share_" + sambaServer.sambaServerId());
-            File[] allFiles = newDirectory.listFiles();
+            File localDirectory = new File(dockerConfig.mountFolder() + "share_" + sambaServer.sambaServerId());
+            File[] allFiles = localDirectory.listFiles();
             if (allFiles == null) {
                 failedGuids.add(fullAsset.guid);
                 continue;
@@ -153,7 +154,8 @@ public class SFTPService {
                         putFileToPath(localPath + file.getName(), remotePath + file.getName());
                     }
                 }
-                assetService.completeAsset(fullAsset.guid);
+                assetService.completeAsset(sambaToMove.assetUpdateRequest);
+                fileService.removeShareFolder(sambaServer.sambaServerId());
             } catch (Exception e) {
                 failedGuids.add(fullAsset.guid);
                 throw new RuntimeException(e);
@@ -174,6 +176,8 @@ public class SFTPService {
         }
         disconnect(channel);
     }
+
+
 
     public boolean makeDirectory(String path) throws SftpException {
         ChannelSftp channel = startChannelSftp();

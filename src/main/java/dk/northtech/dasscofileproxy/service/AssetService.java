@@ -1,7 +1,9 @@
 package dk.northtech.dasscofileproxy.service;
 
+import com.nimbusds.jose.shaded.gson.Gson;
 import dk.northtech.dasscofileproxy.assets.AssetServiceProperties;
 import dk.northtech.dasscofileproxy.domain.AssetFull;
+import dk.northtech.dasscofileproxy.domain.AssetUpdateRequest;
 import dk.northtech.dasscofileproxy.domain.InternalStatus;
 import dk.northtech.dasscofileproxy.domain.SambaInfo;
 import jakarta.inject.Inject;
@@ -55,18 +57,21 @@ public class AssetService {
         }
     }
 
-    public void completeAsset(String assetGuid) {
+    public void completeAsset(AssetUpdateRequest updateRequest) {
         var token = this.keycloakService.getAdminToken();
         try {
+            Gson gson = new Gson();
+            String postbody = gson.toJson(updateRequest);
+            String guid = updateRequest.minimalAsset().guid();
             HttpRequest request = HttpRequest.newBuilder()
                     .header("Authorization", "Bearer " + token)
-                    .uri(new URIBuilder(assetServiceProperties.rootUrl() + "/api/v1/assetmetadata/" + assetGuid + "/complete")
+                    .uri(new URIBuilder(assetServiceProperties.rootUrl() + "/api/v1/assetmetadata/" + guid + "/complete")
                             .build())
-                    .POST(HttpRequest.BodyPublishers.noBody())
+                    .POST(HttpRequest.BodyPublishers.ofString(postbody))
                     .build();
             HttpClient httpClient = HttpClient.newBuilder().build();
             HttpResponse httpResponse = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
-            if (!(httpResponse.statusCode() > 199 && httpResponse.statusCode() < 300)){
+            if (!(httpResponse.statusCode() > 199 && httpResponse.statusCode() < 300)) {
                 logger.warn("Failed to complete asset, request failed with status code: " + httpResponse.statusCode());
             }
         } catch (Exception e) {
