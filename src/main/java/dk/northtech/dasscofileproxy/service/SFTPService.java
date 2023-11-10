@@ -16,7 +16,6 @@ import org.springframework.stereotype.Service;
 
 import javax.sql.DataSource;
 import java.io.*;
-import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.LocalDateTime;
@@ -245,6 +244,36 @@ public class SFTPService {
         return false;
     }
 
+    //Recursively get all files
+    public List<String> listAllFiles(String path) {
+        System.out.println("START");
+        List<String> fileList = new ArrayList<>();
+        ChannelSftp channel = startChannelSftp();
+        System.out.println("AFTER CHANNEL");
+        try {
+            return listFolder(new ArrayList<>(), path, channel);
+        } catch (SftpException e) {
+            throw new RuntimeException("Failed to list all files",e);
+        } finally {
+            channel.disconnect();
+        }
+    }
+
+    public List<String> listFolder(List<String> foundFiles, String path, ChannelSftp channel) throws SftpException {
+
+        Vector<ChannelSftp.LsEntry> files = channel.ls(path);
+        System.out.println("AFTER LS");
+        for (ChannelSftp.LsEntry entry : files) {
+            System.out.println("Found " + entry.getFilename());
+            if (!entry.getAttrs().isDir()) {
+                foundFiles.add(path + "/" +entry.getFilename());
+            } else {
+                listFolder(foundFiles, path + "/" + entry.getFilename(),channel);
+            }
+        }
+        return foundFiles;
+    }
+
     public InputStream getFileInputStream(String path) throws IOException, SftpException {
         ChannelSftp channel = startChannelSftp();
         return channel.get(path);
@@ -285,12 +314,12 @@ public class SFTPService {
             throw new RuntimeException(e);
         }
         try {
-            Collection<String> fileNames = listFiles(remotePath);
+            Collection<String> fileNames = listAllFiles(remotePath);
             for (String s : fileNames) {
                 if (!Files.exists(Path.of(sharePath + "/" + s))) {
 
-                    logger.info("Downloading from " + remotePath + "/" + s);
-                    downloadFile(remotePath + "/" + s, sharePath);
+                    logger.info("Downloading from " + s);
+                    downloadFile(s, sharePath);
                 }
             }
             //If asset have parent download into parent folder
@@ -314,10 +343,7 @@ public class SFTPService {
         }
     }
 
-    //Recursively get all files
-    public void listAllFiles(String path) {
 
-    }
     public void cacheFile(String remotePath, String localPath) {
         try {
 
