@@ -49,17 +49,17 @@ public class FtpsClient {
     @Produces(MediaType.APPLICATION_OCTET_STREAM)
     public Response get(@Encoded @PathParam("params") String params, @Context HttpHeaders headers) throws IOException {
 
-        // Split path param into guid and filename
+        // Split path param into asset_guid and filename
         var strings = params.split("/");
         // Throw exception if path param doesn't contain exactly two arguments
         if (strings.length != 2)
-            return Response.status(Response.Status.BAD_REQUEST).entity("Path must consist of a asset guid and filename using the following format \"{assetGUID}/{filename.extension}\"").build();
+            return Response.status(Response.Status.BAD_REQUEST).entity("Path must consist of a asset asset_guid and filename using the following format \"{assetGUID}/{filename.extension}\"").build();
         var guid = strings[0];
         var file = strings[1];
 
         // Read the asset from the asset service to obtain restricted status and remaining path for the asset
         AssetFull assetFull = assetService.getFullAsset(guid);
-        // If there is no asset for the guid in asset service throw exception, as the client needs institution and collection to locate file
+        // If there is no asset for the asset_guid in asset service throw exception, as the client needs institution and collection to locate file
         if (assetFull == null)
             return Response.status(Response.Status.NOT_FOUND).entity("Cannot find asset in asset service.").build();
 

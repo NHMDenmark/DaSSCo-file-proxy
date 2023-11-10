@@ -37,16 +37,17 @@ public class FileService {
         deleteAll(path.toFile());
     }
 
-    public void listfiles(File directory, List<File> files) {
+    public List<File> listFiles(File directory, List<File> files) {
         File[] fList = directory.listFiles();
         if(fList != null)
             for (File file : fList) {
                 if (file.isFile()) {
                     files.add(file);
                 } else if (file.isDirectory()) {
-                    listfiles(new File(file.getAbsolutePath()), files);
+                    listFiles(new File(file.getAbsolutePath()), files);
                 }
             }
+        return files;
     }
 
     void deleteAll(File dir) {

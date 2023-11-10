@@ -5,9 +5,7 @@ import dk.northtech.dasscofileproxy.assets.AssetServiceProperties;
 import dk.northtech.dasscofileproxy.domain.AssetFull;
 import dk.northtech.dasscofileproxy.domain.AssetUpdateRequest;
 import dk.northtech.dasscofileproxy.domain.InternalStatus;
-import dk.northtech.dasscofileproxy.domain.SambaInfo;
 import jakarta.inject.Inject;
-import jakarta.ws.rs.core.MediaType;
 import org.apache.http.client.utils.URIBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -18,8 +16,6 @@ import org.springframework.http.HttpEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
-import java.net.URI;
-import java.net.URISyntaxException;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
@@ -62,10 +58,10 @@ public class AssetService {
         try {
             Gson gson = new Gson();
             String postbody = gson.toJson(updateRequest);
-            String guid = updateRequest.minimalAsset().guid();
+            String guid = updateRequest.minimalAsset().asset_guid();
             HttpRequest request = HttpRequest.newBuilder()
                     .header("Authorization", "Bearer " + token)
-                    .uri(new URIBuilder(assetServiceProperties.rootUrl() + "/api/v1/assetmetadata/" + guid + "/complete")
+                    .uri(new URIBuilder(assetServiceProperties.rootUrl() + "/api/v1/assetupdates/" + guid + "/complete")
                             .build())
                     .POST(HttpRequest.BodyPublishers.ofString(postbody))
                     .build();

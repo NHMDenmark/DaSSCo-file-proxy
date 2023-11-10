@@ -50,7 +50,7 @@ public class DockerServiceTest {
     public void createSambaShare() {
         SambaServer sambaServer = new SambaServer(null, dockerConfig.mountFolder() + "/share_16", true, 6060
                 , AccessType.WRITE, Instant.now(), List.of(new SharedAsset(null, null
-                , "guid", Instant.now())), List.of(new UserAccess(null, null
+                , "asset_guid", Instant.now())), List.of(new UserAccess(null, null
                 , "grand", "token", Instant.now())));
         dockerService.startService(sambaServer);
 
