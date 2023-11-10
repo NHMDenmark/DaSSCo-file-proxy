@@ -155,25 +155,17 @@ public class SFTPService {
             }).collect(Collectors.toList());
             createSubDirsIfNotExists(remoteLocations);
             List<String> remoteFiles = listAllFiles(remotePath);
-            Set<String> uploadedFiles = new HashSet<>();
 //            }
             try {
-                for (File file : files) {
-                    String fullRemotePath = remotePath + file.toPath().toString().replace("\\", "/").replace(localMountFolder, "");
-                    logger.info("moving from localPath {}, to remotePath {}", file.getPath(), fullRemotePath);
-                    putFileToPath(file.getPath(), fullRemotePath);
-                    uploadedFiles.add(fullRemotePath);
-                }
+                final Set<String> uploadedFiles = putFilesOnRemotePathBulk(files, localMountFolder, remotePath);
                 //handle files that have been deleted
                 List<String> filesToDelete = remoteFiles.stream().filter(f -> !uploadedFiles.contains(f)).collect(Collectors.toList());
                 deleteFiles(filesToDelete);
-                for(String s: remoteFiles) {
-                    logger.info("deleting {} from remote", s);
-                }
-                if(assetService.completeAsset(sambaToMove.assetUpdateRequest)) {
+                if (assetService.completeAsset(sambaToMove.assetUpdateRequest)) {
                     sambaServerService.deleteSambaServer(sambaServer.sambaServerId());
                     fileService.removeShareFolder(sambaServer.sambaServerId());
-                };
+                }
+                ;
 
             } catch (Exception e) {
                 failedGuids.add(fullAsset.asset_guid);
@@ -185,10 +177,28 @@ public class SFTPService {
         }
     }
 
+    private Set<String> putFilesOnRemotePathBulk(List<File> files, String localMountFolder, String remotePath) {
+        ChannelSftp channel = startChannelSftp();
+        try {
+            HashSet<String> uploadedFiles = new HashSet<>();
+            for (File file : files) {
+                String fullRemotePath = remotePath + file.toPath().toString().replace("\\", "/").replace(localMountFolder, "");
+                logger.info("moving from localPath {}, to remotePath {}", file.getPath(), fullRemotePath);
+                channel.put(file.getPath(), fullRemotePath);
+                uploadedFiles.add(fullRemotePath);
+            }
+            return uploadedFiles;
+        } catch (SftpException e) {
+            throw new RuntimeException(e);
+        } finally {
+            disconnect(channel);
+        }
+    }
+
     private void deleteFiles(List<String> filesToDelete) {
         ChannelSftp channelSftp = startChannelSftp();
         try {
-            for(String filePath: filesToDelete) {
+            for (String filePath : filesToDelete) {
                 channelSftp.rm(filePath);
             }
         } catch (SftpException e) {
@@ -221,7 +231,6 @@ public class SFTPService {
         ChannelSftp channel = startChannelSftp();
         try {
             channel.put(localPath, remotePath);
-            disconnect(channel);
         } catch (SftpException e) {
             throw new RuntimeException(e);
         } finally {
@@ -295,10 +304,10 @@ public class SFTPService {
     //Takes a list of file locations and downloads the files
     public void downloadFiles(List<String> locations, String destination, String asset_guid) {
         ChannelSftp channel = startChannelSftp();
-        for (String location : locations) {
-            //remove institution/collection/guid from local path
-            String destinationLocation = destination + location.substring(location.indexOf(asset_guid) + asset_guid.length());
-            try {
+        try {
+            for (String location : locations) {
+                //remove institution/collection/guid from local path
+                String destinationLocation = destination + location.substring(location.indexOf(asset_guid) + asset_guid.length());
                 logger.info("Getting from {} saving in {}", location, destinationLocation);
                 File parentDir = new File(destinationLocation.substring(0, destinationLocation.lastIndexOf('/')));
                 if (!parentDir.exists()) {
@@ -306,9 +315,11 @@ public class SFTPService {
                 }
                 channel.get(location, destinationLocation);
 
-            } catch (SftpException e) {
-                throw new RuntimeException(e);
             }
+        } catch (SftpException e) {
+            throw new RuntimeException(e);
+        } finally {
+            channel.disconnect();
         }
     }
 
