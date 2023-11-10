@@ -154,12 +154,21 @@ public class SFTPService {
                 return Path.of(remotePath + "/" + file.toPath().toString().replace("\\", "/").replace(localMountFolder, ""));
             }).collect(Collectors.toList());
             createSubDirsIfNotExists(remoteLocations);
+            List<String> remoteFiles = listAllFiles(remotePath);
+            Set<String> uploadedFiles = new HashSet<>();
 //            }
             try {
                 for (File file : files) {
                     String fullRemotePath = remotePath + file.toPath().toString().replace("\\", "/").replace(localMountFolder, "");
                     logger.info("moving from localPath {}, to remotePath {}", file.getPath(), fullRemotePath);
                     putFileToPath(file.getPath(), fullRemotePath);
+                    uploadedFiles.add(fullRemotePath);
+                }
+                //handle files that have been deleted
+                List<String> filesToDelete = remoteFiles.stream().filter(f -> !uploadedFiles.contains(f)).collect(Collectors.toList());
+                deleteFiles(filesToDelete);
+                for(String s: remoteFiles) {
+                    logger.info("deleting {} from remote", s);
                 }
                 if(assetService.completeAsset(sambaToMove.assetUpdateRequest)) {
                     sambaServerService.deleteSambaServer(sambaServer.sambaServerId());
@@ -173,6 +182,19 @@ public class SFTPService {
             for (String s : failedGuids) {
                 assetService.setFailedStatus(s, InternalStatus.ERDA_ERROR);
             }
+        }
+    }
+
+    private void deleteFiles(List<String> filesToDelete) {
+        ChannelSftp channelSftp = startChannelSftp();
+        try {
+            for(String filePath: filesToDelete) {
+                channelSftp.rm(filePath);
+            }
+        } catch (SftpException e) {
+            throw new RuntimeException(e);
+        } finally {
+            channelSftp.disconnect();
         }
     }
 
@@ -202,8 +224,10 @@ public class SFTPService {
             disconnect(channel);
         } catch (SftpException e) {
             throw new RuntimeException(e);
+        } finally {
+            disconnect(channel);
+
         }
-        disconnect(channel);
     }
 
     public boolean makeDirectory(String path) throws SftpException {
@@ -244,10 +268,7 @@ public class SFTPService {
 
     //Recursively get all files
     public List<String> listAllFiles(String path) {
-        System.out.println("START");
-        List<String> fileList = new ArrayList<>();
         ChannelSftp channel = startChannelSftp();
-        System.out.println("AFTER CHANNEL");
         try {
             return listFolder(new ArrayList<>(), path, channel);
         } catch (SftpException e) {
@@ -260,7 +281,6 @@ public class SFTPService {
     public List<String> listFolder(List<String> foundFiles, String path, ChannelSftp channel) throws SftpException {
 
         Vector<ChannelSftp.LsEntry> files = channel.ls(path);
-        System.out.println("AFTER LS");
         for (ChannelSftp.LsEntry entry : files) {
             System.out.println("Found " + entry.getFilename());
             if (!entry.getAttrs().isDir()) {

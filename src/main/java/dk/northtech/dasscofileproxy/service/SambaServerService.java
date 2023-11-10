@@ -198,6 +198,7 @@ public class SambaServerService {
 //            checkAccess(sambaServer, user);
             if (checkAccess(sambaServer, user)) {
                 if (syncERDA) {
+                    dockerService.removeContainer(assetSmbRequest.shareName());
                     sftpService.moveToERDA(new SambaToMove(sambaServer, assetSmbRequest));
                 } else {
                     deleteSambaServer(sambaServer.sambaServerId());
