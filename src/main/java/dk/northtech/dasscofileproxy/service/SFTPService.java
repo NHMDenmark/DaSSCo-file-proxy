@@ -21,6 +21,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.LocalDateTime;
 import java.util.*;
+import java.util.stream.Collectors;
 
 
 @Service
@@ -138,7 +139,7 @@ public class SFTPService {
                 logger.error("Share that dont have exactly one asset cannot be moved to ERDA");
             }
             AssetFull fullAsset = assetService.getFullAsset(sambaServer.sharedAssets().get(0).assetGuid());
-            String localPath = dockerConfig.mountFolder() + "share_" + sambaServer.sambaServerId() + "/";
+
             String remotePath = getRemotePath(fullAsset);
             getRemotePathElements(fullAsset);
             String localMountFolder = dockerConfig.mountFolder() + "share_" + sambaServer.sambaServerId();
@@ -150,17 +151,19 @@ public class SFTPService {
                 logger.warn("Attempt to sync ERDA with no files");
                 continue;
             }
-            for (File file : files) {
-                logger.info(localMountFolder);
-                Path path = Path.of(remotePath + "/" +file.toPath().toString().replace("\\", "/").replace(localMountFolder, ""));
-                createSubDirsIfNotExists(path);
-            }
+            List<Path> remoteLocations = files.stream().map(file -> {
+                return Path.of(remotePath + "/" + file.toPath().toString().replace("\\", "/").replace(localMountFolder, ""));
+            }).collect(Collectors.toList());
+//            for (File file : files) {
+//                logger.info(localMountFolder);
+//                Path path =
+            createSubDirsIfNotExists(remoteLocations);
+//            }
             try {
                 for (File file : files) {
                     String fullRemotePath = remotePath + file.toPath().toString().replace("\\", "/").replace(localMountFolder, "");
-                    logger.info("moving from localPath {}, to remotePath {}", localPath + file.getName(), fullRemotePath);
-                    putFileToPath(localPath + file.getName(), fullRemotePath);
-
+                    logger.info("moving from localPath {}, to remotePath {}", file.getPath(), fullRemotePath);
+                    putFileToPath(file.getPath(), fullRemotePath);
                 }
                 assetService.completeAsset(sambaToMove.assetUpdateRequest);
                 fileService.removeShareFolder(sambaServer.sambaServerId());
@@ -176,18 +179,23 @@ public class SFTPService {
         }
     }
 
-    private void createSubDirsIfNotExists(Path path) {
-        //Last element is the file itself
-        int directoryDepth = path.getNameCount() - 1;
-        String remotePath = "";
-        for (int i = 0; i < directoryDepth - 1; i++) {
-            remotePath += path.getName(i);
-            try {
-                makeDirectory(remotePath);
-            } catch (Exception e) {
-                //OK, the folder already exists
+    private void createSubDirsIfNotExists(List<Path> paths) {
+        ChannelSftp channelSftp = startChannelSftp();
+        for (Path path : paths) {
+            //Last element is the file itself
+            int directoryDepth = path.getNameCount() - 1;
+            String remotePath = "";
+            for (int i = 0; i < directoryDepth; i++) {
+                remotePath += path.getName(i) + "/";
+                try {
+                    System.out.println(remotePath);
+                    channelSftp.mkdir(remotePath);
+                } catch (Exception e) {
+                    //OK, the folder already exists
+                }
             }
         }
+
     }
 
     public void putFileToPath(String localPath, String remotePath) throws JSchException {
@@ -268,6 +276,8 @@ public class SFTPService {
         String remotePath = getRemotePath(asset);
         try {
             if (!exists(remotePath)) {
+
+                logger.info("Remote path {} didnt exist ", remotePath);
                 return;
             }
         } catch (Exception e) {

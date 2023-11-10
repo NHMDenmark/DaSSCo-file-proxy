@@ -315,6 +315,6 @@ interface UserAccessList {
     @SqlQuery("SELECT * FROM user_access WHERE samba_server_id = :sambaServerId")
     List<UserAccess> getUserAccess(@Bind long sambaServerId);
 
-    @SqlUpdate("DELETE FROM user_access WHERE samba_server_id = :samba_server_id")
+    @SqlUpdate("DELETE FROM user_access WHERE samba_server_id = :sambaServerId")
     void deleteUserAccess(@Bind long sambaServerId);
 }

@@ -61,7 +61,7 @@ public class AssetService {
             String guid = updateRequest.minimalAsset().asset_guid();
             HttpRequest request = HttpRequest.newBuilder()
                     .header("Authorization", "Bearer " + token)
-                    .uri(new URIBuilder(assetServiceProperties.rootUrl() + "/api/v1/assetupdates/" + guid + "/complete")
+                    .uri(new URIBuilder(assetServiceProperties.rootUrl() + "/api/v1/assetmetadata/" + guid + "/complete")
                             .build())
                     .POST(HttpRequest.BodyPublishers.ofString(postbody))
                     .build();
