@@ -34,6 +34,7 @@ public class FileService {
             throw new RuntimeException("Cannot delete share folder, mountFolder is null");
         }
         Path path = Path.of(dockerConfig.mountFolder() + "share_" + shareId);
+        System.out.println("Deleteing all " + path );
         deleteAll(path.toFile());
     }
 
@@ -43,7 +44,7 @@ public class FileService {
             for (File file : fList) {
                 if (file.isFile()) {
                     files.add(file);
-                } else if (file.isDirectory()) {
+                } else if (file.isDirectory() && !file.getName().contains("parent")) {
                     listFiles(new File(file.getAbsolutePath()), files);
                 }
             }

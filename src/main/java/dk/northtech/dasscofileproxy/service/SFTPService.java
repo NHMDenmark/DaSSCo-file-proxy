@@ -283,7 +283,7 @@ public class SFTPService {
             try {
                 logger.info("Getting from {} saving in {}", location, destinationLocation);
                 File parentDir = new File(destinationLocation.substring(0, destinationLocation.lastIndexOf('/')));
-                if(!parentDir.exists()){
+                if (!parentDir.exists()) {
                     parentDir.mkdirs();
                 }
                 channel.get(location, destinationLocation);
@@ -328,35 +328,30 @@ public class SFTPService {
             if (!exists(remotePath)) {
 
                 logger.info("Remote path {} didnt exist ", remotePath);
-                return;
+            } else {
+                List<String> fileNames = listAllFiles(remotePath);
+                downloadFiles(fileNames, sharePath, assetGuid);
             }
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
         try {
-            List<String> fileNames = listAllFiles(remotePath);
-            for (String s : fileNames) {
-//                if (!Files.exists(Path.of(sharePath + "/" + s))) {
-                    downloadFiles(fileNames, sharePath, assetGuid);
-//                    logger.info("Downloading from " + s);
-//                    downloadFile(s, sharePath);
-//                }
-            }
+
             //If asset have parent download into parent folder
+            //We could save a http request here as we dont need the full parent asset to get the remote location, it is in the same collection and institution.
             if (asset.parent_guid != null) {
                 AssetFull parent = assetService.getFullAsset(asset.parent_guid);
-                String parentPath = getRemotePath(parent) + "/";
-                Collection<String> parentFileNames = listFiles(remotePath);
-                File parentDir = new File(sharePath + "/parent/");
-                if (!parentDir.exists()) {
-                    parentDir.mkdir();
-                }
-                for (String s : parentFileNames) {
-                    if (!Files.exists(Path.of(sharePath + "/" + s))) {
-                        logger.info("Downloading from " + parentPath + s);
-                        downloadFile(parentPath + s, sharePath);
+                String parentRemotePath = getRemotePath(parent);
+                try {
+                    if (!exists(parentRemotePath)) {
+                        logger.info("Remote parent path {} didnt exist ", parentRemotePath);
+                        return;
                     }
+                } catch (Exception e) {
+                    throw new RuntimeException(e);
                 }
+                List<String> parentFileNames = listAllFiles(parentRemotePath);
+                downloadFiles(parentFileNames, sharePath + "/parent", parent.asset_guid);
             }
         } catch (Exception e) {
             throw new RuntimeException(e);
