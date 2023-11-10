@@ -91,7 +91,6 @@ public class SambaServerService {
                         , creationDatetime
                         , setupSharedAssets(creationObj.assets()
                                 .stream()
-                        .peek(System.out::println)
                                 .map(asset -> asset.asset_guid())
                                 .collect(Collectors.toList())
                         , creationDatetime)

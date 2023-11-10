@@ -225,13 +225,16 @@ public class SFTPService {
     public boolean exists(String path) throws IOException, SftpException {
         ChannelSftp channel = startChannelSftp();
         String parentPath = path.substring(0, path.lastIndexOf('/'));
-
+        System.out.println(parentPath);
         // List the contents of the parent directory
         try {
             Vector<ChannelSftp.LsEntry> entries = channel.ls(parentPath);
             // Iterate through the entries to check if the file or folder exists
             for (ChannelSftp.LsEntry entry : entries) {
-                if (entry.getFilename().equals(path)) {
+                String[] split = path.split("/");
+                System.out.println("lort 1 " +split[split.length-1]);
+                System.out.println("lort 2 " + entry.getFilename());
+                if (entry.getFilename().equals(split[split.length-1])) {
                     // File or folder exists
                     return true;
                 }
@@ -313,6 +316,10 @@ public class SFTPService {
         }
     }
 
+    //Recursively get all files
+    public void listAllFiles(String path) {
+
+    }
     public void cacheFile(String remotePath, String localPath) {
         try {
 
