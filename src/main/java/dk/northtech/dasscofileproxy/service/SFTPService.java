@@ -231,7 +231,7 @@ public class SFTPService {
             // Iterate through the entries to check if the file or folder exists
             for (ChannelSftp.LsEntry entry : entries) {
                 String[] split = path.split("/");
-                if (entry.getFilename().equals(split[split.length-1])) {
+                if (entry.getFilename().equals(split[split.length - 1])) {
                     // File or folder exists
                     return true;
                 }
@@ -253,7 +253,7 @@ public class SFTPService {
         try {
             return listFolder(new ArrayList<>(), path, channel);
         } catch (SftpException e) {
-            throw new RuntimeException("Failed to list all files",e);
+            throw new RuntimeException("Failed to list all files", e);
         } finally {
             channel.disconnect();
         }
@@ -266,12 +266,32 @@ public class SFTPService {
         for (ChannelSftp.LsEntry entry : files) {
             System.out.println("Found " + entry.getFilename());
             if (!entry.getAttrs().isDir()) {
-                foundFiles.add(path + "/" +entry.getFilename());
+                foundFiles.add(path + "/" + entry.getFilename());
             } else {
-                listFolder(foundFiles, path + "/" + entry.getFilename(),channel);
+                listFolder(foundFiles, path + "/" + entry.getFilename(), channel);
             }
         }
         return foundFiles;
+    }
+
+    //Takes a list of file locations and downloads the files
+    public void downloadFiles(List<String> locations, String destination, String asset_guid) {
+        ChannelSftp channel = startChannelSftp();
+        for (String location : locations) {
+            //remove institution/collection/guid from local path
+            String destinationLocation = destination + location.substring(location.indexOf(asset_guid) + asset_guid.length());
+            try {
+                logger.info("Getting from {} saving in {}", location, destinationLocation);
+                File parentDir = new File(destinationLocation.substring(0, destinationLocation.lastIndexOf('/')));
+                if(!parentDir.exists()){
+                    parentDir.mkdirs();
+                }
+                channel.get(location, destinationLocation);
+
+            } catch (SftpException e) {
+                throw new RuntimeException(e);
+            }
+        }
     }
 
     public InputStream getFileInputStream(String path) throws IOException, SftpException {
@@ -314,13 +334,13 @@ public class SFTPService {
             throw new RuntimeException(e);
         }
         try {
-            Collection<String> fileNames = listAllFiles(remotePath);
+            List<String> fileNames = listAllFiles(remotePath);
             for (String s : fileNames) {
-                if (!Files.exists(Path.of(sharePath + "/" + s))) {
-
-                    logger.info("Downloading from " + s);
-                    downloadFile(s, sharePath);
-                }
+//                if (!Files.exists(Path.of(sharePath + "/" + s))) {
+                    downloadFiles(fileNames, sharePath, assetGuid);
+//                    logger.info("Downloading from " + s);
+//                    downloadFile(s, sharePath);
+//                }
             }
             //If asset have parent download into parent folder
             if (asset.parent_guid != null) {
