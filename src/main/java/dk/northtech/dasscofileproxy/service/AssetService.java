@@ -37,6 +37,7 @@ public class AssetService {
         try {
             HttpRequest request = HttpRequest.newBuilder()
                     .header("Authorization", "Bearer " + token)
+                    .header("Content-Type", "application/json")
                     .uri(new URIBuilder(assetServiceProperties.rootUrl() + "/api/v1/assetmetadata/" + assetGuid + "/seterrorstatus")
                             .addParameter("newStatus", err_status.name())
                             .build())
@@ -53,7 +54,7 @@ public class AssetService {
         }
     }
 
-    public void completeAsset(AssetUpdateRequest updateRequest) {
+    public boolean completeAsset(AssetUpdateRequest updateRequest) {
         var token = this.keycloakService.getAdminToken();
         try {
             Gson gson = new Gson();
@@ -61,6 +62,7 @@ public class AssetService {
             String guid = updateRequest.minimalAsset().asset_guid();
             HttpRequest request = HttpRequest.newBuilder()
                     .header("Authorization", "Bearer " + token)
+                    .header("Content-Type", "application/json")
                     .uri(new URIBuilder(assetServiceProperties.rootUrl() + "/api/v1/assetmetadata/" + guid + "/complete")
                             .build())
                     .POST(HttpRequest.BodyPublishers.ofString(postbody))
@@ -69,7 +71,9 @@ public class AssetService {
             HttpResponse httpResponse = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
             if (!(httpResponse.statusCode() > 199 && httpResponse.statusCode() < 300)) {
                 logger.warn("Failed to complete asset, request failed with status code: " + httpResponse.statusCode());
+                return false;
             }
+            return true;
         } catch (Exception e) {
             logger.error("Failed to set failed status on asset :^(");
             throw new RuntimeException(e);

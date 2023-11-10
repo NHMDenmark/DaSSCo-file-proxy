@@ -153,9 +153,6 @@ public class SFTPService {
             List<Path> remoteLocations = files.stream().map(file -> {
                 return Path.of(remotePath + "/" + file.toPath().toString().replace("\\", "/").replace(localMountFolder, ""));
             }).collect(Collectors.toList());
-//            for (File file : files) {
-//                logger.info(localMountFolder);
-//                Path path =
             createSubDirsIfNotExists(remoteLocations);
 //            }
             try {
@@ -164,9 +161,10 @@ public class SFTPService {
                     logger.info("moving from localPath {}, to remotePath {}", file.getPath(), fullRemotePath);
                     putFileToPath(file.getPath(), fullRemotePath);
                 }
-                assetService.completeAsset(sambaToMove.assetUpdateRequest);
-                fileService.removeShareFolder(sambaServer.sambaServerId());
-                sambaServerService.deleteSambaServer(sambaServer.sambaServerId());
+                if(assetService.completeAsset(sambaToMove.assetUpdateRequest)) {
+                    sambaServerService.deleteSambaServer(sambaServer.sambaServerId());
+                    fileService.removeShareFolder(sambaServer.sambaServerId());
+                };
 
             } catch (Exception e) {
                 failedGuids.add(fullAsset.asset_guid);
@@ -326,7 +324,6 @@ public class SFTPService {
         String remotePath = getRemotePath(asset);
         try {
             if (!exists(remotePath)) {
-
                 logger.info("Remote path {} didnt exist ", remotePath);
             } else {
                 List<String> fileNames = listAllFiles(remotePath);
