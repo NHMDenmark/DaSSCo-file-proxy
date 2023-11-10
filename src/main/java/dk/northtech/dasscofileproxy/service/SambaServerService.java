@@ -102,10 +102,13 @@ public class SambaServerService {
                 String shareFolder = fileService.createShareFolder(sambaServer.sambaServerId());
                 try {
                     if (creationObj.assets().size() == 1) {
-                        sftpService.initAssetShare(shareFolder, creationObj.assets().get(0).asset_guid());
+                            sftpService.initAssetShare(shareFolder, creationObj.assets().get(0).asset_guid());
                     }
                 } catch (Exception e) {
                     logger.error("Failed to init asset share", e);
+                    //Clean up
+                    deleteSambaServer(sambaServer.sambaServerId());
+                    throw e;
                 }
                 dockerService.startService(sambaServer);
                 return new SambaInfo(sambaServer.containerPort(), dockerConfig.nodeHost(), "share_" + sambaServer.sambaServerId(), sambaServer.userAccess().get(0).token(), SambaRequestStatus.OK_OPEN, null);

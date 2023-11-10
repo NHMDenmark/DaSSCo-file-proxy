@@ -217,7 +217,6 @@ public class SFTPService {
             for (int i = 0; i < directoryDepth; i++) {
                 remotePath += path.getName(i) + "/";
                 try {
-                    System.out.println(remotePath);
                     channelSftp.mkdir(remotePath);
                 } catch (Exception e) {
                     //OK, the folder already exists
