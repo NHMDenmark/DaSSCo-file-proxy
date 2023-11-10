@@ -232,8 +232,6 @@ public class SFTPService {
             // Iterate through the entries to check if the file or folder exists
             for (ChannelSftp.LsEntry entry : entries) {
                 String[] split = path.split("/");
-                System.out.println("lort 1 " +split[split.length-1]);
-                System.out.println("lort 2 " + entry.getFilename());
                 if (entry.getFilename().equals(split[split.length-1])) {
                     // File or folder exists
                     return true;
