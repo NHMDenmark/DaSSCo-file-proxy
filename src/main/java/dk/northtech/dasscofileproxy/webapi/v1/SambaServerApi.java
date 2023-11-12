@@ -82,6 +82,6 @@ public class SambaServerApi {
             , @Context SecurityContext securityContext) {
         User user = UserMapper.from(securityContext);
         SambaServer open = sambaServerService.open(assetSmbRequest, user);
-        return new SambaInfo(open.containerPort(), dockerConfig.dockerHost(), "share_" + open.sambaServerId(), open.userAccess().get(0).token(), SambaRequestStatus.OK_OPEN, null);
+        return new SambaInfo(open.containerPort(), dockerConfig.mountFolder(), "share_" + open.sambaServerId(), open.userAccess().get(0).token(), SambaRequestStatus.OK_OPEN, null);
     }
 }

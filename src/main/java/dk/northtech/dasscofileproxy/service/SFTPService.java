@@ -171,9 +171,9 @@ public class SFTPService {
                 failedGuids.add(fullAsset.asset_guid);
                 throw new RuntimeException(e);
             }
-            for (String s : failedGuids) {
-                assetService.setFailedStatus(s, InternalStatus.ERDA_ERROR);
-            }
+        }
+        for (String s : failedGuids) {
+            assetService.setFailedStatus(s, InternalStatus.ERDA_ERROR);
         }
     }
 

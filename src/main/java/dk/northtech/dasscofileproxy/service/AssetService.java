@@ -41,7 +41,7 @@ public class AssetService {
                     .uri(new URIBuilder(assetServiceProperties.rootUrl() + "/api/v1/assetmetadata/" + assetGuid + "/seterrorstatus")
                             .addParameter("newStatus", err_status.name())
                             .build())
-                    .POST(HttpRequest.BodyPublishers.noBody())
+                    .PUT(HttpRequest.BodyPublishers.noBody())
                     .build();
             HttpClient httpClient = HttpClient.newBuilder().build();
             HttpResponse httpResponse = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
