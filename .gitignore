@@ -10,6 +10,9 @@ src/main/resources/static/*
 *secret*.yaml
 *secret*.properties
 
+*.pem.pub
+*.pem
+
 ### STS ###
 .apt_generated
 .classpath
