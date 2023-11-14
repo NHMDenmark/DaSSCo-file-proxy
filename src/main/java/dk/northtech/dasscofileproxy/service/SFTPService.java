@@ -138,18 +138,15 @@ public class SFTPService {
                 logger.error("Share that dont have exactly one asset cannot be moved to ERDA");
             }
             AssetFull fullAsset = assetService.getFullAsset(sambaServer.sharedAssets().get(0).assetGuid());
-
+            if(fullAsset.asset_locked) {
+                failedGuids.add(fullAsset.asset_guid);
+            }
             String remotePath = getRemotePath(fullAsset);
             getRemotePathElements(fullAsset);
             String localMountFolder = dockerConfig.mountFolder() + "share_" + sambaServer.sambaServerId();
             File localDirectory = new File(dockerConfig.mountFolder() + "share_" + sambaServer.sambaServerId());
 //            File[] allFiles = localDirectory.listFiles();
             List<File> files = fileService.listFiles(localDirectory, new ArrayList<>());
-            if (files.size() == 0) {
-                failedGuids.add(fullAsset.asset_guid);
-                logger.warn("Attempt to sync ERDA with no files");
-                continue;
-            }
             List<Path> remoteLocations = files.stream().map(file -> {
                 return Path.of(remotePath + "/" + file.toPath().toString().replace("\\", "/").replace(localMountFolder, ""));
             }).collect(Collectors.toList());
