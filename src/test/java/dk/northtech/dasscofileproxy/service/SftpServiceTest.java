@@ -15,13 +15,9 @@ import org.testcontainers.utility.DockerImageName;
 
 import java.io.IOException;
 import java.util.Collection;
-import java.util.List;
-
-import static org.mockito.Mockito.verify;
 
 @SpringBootTest
 @Testcontainers
-@DirtiesContext
 @Disabled
 class SftpServiceTest {
 
@@ -46,7 +42,7 @@ class SftpServiceTest {
         try {
             // Open an SFTP channel
             String localFile = "target/sample.txt";
-            String remoteDir = "DaSSCoStorage/TestInstitution/test-collection/testAsset_2/file_1.txt";
+            String remoteDir = "TestInstitution/test-collection/testAsset_2/file_1.txt";
 
             sftpService.putFileToPath(localFile, remoteDir);
         } catch (JSchException e) {
@@ -58,7 +54,7 @@ class SftpServiceTest {
     @Disabled
     public void listFiles() {
         try {
-            String remoteDir = "DaSSCoStorage/TestInstitution/test-collection/testAsset_2";
+            String remoteDir = "TestInstitution/test-collection/testAsset_2";
 
             Collection<String> files = sftpService.listFiles(remoteDir);
 
@@ -74,7 +70,7 @@ class SftpServiceTest {
     public void downloadFile() {
         try {
             String localFile = "target/sample.txt";
-            String remoteDir = "DaSSCoStorage/TestInstitution/test-collection/testAsset_2/file_1.txt";
+            String remoteDir = "TestInstitution/test-collection/testAsset_2/file_1.txt";
 
             sftpService.downloadFile(remoteDir, localFile);
         } catch (SftpException | IOException e) {
