@@ -20,6 +20,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.LocalDateTime;
 import java.util.*;
+import java.util.stream.Collectors;
 
 
 @Service
@@ -34,7 +35,7 @@ public class SFTPService {
 
     private static final Logger logger = LoggerFactory.getLogger(SFTPService.class);
 
-    private final List<SambaServer> filesToMove = new ArrayList<>();
+    private final List<SambaToMove> filesToMove = new ArrayList<>();
 
     @Inject
     public SFTPService(SFTPConfig sftpConfig, DataSource dataSource, FileService fileService, DockerConfig dockerConfig, AssetService assetService, @Lazy SambaServerService sambaServerService) {
@@ -113,9 +114,9 @@ public class SFTPService {
         return fileList;
     }
 
-    public void moveToERDA(SambaServer sambaserver) {
-        if(sambaserver.sharedAssets().size() == 1) {
-            this.filesToMove.add(sambaserver);
+    public void moveToERDA(SambaToMove sambaToMove) {
+        if (sambaToMove.sambaServer.sharedAssets().size() == 1) {
+            this.filesToMove.add(sambaToMove);
         } else {
             throw new IllegalArgumentException("Cannot move share with multiple assets to ERDA");
         }
@@ -125,54 +126,113 @@ public class SFTPService {
     @Scheduled(cron = "0 * * * * *")
     public void moveFiles() {
         logger.info("checking files");
-        List<SambaServer> serversToFlush;
+        List<SambaToMove> serversToFlush;
         List<String> failedGuids = new ArrayList<>();
         synchronized (filesToMove) {
             serversToFlush = new ArrayList<>(filesToMove);
             filesToMove.clear();
         }
-        for (SambaServer sambaServer : serversToFlush) {
+        for (SambaToMove sambaToMove : serversToFlush) {
+            SambaServer sambaServer = sambaToMove.sambaServer;
             if (sambaServer.sharedAssets().size() != 1) {
-                logger.error("Share that didnt have exactly one asset cannot be moved to ERDA");
+                logger.error("Share that dont have exactly one asset cannot be moved to ERDA");
             }
             AssetFull fullAsset = assetService.getFullAsset(sambaServer.sharedAssets().get(0).assetGuid());
-            String localPath = dockerConfig.mountFolder() + "share_" + sambaServer.sambaServerId() + "/";
-            String remotePath = getRemotePath(fullAsset) + "/";
-            File newDirectory = new File(dockerConfig.mountFolder() + "share_" + sambaServer.sambaServerId());
-            File[] allFiles = newDirectory.listFiles();
-            if (allFiles == null) {
-                failedGuids.add(fullAsset.guid);
-                continue;
+            if(fullAsset.asset_locked) {
+                failedGuids.add(fullAsset.asset_guid);
             }
+            String remotePath = getRemotePath(fullAsset);
+            getRemotePathElements(fullAsset);
+            String localMountFolder = dockerConfig.mountFolder() + "share_" + sambaServer.sambaServerId();
+            File localDirectory = new File(dockerConfig.mountFolder() + "share_" + sambaServer.sambaServerId());
+//            File[] allFiles = localDirectory.listFiles();
+            List<File> files = fileService.listFiles(localDirectory, new ArrayList<>());
+            List<Path> remoteLocations = files.stream().map(file -> {
+                return Path.of(remotePath + "/" + file.toPath().toString().replace("\\", "/").replace(localMountFolder, ""));
+            }).collect(Collectors.toList());
+            createSubDirsIfNotExists(remoteLocations);
+            List<String> remoteFiles = listAllFiles(remotePath);
+//            }
             try {
-                if (!exists(remotePath)) {
-                    makeDirectory(remotePath);
+                final Set<String> uploadedFiles = putFilesOnRemotePathBulk(files, localMountFolder, remotePath);
+                //handle files that have been deleted
+                List<String> filesToDelete = remoteFiles.stream().filter(f -> !uploadedFiles.contains(f)).collect(Collectors.toList());
+                deleteFiles(filesToDelete);
+                if (assetService.completeAsset(sambaToMove.assetUpdateRequest)) {
+                    sambaServerService.deleteSambaServer(sambaServer.sambaServerId());
+                    fileService.removeShareFolder(sambaServer.sambaServerId());
                 }
-                for (File file : allFiles) {
-                    if (!file.isDirectory()) {
-                        putFileToPath(localPath + file.getName(), remotePath + file.getName());
-                    }
-                }
-                assetService.completeAsset(fullAsset.guid);
+                ;
+
             } catch (Exception e) {
-                failedGuids.add(fullAsset.guid);
+                failedGuids.add(fullAsset.asset_guid);
                 throw new RuntimeException(e);
             }
-            for (String s : failedGuids) {
-                assetService.setFailedStatus(s, InternalStatus.ERDA_ERROR);
+        }
+        for (String s : failedGuids) {
+            assetService.setFailedStatus(s, InternalStatus.ERDA_ERROR);
+        }
+    }
+
+    private Set<String> putFilesOnRemotePathBulk(List<File> files, String localMountFolder, String remotePath) {
+        ChannelSftp channel = startChannelSftp();
+        try {
+            HashSet<String> uploadedFiles = new HashSet<>();
+            for (File file : files) {
+                String fullRemotePath = remotePath + file.toPath().toString().replace("\\", "/").replace(localMountFolder, "");
+                logger.info("moving from localPath {}, to remotePath {}", file.getPath(), fullRemotePath);
+                channel.put(file.getPath(), fullRemotePath);
+                uploadedFiles.add(fullRemotePath);
+            }
+            return uploadedFiles;
+        } catch (SftpException e) {
+            throw new RuntimeException(e);
+        } finally {
+            disconnect(channel);
+        }
+    }
+
+    private void deleteFiles(List<String> filesToDelete) {
+        ChannelSftp channelSftp = startChannelSftp();
+        try {
+            for (String filePath : filesToDelete) {
+                channelSftp.rm(filePath);
+            }
+        } catch (SftpException e) {
+            throw new RuntimeException(e);
+        } finally {
+            channelSftp.disconnect();
+        }
+    }
+
+    private void createSubDirsIfNotExists(List<Path> paths) {
+        ChannelSftp channelSftp = startChannelSftp();
+        for (Path path : paths) {
+            //Last element is the file itself
+            int directoryDepth = path.getNameCount() - 1;
+            String remotePath = "";
+            for (int i = 0; i < directoryDepth; i++) {
+                remotePath += path.getName(i) + "/";
+                try {
+                    channelSftp.mkdir(remotePath);
+                } catch (Exception e) {
+                    //OK, the folder already exists
+                }
             }
         }
+
     }
 
     public void putFileToPath(String localPath, String remotePath) throws JSchException {
         ChannelSftp channel = startChannelSftp();
         try {
             channel.put(localPath, remotePath);
-            disconnect(channel);
         } catch (SftpException e) {
             throw new RuntimeException(e);
+        } finally {
+            disconnect(channel);
+
         }
-        disconnect(channel);
     }
 
     public boolean makeDirectory(String path) throws SftpException {
@@ -191,20 +251,72 @@ public class SFTPService {
     public boolean exists(String path) throws IOException, SftpException {
         ChannelSftp channel = startChannelSftp();
         String parentPath = path.substring(0, path.lastIndexOf('/'));
-
+        System.out.println(parentPath);
         // List the contents of the parent directory
-        Vector<ChannelSftp.LsEntry> entries = channel.ls(parentPath);
-
-        // Iterate through the entries to check if the file or folder exists
-        for (ChannelSftp.LsEntry entry : entries) {
-            if (entry.getFilename().equals(path)) {
-                // File or folder exists
-                return true;
+        try {
+            Vector<ChannelSftp.LsEntry> entries = channel.ls(parentPath);
+            // Iterate through the entries to check if the file or folder exists
+            for (ChannelSftp.LsEntry entry : entries) {
+                String[] split = path.split("/");
+                if (entry.getFilename().equals(split[split.length - 1])) {
+                    // File or folder exists
+                    return true;
+                }
             }
+        } catch (Exception e) {
+            // File or folder does not exist
+            return false;
         }
 
-        // File or folder does not exist
         return false;
+    }
+
+    //Recursively get all files
+    public List<String> listAllFiles(String path) {
+        ChannelSftp channel = startChannelSftp();
+        try {
+            return listFolder(new ArrayList<>(), path, channel);
+        } catch (SftpException e) {
+            throw new RuntimeException("Failed to list all files", e);
+        } finally {
+            channel.disconnect();
+        }
+    }
+
+    public List<String> listFolder(List<String> foundFiles, String path, ChannelSftp channel) throws SftpException {
+
+        Vector<ChannelSftp.LsEntry> files = channel.ls(path);
+        for (ChannelSftp.LsEntry entry : files) {
+            System.out.println("Found " + entry.getFilename());
+            if (!entry.getAttrs().isDir()) {
+                foundFiles.add(path + "/" + entry.getFilename());
+            } else {
+                listFolder(foundFiles, path + "/" + entry.getFilename(), channel);
+            }
+        }
+        return foundFiles;
+    }
+
+    //Takes a list of file locations and downloads the files
+    public void downloadFiles(List<String> locations, String destination, String asset_guid) {
+        ChannelSftp channel = startChannelSftp();
+        try {
+            for (String location : locations) {
+                //remove institution/collection/guid from local path
+                String destinationLocation = destination + location.substring(location.indexOf(asset_guid) + asset_guid.length());
+                logger.info("Getting from {} saving in {}", location, destinationLocation);
+                File parentDir = new File(destinationLocation.substring(0, destinationLocation.lastIndexOf('/')));
+                if (!parentDir.exists()) {
+                    parentDir.mkdirs();
+                }
+                channel.get(location, destinationLocation);
+
+            }
+        } catch (SftpException e) {
+            throw new RuntimeException(e);
+        } finally {
+            channel.disconnect();
+        }
     }
 
     public InputStream getFileInputStream(String path) throws IOException, SftpException {
@@ -223,7 +335,11 @@ public class SFTPService {
     }
 
     public String getRemotePath(AssetFull asset) {
-        return sftpConfig.remoteFolder() + asset.institution + "/" + asset.collection + "/" + asset.guid;
+        return sftpConfig.remoteFolder() + asset.institution + "/" + asset.collection + "/" + asset.asset_guid;
+    }
+
+    public List<String> getRemotePathElements(AssetFull asset) {
+        return Arrays.asList(sftpConfig.remoteFolder(), asset.institution, asset.collection, asset.asset_guid);
     }
 
     public String getLocalFolder(String institution, String collection, String assetGuid) {
@@ -234,34 +350,38 @@ public class SFTPService {
         AssetFull asset = assetService.getFullAsset(assetGuid);
         String remotePath = getRemotePath(asset);
         try {
-            Collection<String> fileNames = listFiles(remotePath);
-            for (String s : fileNames) {
-                if (!Files.exists(Path.of(sharePath + "/" + s))) {
-
-                logger.info("Downloading from " + remotePath + "/" + s);
-                downloadFile(remotePath + "/" + s, sharePath);
-                }
+            if (!exists(remotePath)) {
+                logger.info("Remote path {} didnt exist ", remotePath);
+            } else {
+                List<String> fileNames = listAllFiles(remotePath);
+                downloadFiles(fileNames, sharePath, assetGuid);
             }
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+        try {
+
             //If asset have parent download into parent folder
+            //We could save a http request here as we dont need the full parent asset to get the remote location, it is in the same collection and institution.
             if (asset.parent_guid != null) {
                 AssetFull parent = assetService.getFullAsset(asset.parent_guid);
-                String parentPath = getRemotePath(parent) + "/";
-                Collection<String> parentFileNames = listFiles(remotePath);
-                File parentDir = new File(sharePath + "/parent/");
-                if(!parentDir.exists()) {
-                    parentDir.mkdir();
-                }
-                for (String s : parentFileNames) {
-                    if (!Files.exists(Path.of(sharePath + "/" + s))) {
-                        logger.info("Downloading from " + parentPath + s);
-                        downloadFile(parentPath + s, sharePath);
+                String parentRemotePath = getRemotePath(parent);
+                try {
+                    if (!exists(parentRemotePath)) {
+                        logger.info("Remote parent path {} didnt exist ", parentRemotePath);
+                        return;
                     }
+                } catch (Exception e) {
+                    throw new RuntimeException(e);
                 }
+                List<String> parentFileNames = listAllFiles(parentRemotePath);
+                downloadFiles(parentFileNames, sharePath + "/parent", parent.asset_guid);
             }
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
     }
+
 
     public void cacheFile(String remotePath, String localPath) {
         try {

@@ -13,6 +13,8 @@ import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.HttpHeaders;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.SecurityContext;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 
 import java.time.Instant;
@@ -24,7 +26,7 @@ import static jakarta.ws.rs.core.MediaType.APPLICATION_JSON;
 
 @Path("/samba")
 public class SambaServerApi {
-
+    public static final Logger logger = LoggerFactory.getLogger(SambaServerApi.class);
     DockerConfig dockerConfig;
     FileService fileService;
     SambaServerService sambaServerService;
@@ -62,13 +64,14 @@ public class SambaServerApi {
     @Path("/closeShare")
     @Produces(MediaType.APPLICATION_JSON)
     @Consumes(APPLICATION_JSON)
-    public SambaInfo closeSambaServer(AssetSmbRequest assetSmbRequest
+    public SambaInfo closeSambaServer(AssetUpdateRequest assetUpdateRequest
             , @QueryParam("syncERDA") Boolean syncERDA
             , @Context SecurityContext securityContext) {
         boolean adminAction = securityContext.isUserInRole(SecurityRoles.ADMIN);
         User user = UserMapper.from(securityContext);
-        sambaServerService.close(assetSmbRequest, user, adminAction, syncERDA);
-        return new SambaInfo(null, null, assetSmbRequest.shareName(), null, SambaRequestStatus.OK_CLOSED, null);
+        boolean close = sambaServerService.close(assetUpdateRequest, user, adminAction, syncERDA);
+        logger.info("Did request close a server: {}",close);
+        return new SambaInfo(null, null, assetUpdateRequest.shareName(), null, SambaRequestStatus.OK_CLOSED, null);
     }
 
     @POST
@@ -79,6 +82,6 @@ public class SambaServerApi {
             , @Context SecurityContext securityContext) {
         User user = UserMapper.from(securityContext);
         SambaServer open = sambaServerService.open(assetSmbRequest, user);
-        return new SambaInfo(open.containerPort(), dockerConfig.dockerHost(), "share_" + open.sambaServerId(), open.userAccess().get(0).token(), SambaRequestStatus.OK_OPEN, null);
+        return new SambaInfo(open.containerPort(), dockerConfig.mountFolder(), "share_" + open.sambaServerId(), open.userAccess().get(0).token(), SambaRequestStatus.OK_OPEN, null);
     }
 }

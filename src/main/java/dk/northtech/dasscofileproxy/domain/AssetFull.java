@@ -8,15 +8,15 @@ import java.util.Map;
 
 public class AssetFull {
     // @Schema(description = "Pid", example = "asdf-1234-3333-1000")
-    public String pid;
+    public String asset_pid;
     // @Schema(description = "Unique key for the asset?", example = "ti-a01-202305241657")
-    public String guid;
+    public String asset_guid;
     // @Schema(description = "The status of the asset", example = "BEING_PROCESSED")
     public AssetStatus status;
     // @Schema(description = "Basically a multispecimen is a single image (or other type of media) that actually contains multiple specimens in it", example = "false")
     public boolean multi_specimen;
     // @Schema(description = "The barcodes of associated specimens", example = "'[\"ti-sp-00012\"']")
-    public List<String> specimen_barcodes = new ArrayList<>();
+    public List<String> specimen_barcodes = new ArrayList<>(); //TODO fix new structure
     // @Schema(description = "A short description of funding source used to create the asset", example = "Hundredetusindvis af dollars")
     public String funding;
     // @Schema(description = "We will need to distinguish between image of a folder, device target, specimen, label etc)", example = "folder")

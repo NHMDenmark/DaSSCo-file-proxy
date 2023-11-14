@@ -2,10 +2,8 @@ package dk.northtech.dasscofileproxy.webapi.v1;
 
 import com.auth0.jwt.JWT;
 import com.auth0.jwt.interfaces.DecodedJWT;
-import com.jcraft.jsch.ChannelSftp;
 import com.jcraft.jsch.JSchException;
 import com.jcraft.jsch.SftpException;
-import dk.northtech.dasscofileproxy.domain.Asset;
 import dk.northtech.dasscofileproxy.domain.AssetFull;
 import dk.northtech.dasscofileproxy.service.AssetService;
 import dk.northtech.dasscofileproxy.service.SFTPService;
@@ -64,7 +62,7 @@ public class SFTPApi {
     public Response get(@PathParam("guid") String guid, @PathParam("file") String file, @Context HttpHeaders headers) throws IOException, SftpException {
         // Read the asset from the asset service to obtain restricted status and remaining path for the asset
         AssetFull assetFull = assetService.getFullAsset(guid);
-        // If there is no asset for the guid in asset service throw exception, as the client needs institution and collection to locate file
+        // If there is no asset for the asset_guid in asset service throw exception, as the client needs institution and collection to locate file
         if (assetFull == null)
             return Response.status(Response.Status.NOT_FOUND).entity("Cannot find asset in asset service.").build();
 
@@ -107,8 +105,8 @@ public class SFTPApi {
         }
 
         // Build full path for requested file
-        String localPath = sftpService.getLocalFolder(assetFull.institution, assetFull.collection, assetFull.guid);
-        String remotePath = sftpService.getRemotePath(assetFull.institution, assetFull.collection, assetFull.guid);
+        String localPath = sftpService.getLocalFolder(assetFull.institution, assetFull.collection, assetFull.asset_guid);
+        String remotePath = sftpService.getRemotePath(assetFull.institution, assetFull.collection, assetFull.asset_guid);
 
 
 

@@ -1,11 +1,11 @@
 package dk.northtech.dasscofileproxy.service;
 
+import com.nimbusds.jose.shaded.gson.Gson;
 import dk.northtech.dasscofileproxy.assets.AssetServiceProperties;
 import dk.northtech.dasscofileproxy.domain.AssetFull;
+import dk.northtech.dasscofileproxy.domain.AssetUpdateRequest;
 import dk.northtech.dasscofileproxy.domain.InternalStatus;
-import dk.northtech.dasscofileproxy.domain.SambaInfo;
 import jakarta.inject.Inject;
-import jakarta.ws.rs.core.MediaType;
 import org.apache.http.client.utils.URIBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -16,8 +16,6 @@ import org.springframework.http.HttpEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
-import java.net.URI;
-import java.net.URISyntaxException;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
@@ -39,10 +37,11 @@ public class AssetService {
         try {
             HttpRequest request = HttpRequest.newBuilder()
                     .header("Authorization", "Bearer " + token)
+                    .header("Content-Type", "application/json")
                     .uri(new URIBuilder(assetServiceProperties.rootUrl() + "/api/v1/assetmetadata/" + assetGuid + "/seterrorstatus")
                             .addParameter("newStatus", err_status.name())
                             .build())
-                    .POST(HttpRequest.BodyPublishers.noBody())
+                    .PUT(HttpRequest.BodyPublishers.noBody())
                     .build();
             HttpClient httpClient = HttpClient.newBuilder().build();
             HttpResponse httpResponse = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
@@ -55,20 +54,26 @@ public class AssetService {
         }
     }
 
-    public void completeAsset(String assetGuid) {
+    public boolean completeAsset(AssetUpdateRequest updateRequest) {
         var token = this.keycloakService.getAdminToken();
         try {
+            Gson gson = new Gson();
+            String postbody = gson.toJson(updateRequest);
+            String guid = updateRequest.minimalAsset().asset_guid();
             HttpRequest request = HttpRequest.newBuilder()
                     .header("Authorization", "Bearer " + token)
-                    .uri(new URIBuilder(assetServiceProperties.rootUrl() + "/api/v1/assetmetadata/" + assetGuid + "/complete")
+                    .header("Content-Type", "application/json")
+                    .uri(new URIBuilder(assetServiceProperties.rootUrl() + "/api/v1/assetmetadata/" + guid + "/complete")
                             .build())
-                    .POST(HttpRequest.BodyPublishers.noBody())
+                    .POST(HttpRequest.BodyPublishers.ofString(postbody))
                     .build();
             HttpClient httpClient = HttpClient.newBuilder().build();
             HttpResponse httpResponse = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
-            if (!(httpResponse.statusCode() > 199 && httpResponse.statusCode() < 300)){
+            if (!(httpResponse.statusCode() > 199 && httpResponse.statusCode() < 300)) {
                 logger.warn("Failed to complete asset, request failed with status code: " + httpResponse.statusCode());
+                return false;
             }
+            return true;
         } catch (Exception e) {
             logger.error("Failed to set failed status on asset :^(");
             throw new RuntimeException(e);

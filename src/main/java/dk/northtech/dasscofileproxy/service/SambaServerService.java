@@ -30,6 +30,7 @@ public class SambaServerService {
     private final FileService fileService;
     private final SFTPService sftpService;
     private static final Logger logger = LoggerFactory.getLogger(SambaServerService.class);
+
     @Inject
     public SambaServerService(DataSource dataSource, DockerService dockerService, FileService fileService, SFTPService sftpService, DockerConfig dockerConfig) {
         this.dockerService = dockerService;
@@ -73,41 +74,51 @@ public class SambaServerService {
     }
 
     public SambaInfo createSambaServer(CreationObj creationObj, User user) {
-        Instant creationDatetime = Instant.now();
-        Integer port = findUnusedPort();
-        if (port == null) {
-            throw new BadRequestException("All ports are in use");
-        }
-        if (creationObj.users().size() > 0 && creationObj.assets().size() > 0) {
-            SambaServer sambaServer = new SambaServer(null
-                    , dockerConfig.mountFolder()
-                    , true
-                    , port
-                    , AccessType.WRITE
-                    , creationDatetime
-                    , setupSharedAssets(creationObj.assets()
-                            .stream()
-                            .map(asset -> asset.guid())
-                            .collect(Collectors.toList())
-                    , creationDatetime)
-                    , setupUserAccess(creationObj.users()
-                    , creationDatetime));
-
-            sambaServer = new SambaServer(sambaServer, createSambaServer(sambaServer));
-
-            String shareFolder = fileService.createShareFolder(sambaServer.sambaServerId());
-            try {
-                if(creationObj.assets().size() == 1) {
-                    sftpService.initAssetShare(shareFolder, creationObj.assets().get(0).guid());
-                }
-            } catch (Exception e) {
-                logger.error("Failed to init asset share", e);
+        try {
+            Instant creationDatetime = Instant.now();
+            Integer port = findUnusedPort();
+            logger.info("Creating smb");
+            if (port == null) {
+                throw new BadRequestException("All ports are in use");
             }
-            dockerService.startService(sambaServer);
-            return new SambaInfo(sambaServer.containerPort(), dockerConfig.nodeHost(), "share_" + sambaServer.sambaServerId(), sambaServer.userAccess().get(0).token(), SambaRequestStatus.OK_OPEN, null);
+            if (creationObj.users().size() > 0 && creationObj.assets().size() > 0) {
+                logger.info("creation obj is valid");
+                SambaServer sambaServer = new SambaServer(null
+                        , dockerConfig.mountFolder()
+                        , true
+                        , port
+                        , AccessType.WRITE
+                        , creationDatetime
+                        , setupSharedAssets(creationObj.assets()
+                                .stream()
+                                .map(asset -> asset.asset_guid())
+                                .collect(Collectors.toList())
+                        , creationDatetime)
+                        , setupUserAccess(creationObj.users()
+                        , creationDatetime));
+
+                sambaServer = new SambaServer(sambaServer, createSambaServer(sambaServer));
+                logger.info("created server");
+                String shareFolder = fileService.createShareFolder(sambaServer.sambaServerId());
+                try {
+                    if (creationObj.assets().size() == 1) {
+                            sftpService.initAssetShare(shareFolder, creationObj.assets().get(0).asset_guid());
+                    }
+                } catch (Exception e) {
+                    logger.error("Failed to init asset share", e);
+                    //Clean up
+                    deleteSambaServer(sambaServer.sambaServerId());
+                    throw e;
+                }
+                dockerService.startService(sambaServer);
+                return new SambaInfo(sambaServer.containerPort(), dockerConfig.nodeHost(), "share_" + sambaServer.sambaServerId(), sambaServer.userAccess().get(0).token(), SambaRequestStatus.OK_OPEN, null);
 //            return new SambaConnection("127.0.0.2", sambaServer.containerPort(), "share_" + sambaServer.sambaServerId(), sambaServer.userAccess().get(0).token());
-        } else {
-            throw new BadRequestException("You have to provide users in this call");
+            } else {
+                throw new BadRequestException("You have to provide users in this call");
+            }
+        } catch (RuntimeException e) {
+            logger.error("exception", e);
+            throw e;
         }
     }
 
@@ -140,12 +151,12 @@ public class SambaServerService {
             SambaServerRepository smbRepo = h.attach(SambaServerRepository.class);
             SambaServer sambaServer = smbRepo.getSambaServer(sambaServerId);
             SharedAssetList attach = h.attach(SharedAssetList.class);
-            System.out.println("is smb server null" + sambaServer);
             UserAccessList userAccessList = h.attach(UserAccessList.class);
-            if(sambaServer != null) {return Optional.of(
-                 new SambaServer(sambaServer
-                        , attach.getSharedAssetsBySambaServer(sambaServerId)
-                        , userAccessList.getUserAccess(sambaServerId)));
+            if (sambaServer != null) {
+                return Optional.of(
+                        new SambaServer(sambaServer
+                                , attach.getSharedAssetsBySambaServer(sambaServerId)
+                                , userAccessList.getUserAccess(sambaServerId)));
             } else {
                 return Optional.empty();
             }
@@ -169,10 +180,10 @@ public class SambaServerService {
 
     public SambaInfo disconnect(AssetSmbRequest assetSmbRequest, User user) {
         Optional<SambaServer> sambaServerOpt = getSambaServer(assetSmbRequest.shareName());
-        if(sambaServerOpt.isPresent()) {
+        if (sambaServerOpt.isPresent()) {
             SambaServer sambaServer = sambaServerOpt.get();
             checkAccess(sambaServer, user);
-            if(checkAccess(sambaServer, user)) {
+            if (checkAccess(sambaServer, user)) {
                 dockerService.removeContainer(assetSmbRequest.shareName());
 
             } else {
@@ -183,16 +194,20 @@ public class SambaServerService {
         return new SambaInfo(null, null, null, null, SambaRequestStatus.SMB_FAILED, "Share was not found");
     }
 
-    public boolean close(AssetSmbRequest assetSmbRequest, User user, boolean force, boolean syncERDA) {
+    public boolean close(AssetUpdateRequest assetSmbRequest, User user, boolean force, boolean syncERDA) {
         Optional<SambaServer> sambaServerOpt = getSambaServer(assetSmbRequest.shareName());
-        if(sambaServerOpt.isPresent()) {
+        if (sambaServerOpt.isPresent()) {
             SambaServer sambaServer = sambaServerOpt.get();
 //            checkAccess(sambaServer, user);
-            if(checkAccess(sambaServer, user)) {
-                if(syncERDA) {
-                    sftpService.moveToERDA(sambaServer);
+            if (checkAccess(sambaServer, user)) {
+                if (syncERDA) {
+                    dockerService.removeContainer(assetSmbRequest.shareName());
+                    sftpService.moveToERDA(new SambaToMove(sambaServer, assetSmbRequest));
+                } else {
+                    deleteSambaServer(sambaServer.sambaServerId());
+                    return dockerService.removeContainer(assetSmbRequest.shareName());
                 }
-                return dockerService.removeContainer(assetSmbRequest.shareName());
+                return false;
             } else {
                 throw new DasscoIllegalActionException();
             }
@@ -203,20 +218,19 @@ public class SambaServerService {
     }
 
 
-
     public SambaServer open(AssetSmbRequest assetSmbRequest, User user) {
         Optional<SambaServer> sambaServerOpt = getSambaServer(assetSmbRequest.shareName());
-        if(sambaServerOpt.isPresent()) {
+        if (sambaServerOpt.isPresent()) {
             SambaServer sambaServer = sambaServerOpt.get();
             checkAccess(sambaServer, user);
-            if(checkAccess(sambaServer, user)) {
+            if (checkAccess(sambaServer, user)) {
                 dockerService.startService(sambaServer);
                 jdbi.withHandle(h -> {
                     SambaServerRepository attach = h.attach(SambaServerRepository.class);
                     attach.updateShared(true, sambaServer.sambaServerId());
                     return h;
                 });
-                return new SambaServer(sambaServer.sambaServerId(), sambaServer.sharePath(),true,sambaServer.containerPort(),sambaServer.access(), sambaServer.creationDatetime(), sambaServer.sharedAssets(), sambaServer.userAccess());
+                return new SambaServer(sambaServer.sambaServerId(), sambaServer.sharePath(), true, sambaServer.containerPort(), sambaServer.access(), sambaServer.creationDatetime(), sambaServer.sharedAssets(), sambaServer.userAccess());
             } else {
                 throw new DasscoIllegalActionException();
             }
@@ -226,7 +240,7 @@ public class SambaServerService {
     }
 
     public boolean checkAccess(SambaServer sambaServer, User user) {
-        for(UserAccess userAccess: sambaServer.userAccess()) {
+        for (UserAccess userAccess : sambaServer.userAccess()) {
             if (Objects.equals(user.username, userAccess.username())) {
                 return true;
             }
@@ -304,6 +318,6 @@ interface UserAccessList {
     @SqlQuery("SELECT * FROM user_access WHERE samba_server_id = :sambaServerId")
     List<UserAccess> getUserAccess(@Bind long sambaServerId);
 
-    @SqlUpdate("DELETE FROM user_access WHERE samba_server_id = :samba_server_id")
+    @SqlUpdate("DELETE FROM user_access WHERE samba_server_id = :sambaServerId")
     void deleteUserAccess(@Bind long sambaServerId);
 }
