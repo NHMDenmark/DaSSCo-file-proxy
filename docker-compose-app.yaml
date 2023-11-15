@@ -15,7 +15,7 @@ services:
       ERDA_SERVER: io.erda.dk
       ERDA_PORT: 21
       ERDA_USER: christoffer@northtech.dk
-      ERDA_PASSWORD: qLJqjEga8zpAeYkwtlflLw==
+      ERDA_PASSWORD: qLJqjEga8zpA
       SFTP_PRIVATE_KEY_LOCATION: /private_key
     volumes:
       - ./private_key:/private_key
