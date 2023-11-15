@@ -50,7 +50,7 @@ public class KeycloakService {
                 // If the refresh token is still valid, use refresh token
                 if (keycloakToken.refreshExpirationTimeStamp().isBefore(Instant.now().plusSeconds(30))) {
                     LOGGER.debug("KeycloakService: Refreshing!");
-                    return refreshToken().accessToken();
+                    return newAccessToken().accessToken();
                 }
                 // If it's not valid, then fall through and create a new token
 
