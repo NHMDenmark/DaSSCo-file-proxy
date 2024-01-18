@@ -1,7 +1,7 @@
 package dk.northtech.dasscofileproxy.service;
 
 import com.google.common.base.Strings;
-import dk.northtech.dasscofileproxy.configuration.DockerConfig;
+import dk.northtech.dasscofileproxy.configuration.ShareConfig;
 import dk.northtech.dasscofileproxy.domain.*;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.BadRequestException;
@@ -18,82 +18,95 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
-public class SambaServerService {
+public class HttpShareService {
     private final Jdbi jdbi;
     private final DockerService dockerService;
-    private final DockerConfig dockerConfig;
+    private final ShareConfig shareConfig;
     private final FileService fileService;
     private final SFTPService sftpService;
-    private static final Logger logger = LoggerFactory.getLogger(SambaServerService.class);
+    private static final Logger logger = LoggerFactory.getLogger(HttpShareService.class);
 
     @Inject
-    public SambaServerService(DataSource dataSource, DockerService dockerService, FileService fileService, SFTPService sftpService, DockerConfig dockerConfig) {
+    public HttpShareService(DataSource dataSource, DockerService dockerService, FileService fileService, SFTPService sftpService, ShareConfig shareConfig) {
         this.dockerService = dockerService;
         this.fileService = fileService;
         this.sftpService = sftpService;
-        this.dockerConfig = dockerConfig;
+        this.shareConfig = shareConfig;
         this.jdbi = Jdbi.create(dataSource)
                 .installPlugin(new SqlObjectPlugin())
-                .registerRowMapper(ConstructorMapper.factory(SambaServer.class))
+                .registerRowMapper(ConstructorMapper.factory(Directory.class))
                 .registerRowMapper(ConstructorMapper.factory(UserAccess.class))
                 .registerRowMapper(ConstructorMapper.factory(SharedAsset.class));
     }
-
-    public Long createSambaServer(SambaServer sambaServer) {
+    public Directory createDirectory(Directory directory) {
         return jdbi.inTransaction(h -> {
 
-                    Long sambaServerId = h.createUpdate("""
-                                    insert into "samba_servers"(share_path, host, container_port, access, creation_datetime)
-                                    values(:sharePath, :host ,:containerPort, :access::access_type, :creationDatetime)""")
-                            .bind("host", dockerConfig.nodeHost())
-                            .bindMethods(sambaServer)
+                    Long directoryId = h.createUpdate("""
+                                    insert into directory(uri, access, creation_datetime)
+                                    values(:uri, :access::access_type, :creationDatetime)""")
+                            .bindMethods(directory)
                             .executeAndReturnGeneratedKeys()
                             .mapTo(Long.class)
                             .one();
 
-                    if (sambaServer.sharedAssets().size() > 0) {
+                    if (directory.sharedAssets().size() > 0) {
                         SharedAssetList sharedAssetRepository = h.attach(SharedAssetList.class);
-
-                        sharedAssetRepository.fillBatch(sambaServerId, sambaServer.sharedAssets());
+                        sharedAssetRepository.fillBatch(directoryId, directory.sharedAssets());
                     }
 
-                    if (sambaServer.userAccess().size() > 0) {
+                    if (directory.userAccess().size() > 0) {
                         UserAccessList userAccessRepository = h.attach(UserAccessList.class);
-
-                        userAccessRepository.fillBatch(sambaServerId, sambaServer.userAccess());
+                        userAccessRepository.fillBatch(directoryId, directory.userAccess());
                     }
 
-                    return sambaServerId;
+                    return new Directory(directory, directoryId);
                 }
         );
     }
+//    public Long createDirectory(Directory directory) {
+//        return jdbi.inTransaction(h -> {
+//
+//                    Long dictionaryId = h.createUpdate("""
+//                                    insert into directories(uri, access, creation_datetime)
+//                                    values(:sharePath, :access::access_type, :creationDatetime)""")
+//                            .bindMethods(directory)
+//                            .executeAndReturnGeneratedKeys()
+//                            .mapTo(Long.class)
+//                            .one();
+//
+//                    if (directory.sharedAssets().size() > 0) {
+//                        SharedAssetList sharedAssetRepository = h.attach(SharedAssetList.class);
+//
+//                        sharedAssetRepository.fillBatch(dictionaryId, directory.sharedAssets());
+//                    }
+//
+//                    if (directory.userAccess().size() > 0) {
+//                        UserAccessList userAccessRepository = h.attach(UserAccessList.class);
+//                        userAccessRepository.fillBatch(dictionaryId, directory.userAccess());
+//                    }
+//
+//                    return dictionaryId;
+//                }
+//        );
+//    }
 
-    public SambaInfo createSambaServer(CreationObj creationObj, User user) {
+    public SambaInfo createHttpShare(CreationObj creationObj, User user) {
         try {
             Instant creationDatetime = Instant.now();
-            Integer port = findUnusedPort();
-            logger.info("Creating smb");
-            if (port == null) {
-                throw new BadRequestException("All ports are in use");
-            }
             if (creationObj.users().size() > 0 && creationObj.assets().size() > 0) {
                 logger.info("creation obj is valid");
-                SambaServer sambaServer = new SambaServer(null
-                        , dockerConfig.mountFolder()
-                        , true
-                        , port
-                        , AccessType.WRITE
+                Directory dir = new Directory(null
+                        , shareConfig.mountFolder()
+                        , AccessType.WRITE //TODO make it possible to set type here
                         , creationDatetime
                         , setupSharedAssets(creationObj.assets()
                                 .stream()
                                 .map(asset -> asset.asset_guid())
-                                .collect(Collectors.toList())
-                        , creationDatetime)
-                        , setupUserAccess(creationObj.users()
-                        , creationDatetime));
-                sambaServer = new SambaServer(sambaServer, createSambaServer(sambaServer));
-                logger.info("created server");
-                String shareFolder = fileService.createShareFolder(sambaServer.sambaServerId());
+                                .collect(Collectors.toList()), creationDatetime)
+                        , setupUserAccess(creationObj.users(), creationDatetime)
+                );
+                Directory directory = createDirectory(dir);
+                String shareFolder = fileService.createShareFolder(directory.directoryId());
                 try {
                     if (creationObj.assets().size() == 1) {
                             sftpService.initAssetShare(shareFolder, creationObj.assets().get(0).asset_guid());
@@ -101,11 +114,12 @@ public class SambaServerService {
                 } catch (Exception e) {
                     logger.error("Failed to init asset share", e);
                     //Clean up
-                    deleteSambaServer(sambaServer.sambaServerId());
+                    deleteDirectory(directory.directoryId());
                     throw e;
                 }
-                dockerService.startService(sambaServer);
-                return new SambaInfo(sambaServer.containerPort(), dockerConfig.nodeHost(), "share_" + sambaServer.sambaServerId(), sambaServer.userAccess().get(0).token(), SambaRequestStatus.OK_OPEN, null);
+//                dockerService.startService(sambaServer);
+
+                return new HttpInfo(directory.uri(),  );
 //            return new SambaConnection("127.0.0.2", sambaServer.containerPort(), "share_" + sambaServer.sambaServerId(), sambaServer.userAccess().get(0).token());
             } else {
                 throw new BadRequestException("You have to provide users in this call");
@@ -198,7 +212,7 @@ public class SambaServerService {
                     dockerService.removeContainer(assetSmbRequest.shareName());
                     sftpService.moveToERDA(new SambaToMove(sambaServer, assetSmbRequest));
                 } else {
-                    deleteSambaServer(sambaServer.sambaServerId());
+                    deleteDirectory(sambaServer.sambaServerId());
                     return dockerService.removeContainer(assetSmbRequest.shareName());
                 }
                 return false;
@@ -242,14 +256,14 @@ public class SambaServerService {
         return false;
     }
 
-    public void deleteSambaServer(long sambaServerId) {
+    public void deleteDirectory(long sambaServerId) {
         jdbi.inTransaction(h -> {
             SharedAssetList sharedAssetRepository = h.attach(SharedAssetList.class);
             UserAccessList userAccessRepository = h.attach(UserAccessList.class);
-            SambaServerRepository sambaServerRepository = h.attach(SambaServerRepository.class);
+            DictionaryRepository directoryRepository = h.attach(DictionaryRepository.class);
             userAccessRepository.deleteUserAccess(sambaServerId);
             sharedAssetRepository.deleteSharedAsset(sambaServerId);
-            sambaServerRepository.deleteServer(sambaServerId);
+            directoryRepository.deleteServer(sambaServerId);
             return h;
         });
     }
@@ -272,19 +286,6 @@ public class SambaServerService {
         });
 
         return sharedAssets;
-    }
-
-    public Integer findUnusedPort() {
-        List<Integer> usedPorts = findAllUsedPorts();
-
-        for (Integer i = dockerConfig.portRangeStart(); i < dockerConfig.portRangeEnd(); i++) {
-            if (!usedPorts.contains(i)) {
-                System.out.println(i);
-                return i;
-            }
-        }
-
-        return null;
     }
 }
 
