@@ -10,6 +10,7 @@ public record Directory(Long directoryId
         , String uri
         , AccessType access
         , Instant creationDatetime
+        , int allocatedMb
         , @Nullable List<SharedAsset> sharedAssets
         , @Nullable List<UserAccess> userAccess) {
 
@@ -22,6 +23,7 @@ public record Directory(Long directoryId
                 , directory.uri
                 , directory.access()
                 , directory.creationDatetime
+                , directory.allocatedMb
                 , directory.sharedAssets
                 , directory.userAccess);
     }
@@ -31,6 +33,7 @@ public record Directory(Long directoryId
                 , sambaServer.uri()
                 , sambaServer.access()
                 , sambaServer.creationDatetime
+                , sambaServer.allocatedMb()
                 , sharedAssets
                 , userAccess);
     }

@@ -1,4 +1,4 @@
-package dk.northtech.dasscofileproxy.service;
+package dk.northtech.dasscofileproxy.repository;
 
 import dk.northtech.dasscofileproxy.domain.SambaServer;
 import org.jdbi.v3.sqlobject.customizer.Bind;

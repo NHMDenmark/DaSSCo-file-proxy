@@ -1,4 +1,4 @@
-package dk.northtech.dasscofileproxy.service;
+package dk.northtech.dasscofileproxy.repository;
 
 import dk.northtech.dasscofileproxy.domain.UserAccess;
 import org.jdbi.v3.sqlobject.customizer.Bind;
@@ -10,7 +10,7 @@ import org.jdbi.v3.sqlobject.statement.SqlUpdate;
 import java.util.Collection;
 import java.util.List;
 
-interface UserAccessList {
+public interface UserAccessList {
     @SqlBatch("INSERT INTO user_access(directory_id, username, token, creation_datetime) VALUES (:newDirectoryId, :username, :token, :creationDatetime)")
     void fillBatch(@Bind Long newDirectoryId, @BindMethods Collection<UserAccess> userAccess);
 

@@ -17,13 +17,15 @@
       <column name="asset_guid" type="text">
         <constraints nullable="false"/>
       </column>
-      <column name="size_mb" type="int">
+      <column name="size_bytes" type="int">
         <constraints nullable="false"/>
       </column>
       <column name="path" type="text">
         <constraints nullable="false"/>
       </column>
-      <column name="status" type="text"/>
+      <column name="status" type="text">
+        <constraints nullable="false"/>
+      </column>
     </createTable>
 
   </changeSet>
@@ -40,6 +42,9 @@
         <constraints nullable="false"/>
       </column>
       <column name="creation_datetime" type="datetime">
+        <constraints nullable="false"/>
+      </column>
+      <column name="allocation_mb" type="datetime">
         <constraints nullable="false"/>
       </column>
     </createTable>

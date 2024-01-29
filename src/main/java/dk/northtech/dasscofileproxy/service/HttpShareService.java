@@ -3,6 +3,10 @@ package dk.northtech.dasscofileproxy.service;
 import com.google.common.base.Strings;
 import dk.northtech.dasscofileproxy.configuration.ShareConfig;
 import dk.northtech.dasscofileproxy.domain.*;
+import dk.northtech.dasscofileproxy.repository.DirectoryRepository;
+import dk.northtech.dasscofileproxy.repository.SambaServerRepository;
+import dk.northtech.dasscofileproxy.repository.SharedAssetList;
+import dk.northtech.dasscofileproxy.repository.UserAccessList;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.BadRequestException;
 import org.jdbi.v3.core.Jdbi;
@@ -38,16 +42,12 @@ public class HttpShareService {
                 .registerRowMapper(ConstructorMapper.factory(UserAccess.class))
                 .registerRowMapper(ConstructorMapper.factory(SharedAsset.class));
     }
+
     public Directory createDirectory(Directory directory) {
         return jdbi.inTransaction(h -> {
+                    DirectoryRepository di = h.attach(DirectoryRepository.class);
 
-                    Long directoryId = h.createUpdate("""
-                                    insert into directory(uri, access, creation_datetime)
-                                    values(:uri, :access::access_type, :creationDatetime)""")
-                            .bindMethods(directory)
-                            .executeAndReturnGeneratedKeys()
-                            .mapTo(Long.class)
-                            .one();
+                    Long directoryId = di.insertDirectory(directory);
 
                     if (directory.sharedAssets().size() > 0) {
                         SharedAssetList sharedAssetRepository = h.attach(SharedAssetList.class);
@@ -63,63 +63,39 @@ public class HttpShareService {
                 }
         );
     }
-//    public Long createDirectory(Directory directory) {
-//        return jdbi.inTransaction(h -> {
-//
-//                    Long dictionaryId = h.createUpdate("""
-//                                    insert into directories(uri, access, creation_datetime)
-//                                    values(:sharePath, :access::access_type, :creationDatetime)""")
-//                            .bindMethods(directory)
-//                            .executeAndReturnGeneratedKeys()
-//                            .mapTo(Long.class)
-//                            .one();
-//
-//                    if (directory.sharedAssets().size() > 0) {
-//                        SharedAssetList sharedAssetRepository = h.attach(SharedAssetList.class);
-//
-//                        sharedAssetRepository.fillBatch(dictionaryId, directory.sharedAssets());
-//                    }
-//
-//                    if (directory.userAccess().size() > 0) {
-//                        UserAccessList userAccessRepository = h.attach(UserAccessList.class);
-//                        userAccessRepository.fillBatch(dictionaryId, directory.userAccess());
-//                    }
-//
-//                    return dictionaryId;
-//                }
-//        );
-//    }
 
-    public SambaInfo createHttpShare(CreationObj creationObj, User user) {
+    public HttpInfo createHttpShare(CreationObj creationObj, User user) {
         try {
             Instant creationDatetime = Instant.now();
             if (creationObj.users().size() > 0 && creationObj.assets().size() > 0) {
+                StorageMetrics storageMetrics = getStorageMetrics();
+                HttpInfo httpInfo = createHttpInfo(storageMetrics, creationObj);
                 logger.info("creation obj is valid");
                 Directory dir = new Directory(null
                         , shareConfig.mountFolder()
                         , AccessType.WRITE //TODO make it possible to set type here
                         , creationDatetime
+                        , creationObj.allocation_mb()
                         , setupSharedAssets(creationObj.assets()
-                                .stream()
-                                .map(asset -> asset.asset_guid())
-                                .collect(Collectors.toList()), creationDatetime)
-                        , setupUserAccess(creationObj.users(), creationDatetime)
+                        .stream()
+                        .map(asset -> asset.asset_guid())
+                        .collect(Collectors.toList()), creationDatetime), setupUserAccess(creationObj.users(), creationDatetime)
                 );
                 Directory directory = createDirectory(dir);
                 String shareFolder = fileService.createShareFolder(directory.directoryId());
                 try {
                     if (creationObj.assets().size() == 1) {
-                            sftpService.initAssetShare(shareFolder, creationObj.assets().get(0).asset_guid());
+                        sftpService.initAssetShare(shareFolder, creationObj.assets().get(0).asset_guid());
+                        return httpInfo;
                     }
                 } catch (Exception e) {
                     logger.error("Failed to init asset share", e);
-                    //Clean up
                     deleteDirectory(directory.directoryId());
                     throw e;
                 }
 //                dockerService.startService(sambaServer);
 
-                return new HttpInfo(directory.uri(),  );
+                return new HttpInfo(null, null, storageMetrics.total_storage_mb(), storageMetrics.cache_storage_mb(), storageMetrics.remaining_storage_mb(), 0, httpInfo.proxy_allocation_status_text(),httpInfo.httpAllocationStatus());
 //            return new SambaConnection("127.0.0.2", sambaServer.containerPort(), "share_" + sambaServer.sambaServerId(), sambaServer.userAccess().get(0).token());
             } else {
                 throw new BadRequestException("You have to provide users in this call");
@@ -130,15 +106,41 @@ public class HttpShareService {
         }
     }
 
-    public List<Integer> findAllUsedPorts() {
-        return jdbi.withHandle(h ->
-                h.createQuery("""
-                                select container_port from "samba_servers"
-                                """)
-                        .mapTo(Integer.class)
-                        .list()
-        );
+    public HttpInfo createHttpInfo(StorageMetrics storageMetrics, CreationObj creationObj) {
+        if(storageMetrics.remaining_storage_mb()-creationObj.allocation_mb() < 0) {
+            return new HttpInfo(null
+                    , shareConfig.nodeHost()
+                    , storageMetrics.total_storage_mb()
+                    , storageMetrics.cache_storage_mb()
+                    , storageMetrics.remaining_storage_mb()
+                    , 0
+                    , null
+                    , HttpAllocationStatus.DISK_FULL);
+        }
+        MinimalAsset minimalAsset = creationObj.assets().get(0);
+        String path = "/assets/" + minimalAsset.institution() + "/" + minimalAsset.collection() +"/";
+        return new HttpInfo(path
+                , shareConfig.nodeHost()
+                , storageMetrics.total_storage_mb()
+                , storageMetrics.cache_storage_mb()
+                , storageMetrics.remaining_storage_mb() - creationObj.allocation_mb()
+                , creationObj.allocation_mb()
+                , null
+                , HttpAllocationStatus.SUCCESS);
     }
+
+    public StorageMetrics getStorageMetrics() {
+        return jdbi.withHandle(h -> {
+            int totalDiskSpace = shareConfig.totalDiskpace();
+            int cacheDiskSpace = shareConfig.cacheDiskspace();
+            int totalAllocated = 0;
+            DirectoryRepository attach = h.attach(DirectoryRepository.class);
+            totalAllocated = attach.getTotalAllocated();
+            return new StorageMetrics(totalDiskSpace, cacheDiskSpace, totalAllocated, totalDiskSpace-totalAllocated);
+        });
+
+    }
+
 
     public String generateRandomToken() {
         int leftLimit = 48; // numeral '0'
@@ -256,14 +258,14 @@ public class HttpShareService {
         return false;
     }
 
-    public void deleteDirectory(long sambaServerId) {
+    public void deleteDirectory(long directoryId) {
         jdbi.inTransaction(h -> {
             SharedAssetList sharedAssetRepository = h.attach(SharedAssetList.class);
             UserAccessList userAccessRepository = h.attach(UserAccessList.class);
-            DictionaryRepository directoryRepository = h.attach(DictionaryRepository.class);
-            userAccessRepository.deleteUserAccess(sambaServerId);
-            sharedAssetRepository.deleteSharedAsset(sambaServerId);
-            directoryRepository.deleteServer(sambaServerId);
+            DirectoryRepository directoryRepository = h.attach(DirectoryRepository.class);
+            userAccessRepository.deleteUserAccess(directoryId);
+            sharedAssetRepository.deleteSharedAsset(directoryId);
+            directoryRepository.deleteSharedAsset(directoryId);
             return h;
         });
     }

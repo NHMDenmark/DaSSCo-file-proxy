@@ -302,7 +302,7 @@ public class SFTPService {
         ChannelSftp channel = startChannelSftp();
         try {
             for (String location : locations) {
-                //remove institution/collection/guid from local path
+                //remove institution/collection/guid from local path //TODO we use nested structure locally now... i think
                 String destinationLocation = destination + location.substring(location.indexOf(asset_guid) + asset_guid.length());
                 logger.info("Getting from {} saving in {}", location, destinationLocation);
                 File parentDir = new File(destinationLocation.substring(0, destinationLocation.lastIndexOf('/')));
