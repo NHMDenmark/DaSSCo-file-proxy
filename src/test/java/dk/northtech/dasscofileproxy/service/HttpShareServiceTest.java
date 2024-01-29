@@ -1,12 +1,8 @@
 package dk.northtech.dasscofileproxy.service;
 
 import dk.northtech.dasscofileproxy.configuration.DockerConfig;
-import dk.northtech.dasscofileproxy.domain.AccessType;
-import dk.northtech.dasscofileproxy.domain.SambaServer;
-import dk.northtech.dasscofileproxy.domain.SharedAsset;
-import dk.northtech.dasscofileproxy.domain.UserAccess;
+import dk.northtech.dasscofileproxy.domain.*;
 import jakarta.inject.Inject;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.annotation.DirtiesContext;
@@ -18,17 +14,17 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.utility.DockerImageName;
 
 import java.time.Instant;
-import java.util.List;
+import java.util.Arrays;
 
 import static com.google.common.truth.Truth.assertThat;
-
+import static org.junit.jupiter.api.Assertions.*;
 
 @SpringBootTest
 @Testcontainers
 @DirtiesContext
-public class SambaServerServiceTest {
+class HttpShareServiceTest {
     @Inject
-    SambaServerService sambaServerService;
+    HttpShareService httpShareService;
     @Inject
     DockerConfig dockerConfig;
 
@@ -44,33 +40,15 @@ public class SambaServerServiceTest {
         registry.add("datasource.jdbcUrl", () -> "jdbc:postgresql://localhost:" + postgreSQL.getFirstMappedPort() + "/dassco_file_proxy");
     }
 
-
     @Test
-    @Disabled
-    public void test () {
-        SambaServer testObject = new SambaServer(null, "/here", true, 6060
-                , AccessType.WRITE, Instant.now(), List.of(new SharedAsset(null, null
-                , "asset_guid", Instant.now())), List.of(new UserAccess(null, null
-                , "grand", "token", Instant.now())));
-         sambaServerService.createSambaServer(testObject);
+    void createDirectory() {
+        SharedAsset azzet1 = new SharedAsset(null, null, "azzet_1", Instant.now());
+        UserAccess userAccess = new UserAccess(null, null, "Bazviola", "token", Instant.now());
+        Directory directory = new Directory(null, "/i1/c1/azzet_1/", AccessType.WRITE, Instant.now(), 10, Arrays.asList(azzet1), Arrays.asList(userAccess));
+        Directory directory1 = httpShareService.createDirectory(directory);
+        assertThat(directory1.directoryId()).isNotNull();
+        StorageMetrics storageMetrics = httpShareService.getStorageMetrics();
+        assertThat(storageMetrics.all_allocated_storage_mb()).isEqualTo(10);
+
     }
-
-    @Test
-    public void randomToken() {
-        String first = sambaServerService.generateRandomToken();
-        String second = sambaServerService.generateRandomToken();
-        assertThat(first.equals(second)).isFalse();
-    }
-
-    @Test
-    public void findUnusedPort() {
-        List<Integer> usedPorts = sambaServerService.findAllUsedPorts();
-
-        for (Integer i = dockerConfig.portRangeStart(); i <= dockerConfig.portRangeEnd(); i++) {
-            if (!usedPorts.contains(i)) {
-                System.out.println(i);
-            }
-        }
-    }
-
 }

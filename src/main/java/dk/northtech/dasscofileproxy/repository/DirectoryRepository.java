@@ -13,7 +13,7 @@ import java.util.List;
 
 public interface DirectoryRepository {
     static final String INSERT = """
-            INSERT INTO directory(uri, access, allocated_mb ,creation_datetime)
+            INSERT INTO directories(uri, access, allocated_storage_mb ,creation_datetime)
                                     VALUES(:uri, :access::access_type, :allocatedMb, :creationDatetime)
             """;
     @SqlUpdate(INSERT)
@@ -29,6 +29,6 @@ public interface DirectoryRepository {
     @SqlUpdate("DELETE FROM directories WHERE directory_id = :directoryId")
     void deleteSharedAsset(@Bind long directoryId);
 
-    @SqlQuery("SELECT sum(allocated_mb) as totalAllocated FROM directories")
+    @SqlQuery("SELECT sum(allocated_storage_mb) as totalAllocated FROM directories")
     int getTotalAllocated();
 }

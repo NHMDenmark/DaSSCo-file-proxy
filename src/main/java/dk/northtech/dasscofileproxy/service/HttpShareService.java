@@ -95,7 +95,7 @@ public class HttpShareService {
                 }
 //                dockerService.startService(sambaServer);
 
-                return new HttpInfo(null, null, storageMetrics.total_storage_mb(), storageMetrics.cache_storage_mb(), storageMetrics.remaining_storage_mb(), 0, httpInfo.proxy_allocation_status_text(),httpInfo.httpAllocationStatus());
+                return new HttpInfo(null, null, storageMetrics.total_storage_mb(), storageMetrics.cache_storage_mb(), storageMetrics.remaining_storage_mb(), storageMetrics.all_allocated_storage_mb(), 0, httpInfo.proxy_allocation_status_text(),httpInfo.httpAllocationStatus());
 //            return new SambaConnection("127.0.0.2", sambaServer.containerPort(), "share_" + sambaServer.sambaServerId(), sambaServer.userAccess().get(0).token());
             } else {
                 throw new BadRequestException("You have to provide users in this call");
@@ -112,6 +112,7 @@ public class HttpShareService {
                     , shareConfig.nodeHost()
                     , storageMetrics.total_storage_mb()
                     , storageMetrics.cache_storage_mb()
+                    , storageMetrics.all_allocated_storage_mb()
                     , storageMetrics.remaining_storage_mb()
                     , 0
                     , null
@@ -123,6 +124,7 @@ public class HttpShareService {
                 , shareConfig.nodeHost()
                 , storageMetrics.total_storage_mb()
                 , storageMetrics.cache_storage_mb()
+                , storageMetrics.all_allocated_storage_mb() + creationObj.allocation_mb()
                 , storageMetrics.remaining_storage_mb() - creationObj.allocation_mb()
                 , creationObj.allocation_mb()
                 , null
@@ -282,11 +284,9 @@ public class HttpShareService {
 
     public List<SharedAsset> setupSharedAssets(List<String> assetGuids, Instant creationDateTime) {
         ArrayList<SharedAsset> sharedAssets = new ArrayList<>();
-
         assetGuids.forEach(assetGuid -> {
             sharedAssets.add(new SharedAsset(null, null, assetGuid, creationDateTime));
         });
-
         return sharedAssets;
     }
 }
