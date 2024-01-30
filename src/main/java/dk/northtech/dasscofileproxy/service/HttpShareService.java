@@ -133,12 +133,12 @@ public class HttpShareService {
 
     public StorageMetrics getStorageMetrics() {
         return jdbi.withHandle(h -> {
-            int totalDiskSpace = shareConfig.totalDiskpace();
+            int totalDiskSpace = shareConfig.totalDiskspace();
             int cacheDiskSpace = shareConfig.cacheDiskspace();
             int totalAllocated = 0;
             DirectoryRepository attach = h.attach(DirectoryRepository.class);
             totalAllocated = attach.getTotalAllocated();
-            return new StorageMetrics(totalDiskSpace, cacheDiskSpace, totalAllocated, totalDiskSpace-totalAllocated);
+            return new StorageMetrics(totalDiskSpace, cacheDiskSpace, totalAllocated, totalDiskSpace-totalAllocated-cacheDiskSpace);
         });
 
     }
