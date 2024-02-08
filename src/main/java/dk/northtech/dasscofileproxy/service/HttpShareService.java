@@ -3,10 +3,8 @@ package dk.northtech.dasscofileproxy.service;
 import com.google.common.base.Strings;
 import dk.northtech.dasscofileproxy.configuration.ShareConfig;
 import dk.northtech.dasscofileproxy.domain.*;
-import dk.northtech.dasscofileproxy.repository.DirectoryRepository;
-import dk.northtech.dasscofileproxy.repository.SambaServerRepository;
-import dk.northtech.dasscofileproxy.repository.SharedAssetList;
-import dk.northtech.dasscofileproxy.repository.UserAccessList;
+import dk.northtech.dasscofileproxy.repository.*;
+import dk.northtech.dasscofileproxy.webapi.model.AssetStorageAllocation;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.BadRequestException;
 import org.jdbi.v3.core.Jdbi;
@@ -71,18 +69,24 @@ public class HttpShareService {
                 StorageMetrics storageMetrics = getStorageMetrics();
                 HttpInfo httpInfo = createHttpInfo(storageMetrics, creationObj);
                 logger.info("creation obj is valid");
+                if(creationObj.assets().size() != 1) {
+                    throw new IllegalArgumentException("Number of assets must be one");
+                }
                 Directory dir = new Directory(null
-                        , shareConfig.mountFolder()
-                        , AccessType.WRITE //TODO make it possible to set type here
+                        , httpInfo.path()
+                        , shareConfig.nodeHost()
+                        , AccessType.WRITE
                         , creationDatetime
                         , creationObj.allocation_mb()
+                        , false
+                        , 0
                         , setupSharedAssets(creationObj.assets()
                         .stream()
                         .map(asset -> asset.asset_guid())
                         .collect(Collectors.toList()), creationDatetime), setupUserAccess(creationObj.users(), creationDatetime)
                 );
                 Directory directory = createDirectory(dir);
-                String shareFolder = fileService.createShareFolder(directory.directoryId());
+                String shareFolder = fileService.createShareFolder(creationObj.assets().get(0));
                 try {
                     if (creationObj.assets().size() == 1) {
                         sftpService.initAssetShare(shareFolder, creationObj.assets().get(0).asset_guid());
@@ -93,10 +97,7 @@ public class HttpShareService {
                     deleteDirectory(directory.directoryId());
                     throw e;
                 }
-//                dockerService.startService(sambaServer);
-
                 return new HttpInfo(null, null, storageMetrics.total_storage_mb(), storageMetrics.cache_storage_mb(), storageMetrics.remaining_storage_mb(), storageMetrics.all_allocated_storage_mb(), 0, httpInfo.proxy_allocation_status_text(),httpInfo.httpAllocationStatus());
-//            return new SambaConnection("127.0.0.2", sambaServer.containerPort(), "share_" + sambaServer.sambaServerId(), sambaServer.userAccess().get(0).token());
             } else {
                 throw new BadRequestException("You have to provide users in this call");
             }
@@ -119,7 +120,7 @@ public class HttpShareService {
                     , HttpAllocationStatus.DISK_FULL);
         }
         MinimalAsset minimalAsset = creationObj.assets().get(0);
-        String path = "/assets/" + minimalAsset.institution() + "/" + minimalAsset.collection() +"/";
+        String path = "/assetsfiles/" + minimalAsset.institution() + "/" + minimalAsset.collection() +"/" + minimalAsset.asset_guid() +"/";
         return new HttpInfo(path
                 , shareConfig.nodeHost()
                 , storageMetrics.total_storage_mb()
@@ -143,7 +144,28 @@ public class HttpShareService {
 
     }
 
-
+    public HttpInfo allocateStorage(AssetStorageAllocation newAllocation) {
+        StorageMetrics storageMetrics = getStorageMetrics();
+        return jdbi.withHandle(h -> {
+            DirectoryRepository directoryRepository = h.attach(DirectoryRepository.class);
+            List<Directory> writeableDirectoriesByAsset = directoryRepository.getWriteableDirectoriesByAsset(newAllocation.assetGuid());
+            if(writeableDirectoriesByAsset.size() != 1) {
+                return new HttpInfo("Failed to allocate storage" , HttpAllocationStatus.ILLEGAL_STATE);
+            }
+            FileRepository fileRepository = h.attach(FileRepository.class);
+            long totalAllocatedAsset = fileRepository.getTotalAllocatedByAsset(newAllocation.assetGuid());
+            if(totalAllocatedAsset/1000 > newAllocation.new_allocation_mb()) {
+                return new HttpInfo("Size of files in share is greater than the new value", HttpAllocationStatus.ILLEGAL_STATE);
+            }
+            Directory directory = writeableDirectoriesByAsset.get(0);
+            StorageMetrics resultMetrics = storageMetrics.allocate(newAllocation.new_allocation_mb() - directory.allocatedStorageMb());
+            if(resultMetrics.remaining_storage_mb() < 0) {
+                return new HttpInfo(directory.uri(), directory.node_host(),storageMetrics.total_storage_mb(), storageMetrics.cache_storage_mb(),storageMetrics.all_allocated_storage_mb(), storageMetrics.remaining_storage_mb(), 0, "Cannot allocate more storage", HttpAllocationStatus.DISK_FULL);
+            }
+            directoryRepository.updateAllocatedStorage(directory.directoryId(), newAllocation.new_allocation_mb());
+            return new HttpInfo(directory.uri(), directory.node_host(),resultMetrics.total_storage_mb(), resultMetrics.cache_storage_mb(),resultMetrics.all_allocated_storage_mb(), resultMetrics.remaining_storage_mb(), 0, "Cannot allocate more storage", HttpAllocationStatus.SUCCESS);
+        });
+    }
     public String generateRandomToken() {
         int leftLimit = 48; // numeral '0'
         int rightLimit = 122; // letter 'z'
@@ -269,7 +291,7 @@ public class HttpShareService {
             sharedAssetRepository.deleteSharedAsset(directoryId);
             directoryRepository.deleteSharedAsset(directoryId);
             return h;
-        });
+        }).close();
     }
 
     public List<UserAccess> setupUserAccess(List<String> users, Instant creationDateTime) {

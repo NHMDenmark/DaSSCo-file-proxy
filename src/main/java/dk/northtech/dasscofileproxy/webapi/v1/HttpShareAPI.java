@@ -4,8 +4,10 @@ import dk.northtech.dasscofileproxy.configuration.DockerConfig;
 import dk.northtech.dasscofileproxy.domain.*;
 import dk.northtech.dasscofileproxy.service.DockerService;
 import dk.northtech.dasscofileproxy.service.FileService;
+import dk.northtech.dasscofileproxy.service.HttpShareService;
 import dk.northtech.dasscofileproxy.service.SambaServerService;
 import dk.northtech.dasscofileproxy.webapi.UserMapper;
+import dk.northtech.dasscofileproxy.webapi.model.AssetStorageAllocation;
 import jakarta.annotation.security.RolesAllowed;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.*;
@@ -20,28 +22,30 @@ import static jakarta.ws.rs.core.MediaType.APPLICATION_JSON;
 @Path("/shares")
 public class HttpShareAPI {
     public static final Logger logger = LoggerFactory.getLogger(HttpShareAPI.class);
-    DockerConfig dockerConfig;
-    FileService fileService;
-    SambaServerService sambaServerService;
-    DockerService dockerService;
-
+    HttpShareService httpShareService;
 
     @Inject
-    public HttpShareAPI(DockerConfig dockerConfig, DockerService dockerService, FileService fileService, SambaServerService sambaServerService) {
-        this.dockerConfig = dockerConfig;
-        this.dockerService = dockerService;
-        this.fileService = fileService;
-        this.sambaServerService = sambaServerService;
+    public HttpShareAPI(HttpShareService httpShareService) {
+        this.httpShareService = httpShareService;
     }
 
     @POST
     @Path("/createShare")
     @Produces(MediaType.APPLICATION_JSON)
     @Consumes(APPLICATION_JSON)
-    public SambaInfo createSambaServer(CreationObj creationObj, @Context SecurityContext securityContext) {
+    public HttpInfo createSambaServer(CreationObj creationObj, @Context SecurityContext securityContext) {
         User user = UserMapper.from(securityContext);
-        return sambaServerService.createSambaServer(creationObj, user);
+        return httpShareService.createHttpShare(creationObj, user);
 
+    }
+
+    @POST
+    @Path("/assets/changeAllocation")
+    @Produces(APPLICATION_JSON)
+    @Consumes(APPLICATION_JSON)
+    @RolesAllowed({SecurityRoles.USER, SecurityRoles.ADMIN, SecurityRoles.ADMIN})
+    public HttpInfo updateStorageAllocation(AssetStorageAllocation newAllocation) {
+        return httpShareService.allocateStorage(newAllocation);
     }
 
     @POST
@@ -51,31 +55,7 @@ public class HttpShareAPI {
     @RolesAllowed({SecurityRoles.USER, SecurityRoles.ADMIN, SecurityRoles.ADMIN})
     public SambaInfo disconnectSambaServer(AssetSmbRequest assetSmbRequest, @Context SecurityContext securityContext) {
         User user = UserMapper.from(securityContext);
-        return sambaServerService.disconnect(assetSmbRequest, user);
-    }
-
-    @POST
-    @Path("/closeShare")
-    @Produces(MediaType.APPLICATION_JSON)
-    @Consumes(APPLICATION_JSON)
-    public SambaInfo closeSambaServer(AssetUpdateRequest assetUpdateRequest
-            , @QueryParam("syncERDA") Boolean syncERDA
-            , @Context SecurityContext securityContext) {
-        boolean adminAction = securityContext.isUserInRole(SecurityRoles.ADMIN);
-        User user = UserMapper.from(securityContext);
-        boolean close = sambaServerService.close(assetUpdateRequest, user, adminAction, syncERDA);
-        logger.info("Did request close a server: {}",close);
-        return new SambaInfo(null, null, assetUpdateRequest.shareName(), null, SambaRequestStatus.OK_CLOSED, null);
-    }
-
-    @POST
-    @Path("/openShare")
-    @Produces(MediaType.APPLICATION_JSON)
-    @Consumes(APPLICATION_JSON)
-    public SambaInfo openSambaServer(AssetSmbRequest assetSmbRequest
-            , @Context SecurityContext securityContext) {
-        User user = UserMapper.from(securityContext);
-        SambaServer open = sambaServerService.open(assetSmbRequest, user);
-        return new SambaInfo(open.containerPort(), dockerConfig.mountFolder(), "share_" + open.sambaServerId(), open.userAccess().get(0).token(), SambaRequestStatus.OK_OPEN, null);
+        return null;
+//        return httpShareService..disconnect(assetSmbRequest, user);
     }
 }

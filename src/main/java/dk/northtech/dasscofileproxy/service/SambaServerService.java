@@ -96,7 +96,8 @@ public class SambaServerService {
                         , creationDatetime));
                 sambaServer = new SambaServer(sambaServer, createSambaServer(sambaServer));
                 logger.info("created server");
-                String shareFolder = fileService.createShareFolder(sambaServer.sambaServerId());
+//                String shareFolder = fileService.createShareFolder(sambaServer.sambaServerId());
+                String shareFolder = "";
                 try {
                     if (creationObj.assets().size() == 1) {
                             sftpService.initAssetShare(shareFolder, creationObj.assets().get(0).asset_guid());

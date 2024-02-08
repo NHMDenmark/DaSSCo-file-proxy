@@ -2,8 +2,14 @@ package dk.northtech.dasscofileproxy.configuration;
 
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
+import dk.northtech.dasscofileproxy.domain.DasscoFile;
+import dk.northtech.dasscofileproxy.domain.Directory;
+import dk.northtech.dasscofileproxy.domain.SharedAsset;
+import dk.northtech.dasscofileproxy.domain.UserAccess;
 import org.jdbi.v3.core.Jdbi;
+import org.jdbi.v3.core.mapper.reflect.ConstructorMapper;
 import org.jdbi.v3.postgres.PostgresPlugin;
+import org.jdbi.v3.sqlobject.SqlObjectPlugin;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -29,7 +35,13 @@ public class DataSources {
   @Bean
   public Jdbi jdbi(DataSource dataSource) {
     return Jdbi.create(dataSource)
-            .installPlugin(new PostgresPlugin());
+            .installPlugin(new PostgresPlugin())
+            .installPlugin(new SqlObjectPlugin())
+            .registerRowMapper(ConstructorMapper.factory(Directory.class))
+            .registerRowMapper(ConstructorMapper.factory(UserAccess.class))
+            .registerRowMapper(ConstructorMapper.factory(SharedAsset.class))
+            .registerRowMapper(ConstructorMapper.factory(DasscoFile.class));
+
   }
 }
 

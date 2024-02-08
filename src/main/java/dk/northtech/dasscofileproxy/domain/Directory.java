@@ -8,9 +8,12 @@ import java.util.List;
 
 public record Directory(Long directoryId
         , String uri
+        , String node_host
         , AccessType access
         , Instant creationDatetime
-        , int allocatedMb
+        , int allocatedStorageMb
+        , boolean awaitingErdaSync
+        , int erdaSyncAttempts
         , @Nullable List<SharedAsset> sharedAssets
         , @Nullable List<UserAccess> userAccess) {
 
@@ -21,9 +24,12 @@ public record Directory(Long directoryId
     public Directory(Directory directory, Long directoryId) {
         this(directoryId
                 , directory.uri
+                , directory.node_host
                 , directory.access()
                 , directory.creationDatetime
-                , directory.allocatedMb
+                , directory.allocatedStorageMb
+                , directory.awaitingErdaSync
+                , directory.erdaSyncAttempts
                 , directory.sharedAssets
                 , directory.userAccess);
     }
@@ -31,9 +37,12 @@ public record Directory(Long directoryId
     public Directory(Directory sambaServer, List<SharedAsset> sharedAssets, List<UserAccess> userAccess) {
         this(sambaServer.directoryId
                 , sambaServer.uri()
+                , sambaServer.node_host
                 , sambaServer.access()
                 , sambaServer.creationDatetime
-                , sambaServer.allocatedMb()
+                , sambaServer.allocatedStorageMb()
+                , sambaServer.awaitingErdaSync
+                , sambaServer.erdaSyncAttempts
                 , sharedAssets
                 , userAccess);
     }

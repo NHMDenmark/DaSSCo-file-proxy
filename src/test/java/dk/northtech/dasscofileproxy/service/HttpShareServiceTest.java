@@ -2,6 +2,7 @@ package dk.northtech.dasscofileproxy.service;
 
 import dk.northtech.dasscofileproxy.configuration.DockerConfig;
 import dk.northtech.dasscofileproxy.domain.*;
+import dk.northtech.dasscofileproxy.webapi.model.AssetStorageAllocation;
 import jakarta.inject.Inject;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -42,22 +43,53 @@ class HttpShareServiceTest {
 
     @Test
     void createDirectory() {
-        SharedAsset azzet1 = new SharedAsset(null, null, "azzet_1", Instant.now());
+        StorageMetrics storageMetrics = httpShareService.getStorageMetrics();
+        SharedAsset azzet1 = new SharedAsset(null, null, "createDirectory", Instant.now());
         UserAccess userAccess = new UserAccess(null, null, "Bazviola", "token", Instant.now());
-        Directory directory = new Directory(null, "/i1/c1/azzet_1/", AccessType.WRITE, Instant.now(), 10, Arrays.asList(azzet1), Arrays.asList(userAccess));
+        Directory directory = new Directory(null, "/i1/c1/createDirectory/", "test.dassco.dk", AccessType.WRITE, Instant.now(), 10,false,0, Arrays.asList(azzet1), Arrays.asList(userAccess));
         Directory directory1 = httpShareService.createDirectory(directory);
         assertThat(directory1.directoryId()).isNotNull();
+        StorageMetrics result = httpShareService.getStorageMetrics();
+        assertThat(result.all_allocated_storage_mb()).isEqualTo(storageMetrics.all_allocated_storage_mb() + 10);
+        assertThat(result.cache_storage_mb()).isEqualTo(200);
+        assertThat(result.remaining_storage_mb()).isEqualTo(storageMetrics.remaining_storage_mb()-10);
+    }
+
+    @Test
+    void alloc8Extra() {
+        SharedAsset azzet1 = new SharedAsset(null, null, "alloc8Extra", Instant.now());
+        UserAccess userAccess = new UserAccess(null, null, "Bazviola", "token", Instant.now());
         StorageMetrics storageMetrics = httpShareService.getStorageMetrics();
-        assertThat(storageMetrics.all_allocated_storage_mb()).isEqualTo(10);
-        assertThat(storageMetrics.cache_storage_mb()).isEqualTo(200);
-        assertThat(storageMetrics.remaining_storage_mb()).isEqualTo(1790);
+        Directory directory = new Directory(null, "/i1/c1/alloc8Extra/", "test.dassco.dk", AccessType.WRITE, Instant.now(), 10,false,0, Arrays.asList(azzet1), Arrays.asList(userAccess));
+        Directory directory1 = httpShareService.createDirectory(directory);
+        HttpInfo httpInfo = httpShareService.allocateStorage(new AssetStorageAllocation("alloc8Extra", 14));
+        assertThat(httpInfo.httpAllocationStatus()).isEqualTo(HttpAllocationStatus.SUCCESS);
+        StorageMetrics result = httpShareService.getStorageMetrics();
+        assertThat(result.all_allocated_storage_mb()).isEqualTo(storageMetrics.all_allocated_storage_mb() + 14);
+        assertThat(result.cache_storage_mb()).isEqualTo(200);
+        assertThat(result.remaining_storage_mb()).isEqualTo(storageMetrics.remaining_storage_mb()-14);
+    }
+
+    @Test
+    void alloc8ExtraNotEnoughSpace() {
+        SharedAsset azzet1 = new SharedAsset(null, null, "alloc8ExtraNotEnoughSpace", Instant.now());
+        UserAccess userAccess = new UserAccess(null, null, "Bazviola", "token", Instant.now());
+        Directory directory = new Directory(null, "/i1/c1/alloc8ExtraNotEnoughSpace/", "test.dassco.dk", AccessType.WRITE, Instant.now(), 10,false,0, Arrays.asList(azzet1), Arrays.asList(userAccess));
+        Directory directory1 = httpShareService.createDirectory(directory);
+        StorageMetrics storageMetrics = httpShareService.getStorageMetrics();
+        HttpInfo httpInfo = httpShareService.allocateStorage(new AssetStorageAllocation("alloc8ExtraNotEnoughSpace", 2000));
+        StorageMetrics resultMetrics = httpShareService.getStorageMetrics();
+        assertThat(httpInfo.httpAllocationStatus()).isEqualTo(HttpAllocationStatus.DISK_FULL);
+        assertThat(resultMetrics.all_allocated_storage_mb()).isEqualTo(storageMetrics.all_allocated_storage_mb());
+        assertThat(resultMetrics.cache_storage_mb()).isEqualTo(resultMetrics.cache_storage_mb());
+        assertThat(resultMetrics.remaining_storage_mb()).isEqualTo(resultMetrics.remaining_storage_mb());
     }
 
     @Test
     void deleteDirectory() {
-        SharedAsset azzet1 = new SharedAsset(null, null, "azzet_1", Instant.now());
+        SharedAsset azzet1 = new SharedAsset(null, null, "deleteDirectory", Instant.now());
         UserAccess userAccess = new UserAccess(null, null, "Bazviola", "token", Instant.now());
-        Directory directory = new Directory(null, "/i1/c1/azzet_1/", AccessType.WRITE, Instant.now(), 10, Arrays.asList(azzet1), Arrays.asList(userAccess));
+        Directory directory = new Directory(null, "/i1/c1/deleteDirectory/", "test.dassco.dk", AccessType.WRITE, Instant.now(), 10,false, 0,Arrays.asList(azzet1), Arrays.asList(userAccess));
         Directory directory1 = httpShareService.createDirectory(directory);
         StorageMetrics storageMetricsBefore = httpShareService.getStorageMetrics();
         httpShareService.deleteDirectory(directory1.directoryId());
