@@ -15,8 +15,11 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.io.*;
+import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.List;
+import java.nio.file.Paths;
+import java.util.*;
+import java.util.stream.Collectors;
 import java.util.zip.CRC32;
 import java.util.zip.CheckedInputStream;
 
@@ -36,7 +39,7 @@ public class FileService {
 
 
     public String createShareFolder(MinimalAsset asset) {
-        File newDirectory = new File(shareConfig.mountFolder() + "assetfiles/" + asset.institution() + "/" + asset.collection() + "/" + asset.asset_guid() + "/");
+        File newDirectory = new File(shareConfig.mountFolder() + "/assetfiles/" + asset.institution() + "/" + asset.collection() + "/" + asset.asset_guid() + "/");
         if (!newDirectory.exists()) {
             newDirectory.mkdirs();
         }
@@ -52,14 +55,14 @@ public class FileService {
         deleteAll(path.toFile());
     }
 
-    public List<File> listFiles(File directory, List<File> files) {
+    public List<File> listFiles(File directory, List<File> files, boolean includeParents, boolean includeFolders) {
         File[] fList = directory.listFiles();
         if (fList != null)
             for (File file : fList) {
                 if (file.isFile()) {
                     files.add(file);
-                } else if (file.isDirectory() && !file.getName().contains("parent")) {
-                    listFiles(new File(file.getAbsolutePath()), files);
+                } else if (file.isDirectory() && (!file.getName().contains("parent") || includeParents)) {
+                    listFiles(new File(file.getAbsolutePath()), files, includeParents, includeFolders);
                 }
             }
         return files;
@@ -67,8 +70,9 @@ public class FileService {
 
     void deleteAll(File dir) {
         for (File file : dir.listFiles()) {
-            if (file.isDirectory())
+            if (file.isDirectory()) {
                 deleteAll(file);
+            }
             file.delete();
         }
         dir.delete();
@@ -91,7 +95,7 @@ public class FileService {
             throw new IllegalArgumentException("File path cannot start with 'parent'");
         }
         Directory directory = getWriteableDirectory(fileUploadData);
-        String basePath = shareConfig.mountFolder() + fileUploadData.getBasePath();
+        String basePath = shareConfig.mountFolder() + "/" + fileUploadData.getBasePath();
         File file1 = new File(basePath);
         if (!file1.exists()) {
             throw new IllegalArgumentException("Share directory doesnt exist");
@@ -108,15 +112,17 @@ public class FileService {
             file2.getParentFile().mkdirs();
             // Mark entry in filetable for deletion after file has been successfully received
             boolean markForDeletion = file2.exists();
+            System.out.println("hell o 1 " + markForDeletion);
             try (FileOutputStream fileOutput = new FileOutputStream(file2)) {
                 CRC32 crc32 = new CRC32();
                 CheckedInputStream checkedInputStream = new CheckedInputStream(file, crc32);
                 checkedInputStream.transferTo(fileOutput);
                 long value = checkedInputStream.getChecksum().getValue();
-                if(markForDeletion) {
-                    fileRepository.markForDeletion(fullPath);
+                if (markForDeletion) {
+                    System.out.println("hell o 2");
+                    fileRepository.markForDeletion(fileUploadData.getFilePath());
                 }
-                fileRepository.insertFile(new DasscoFile(null, fileUploadData.asset_guid(), fullPath, file2.length(),value));
+                fileRepository.insertFile(new DasscoFile(null, fileUploadData.asset_guid(), fileUploadData.getFilePath(), file2.length(), value));
                 return new FileUploadResult(crc, value);
             } catch (IOException e) {
                 throw new RuntimeException("Failed to write file", e);
@@ -131,17 +137,73 @@ public class FileService {
         });
     }
 
+    public void markDasscoFileToBeDelitetd(String path) {
+        jdbi.withHandle(h -> {
+            FileRepository attach = h.attach(FileRepository.class);
+            attach.markForDeletion(path);
+            return h;
+        }).close();
+    }
+
     public boolean deleteFile(FileUploadData fileUploadData) {
         File file = new File(shareConfig.mountFolder() + fileUploadData.getFilePath());
-        if (file.exists()) {
-            if (file.isDirectory()) {
-                deleteAll(file);
-                return true;
-            } else {
-                return file.delete();
+        jdbi.withHandle(h -> {
+            DirectoryRepository directoryRepository = h.attach(DirectoryRepository.class);
+            List<Directory> writeableDirectoriesByAsset = directoryRepository.getWriteableDirectoriesByAsset(fileUploadData.asset_guid());
+            if (writeableDirectoriesByAsset.size() != 1) {
+                throw new IllegalArgumentException("No writable directory was found for asset");
             }
-        } else {
+            return h;
+        }).close();
+        if (!file.exists()) {
             return false;
         }
+        List<File> files = file.isDirectory() ? listFiles(file, new ArrayList<>(), false, true) : Arrays.asList(file);
+        files.forEach(file1 -> {
+            System.out.println("Deleting " + file1);
+        });
+        if (Strings.isNullOrEmpty(fileUploadData.asset_guid())) {
+            throw new IllegalArgumentException("Asset guid must be present");
+        }
+        if (Strings.isNullOrEmpty(fileUploadData.collection())) {
+            throw new IllegalArgumentException("Collection must be present");
+        }
+        // Get all asset files so we can schedule the deleted files for deletion
+        Map<String, DasscoFile> collect = listFilesByAssetGuid(fileUploadData.asset_guid()).stream().collect(Collectors.toMap(x -> shareConfig.mountFolder() + x.path(), x -> x));
+        collect.keySet().forEach(x -> {
+            System.out.println(x);
+        });
+        if (file.isDirectory()) {
+            try (var dirStream = Files.walk(Paths.get(shareConfig.mountFolder() + fileUploadData.getFilePath()))) {
+                dirStream
+                        .map(Path::toFile)
+                        .sorted(Comparator.reverseOrder())
+                        //Prevents the deletion of the base folder
+                        .filter(z -> (!file.toString().equals(z.toString()) || fileUploadData.filePathAndName() != null))
+                        .forEach(file1 -> {
+                            boolean isFile = Files.isRegularFile(file1.toPath());
+                            file1.delete();
+                            if (isFile) {
+                                String normalisedPath = file1.toString().replace('\\', '/');
+                                if (collect.containsKey(normalisedPath)) {
+                                    markDasscoFileToBeDelitetd(collect.get(normalisedPath).path());
+                                }
+                            }
+                        });
+            } catch (IOException e) {
+                throw new RuntimeException("Failed to delete file", e);
+            }
+        } else {
+            file.delete();
+            String normalisedPath = file.toString().replace('\\', '/');
+            if (collect.containsKey(normalisedPath)) {
+                markDasscoFileToBeDelitetd(collect.get(normalisedPath).path());
+            }
+        }
+        return true;
+    }
+
+    public void deleteFile() {
+
     }
 }

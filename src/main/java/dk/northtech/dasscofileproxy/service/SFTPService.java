@@ -146,7 +146,7 @@ public class SFTPService {
             String localMountFolder = dockerConfig.mountFolder() + "share_" + sambaServer.sambaServerId();
             File localDirectory = new File(dockerConfig.mountFolder() + "share_" + sambaServer.sambaServerId());
 //            File[] allFiles = localDirectory.listFiles();
-            List<File> files = fileService.listFiles(localDirectory, new ArrayList<>());
+            List<File> files = fileService.listFiles(localDirectory, new ArrayList<>(),false, false);
             List<Path> remoteLocations = files.stream().map(file -> {
                 return Path.of(remotePath + "/" + file.toPath().toString().replace("\\", "/").replace(localMountFolder, ""));
             }).collect(Collectors.toList());

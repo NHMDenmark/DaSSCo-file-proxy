@@ -72,16 +72,36 @@ public class FileServiceTest {
 
     @Test
     public void testDeleteFile() {
-        SharedAsset azzet1 = new SharedAsset(null, null, "testUpload", Instant.now());
+        SharedAsset azzet1 = new SharedAsset(null, null, "testDeleteFile", Instant.now());
         UserAccess userAccess = new UserAccess(null, null, "Bazviola", "token", Instant.now());
-        Directory directory = new Directory(null, "/i1/c1/testUpload/", "localhost:8080", AccessType.WRITE, Instant.now(), 10, false, 0, Arrays.asList(azzet1), Arrays.asList(userAccess));
+        Directory directory = new Directory(null, "/i1/c1/testDeleteFile/", "localhost:8080", AccessType.WRITE, Instant.now(), 10, false, 0, Arrays.asList(azzet1), Arrays.asList(userAccess));
         Directory directory1 = httpShareService.createDirectory(directory);
-        fileService.createShareFolder(new MinimalAsset("testUpload", "p", "i1", "c1"));
+        fileService.createShareFolder(new MinimalAsset("testDeleteFile", "p", "i1", "c1"));
 //        httpShareService.createHttpShare(new CreationObj(Arrays.asList(new MinimalAsset("testUpload", "testUploadP", "i1", "c1")),Arrays.asList("Bazviolas"), 10), new User());
-        FileUploadResult upload = fileService.upload(new ByteArrayInputStream("Et håndtag i form af en springende hjort".getBytes()), 139372, new FileUploadData("testUpload", "i1", "c1", "/folder/Bibelen 2 Del 1 - Det Moderne testamente.txt", 1));
-        FileUploadResult upload2 = fileService.upload(new ByteArrayInputStream("Et håndtag i form af en springende hjort".getBytes()), 139372, new FileUploadData("testUpload", "i1", "c1", "/folder/Bibelen 2 Del 2 - Genkomst.txt", 9));
-        List<DasscoFile> testUpload = fileService.listFilesByAssetGuid("testUpload");
+        FileUploadResult upload = fileService.upload(new ByteArrayInputStream("Et håndtag i form af en springende hjort".getBytes()), 139372, new FileUploadData("testDeleteFile", "i1", "c1", "/folder/Bibelen 2 Del 1 - Det Moderne testamente.txt", 1));
+        FileUploadResult upload2 = fileService.upload(new ByteArrayInputStream("Et håndtag i form af en springende hjort".getBytes()), 139372, new FileUploadData("testDeleteFile", "i1", "c1", "/folder/Bibelen 2 Del 2 - Genkomst.txt", 9));
+        fileService.deleteFile(new FileUploadData("testDeleteFile", "i1", "c1", "/folder/Bibelen 2 Del 1 - Det Moderne testamente.txt", 9));
+        List<DasscoFile> testUpload = fileService.listFilesByAssetGuid("testDeleteFile");
         assertThat(testUpload.size()).isEqualTo(2);
+        long count = testUpload.stream().filter(DasscoFile::deleteAfterSync).count();
+        assertThat(count).isEqualTo(1);
+    }
+
+    @Test
+    public void testDeleteFolderFile() {
+        SharedAsset azzet1 = new SharedAsset(null, null, "testDeleteFolderFile", Instant.now());
+        UserAccess userAccess = new UserAccess(null, null, "Bazviola", "token", Instant.now());
+        Directory directory = new Directory(null, "/i1/c1/testDeleteFolderFile/", "localhost:8080", AccessType.WRITE, Instant.now(), 10, false, 0, Arrays.asList(azzet1), Arrays.asList(userAccess));
+        Directory directory1 = httpShareService.createDirectory(directory);
+        fileService.createShareFolder(new MinimalAsset("testDeleteFolderFile", "p", "i1", "c1"));
+//        httpShareService.createHttpShare(new CreationObj(Arrays.asList(new MinimalAsset("testUpload", "testUploadP", "i1", "c1")),Arrays.asList("Bazviolas"), 10), new User());
+        FileUploadResult upload = fileService.upload(new ByteArrayInputStream("Et håndtag i form af en springende hjort".getBytes()), 139372, new FileUploadData("testDeleteFolderFile", "i1", "c1", "/folder/Bibelen 2 Del 1 - Det Moderne testamente.txt", 1));
+        FileUploadResult upload2 = fileService.upload(new ByteArrayInputStream("Et håndtag i form af en springende hjort".getBytes()), 139372, new FileUploadData("testDeleteFolderFile", "i1", "c1", "/folder/Bibelen 2 Del 2 - Genkomst.txt", 9));
+        fileService.deleteFile(new FileUploadData("testDeleteFolderFile", "i1", "c1", null, 9));
+        List<DasscoFile> testUpload = fileService.listFilesByAssetGuid("testDeleteFolderFile");
+        assertThat(testUpload.size()).isEqualTo(2);
+        long count = testUpload.stream().filter(DasscoFile::deleteAfterSync).count();
+        assertThat(count).isEqualTo(2);
     }
 
     @Test

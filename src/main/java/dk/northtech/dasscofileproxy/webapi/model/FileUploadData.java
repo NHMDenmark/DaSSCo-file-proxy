@@ -5,7 +5,11 @@ import jakarta.annotation.Nullable;
 
 public record FileUploadData(String asset_guid, String institution, String collection, String filePathAndName, int size_mb)  {
     public String getFilePath() {
-        return "/assetfiles/" + institution + "/" + collection + "/" + asset_guid + (filePathAndName.startsWith("/")? filePathAndName : "/" + filePathAndName);
+        String lastPart = "/";
+        if(filePathAndName != null) {
+            lastPart = (filePathAndName.startsWith("/")? filePathAndName : "/" + filePathAndName);
+        }
+        return "/assetfiles/" + institution + "/" + collection + "/" + asset_guid + lastPart;
     }
     public String getBasePath() {
         return "/assetfiles/" + institution + "/" + collection + "/" + asset_guid + "/";
