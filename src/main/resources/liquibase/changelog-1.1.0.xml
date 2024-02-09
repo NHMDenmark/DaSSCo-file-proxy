@@ -11,31 +11,37 @@
 
   <changeSet id="1.1.0:create_file_table" author="Thomas Skov Bornerup">
     <createTable tableName="files">
-      <column name="file_id" type="bigint">
+      <column name="file_id" type="bigint" autoIncrement="true">
         <constraints primaryKey="true" nullable="false" primaryKeyName="pk_file"/>
       </column>
       <column name="asset_guid" type="text">
         <constraints nullable="false"/>
       </column>
-      <column name="size_bytes" type="int">
+      <column name="size_bytes" type="bigint">
         <constraints nullable="false"/>
       </column>
       <column name="path" type="text">
         <constraints nullable="false"/>
       </column>
-      <column name="status" type="text">
+      <column name="crc" type="bigint">
+        <constraints nullable="false"/>
+      </column>
+      <column name="delete_after_sync" type="boolean" defaultValue="false">
         <constraints nullable="false"/>
       </column>
     </createTable>
 
   </changeSet>
 
-  <changeSet id="1.1.0:create_directories_table" author="Thomas Skov Bornerup">
+  <changeSet id="1.1.0:create_directory_table" author="Thomas Skov Bornerup">
     <createTable tableName="directories">
       <column name="directory_id" type="bigint" autoIncrement="true">
         <constraints primaryKey="true" nullable="false" primaryKeyName="pk_directories"/>
       </column>
       <column name="uri" type="text">
+        <constraints nullable="false"/>
+      </column>
+      <column name="node_host" type="text">
         <constraints nullable="false"/>
       </column>
       <column name="access" type="access_type">
@@ -45,6 +51,12 @@
         <constraints nullable="false"/>
       </column>
       <column name="allocated_storage_mb" type="int">
+        <constraints nullable="false"/>
+      </column>
+      <column name="awaiting_erda_sync" type="boolean" defaultValue="false">
+        <constraints nullable="false"/>
+      </column>
+      <column name="erda_sync_attempts" type="int" defaultValue="0">
         <constraints nullable="false"/>
       </column>
     </createTable>

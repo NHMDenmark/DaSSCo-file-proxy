@@ -27,7 +27,7 @@ public class Files {
     @Context
     UriInfo uriInfo;
     @PUT
-    @Path("/shares/{shareId}/{institutionName}/{collectionName}/{assetGuid}/{path: .+}")
+    @Path("/shared/{shareId}/{institutionName}/{collectionName}/{assetGuid}/{paths: .+}")
     @Produces(MediaType.APPLICATION_JSON)
     @Consumes(APPLICATION_JSON)
     public Response createSambaServer(
@@ -48,8 +48,24 @@ public class Files {
         }
         final String path
                 = uriInfo.getPathParameters().getFirst("paths");
-        FileUploadData fileUploadData = new FileUploadData(assetGuid, institutionName, collectionName, shareId, path, fileSize);
+        FileUploadData fileUploadData = new FileUploadData(assetGuid, institutionName, collectionName,  path, fileSize);
         FileUploadResult upload = fileService.upload(file, crc, fileUploadData);
         return Response.status(upload.getResponseCode()).entity(upload).build();
+    }
+
+    @DELETE
+    @Path("/shares/{shareId}/{institutionName}/{collectionName}/{assetGuid}/{path: .+}")
+    @Produces(MediaType.APPLICATION_JSON)
+    @Consumes(APPLICATION_JSON)
+    public Response createSambaServer(
+            @PathParam("institutionName") String institutionName
+            , @PathParam("collectionName") String collectionName
+            , @PathParam("assetGuid") String assetGuid
+            , @Context SecurityContext securityContext) {
+        User user = UserMapper.from(securityContext);
+        final String path
+                = uriInfo.getPathParameters().getFirst("paths");
+        boolean deleted = fileService.deleteFile(new FileUploadData(assetGuid, institutionName,collectionName, path, 0 ));
+        return Response.status(deleted ? 204:404).build();
     }
 }

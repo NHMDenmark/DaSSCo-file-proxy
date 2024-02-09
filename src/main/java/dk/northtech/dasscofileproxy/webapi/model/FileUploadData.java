@@ -3,12 +3,12 @@ package dk.northtech.dasscofileproxy.webapi.model;
 import com.google.common.base.Strings;
 import jakarta.annotation.Nullable;
 
-public record FileUploadData(String asset_guid, String institution, String collection, long directoryId, String filePathAndName, int file_size_mb)  {
+public record FileUploadData(String asset_guid, String institution, String collection, String filePathAndName, int size_mb)  {
     public String getFilePath() {
-        return "/" +directoryId+"/" + institution + "/" + collection + "/" + asset_guid + (filePathAndName.startsWith("/")? filePathAndName : "/" + filePathAndName);
+        return "/assetfiles/" + institution + "/" + collection + "/" + asset_guid + (filePathAndName.startsWith("/")? filePathAndName : "/" + filePathAndName);
     }
     public String getBasePath() {
-        return "/" +directoryId+"/" + institution + "/" + collection + "/" + asset_guid + "/";
+        return "/assetfiles/" + institution + "/" + collection + "/" + asset_guid + "/";
     }
     public void validate() {
         if(Strings.isNullOrEmpty(asset_guid)) {

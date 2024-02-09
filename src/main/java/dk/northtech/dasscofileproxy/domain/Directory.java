@@ -3,6 +3,7 @@ package dk.northtech.dasscofileproxy.domain;
 import jakarta.annotation.Nullable;
 import org.jdbi.v3.core.mapper.reflect.JdbiConstructor;
 
+import java.io.File;
 import java.time.Instant;
 import java.util.List;
 
@@ -20,6 +21,7 @@ public record Directory(Long directoryId
     @JdbiConstructor
     public Directory {
     }
+
 
     public Directory(Directory directory, Long directoryId) {
         this(directoryId

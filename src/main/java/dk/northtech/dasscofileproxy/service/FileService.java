@@ -35,11 +35,9 @@ public class FileService {
     }
 
 
-
-
     public String createShareFolder(MinimalAsset asset) {
-        File newDirectory = new File( shareConfig.mountFolder() + "assetfiles/" + asset.institution() + "/" + asset.collection() + "/" + asset.asset_guid() + "/");
-        if(!newDirectory.exists()){
+        File newDirectory = new File(shareConfig.mountFolder() + "assetfiles/" + asset.institution() + "/" + asset.collection() + "/" + asset.asset_guid() + "/");
+        if (!newDirectory.exists()) {
             newDirectory.mkdirs();
         }
         return newDirectory.getPath();
@@ -56,7 +54,7 @@ public class FileService {
 
     public List<File> listFiles(File directory, List<File> files) {
         File[] fList = directory.listFiles();
-        if(fList != null)
+        if (fList != null)
             for (File file : fList) {
                 if (file.isFile()) {
                     files.add(file);
@@ -68,7 +66,7 @@ public class FileService {
     }
 
     void deleteAll(File dir) {
-        for (File file: dir.listFiles()) {
+        for (File file : dir.listFiles()) {
             if (file.isDirectory())
                 deleteAll(file);
             file.delete();
@@ -76,47 +74,54 @@ public class FileService {
         dir.delete();
     }
 
-    public void validateDirectory(FileUploadData fileUploadData) {
-        jdbi.withHandle(handle -> {
+    public Directory getWriteableDirectory(FileUploadData fileUploadData) {
+        return jdbi.withHandle(handle -> {
             DirectoryRepository directoryRepository = handle.attach(DirectoryRepository.class);
-            Directory directory = directoryRepository.getDirectory(fileUploadData.directoryId());
-            if(directory.sharedAssets().size() != 1) {
-                throw new IllegalArgumentException("Directory can only have one shared asset");
+            List<Directory> writeableDirectoriesByAsset = directoryRepository.getWriteableDirectoriesByAsset(fileUploadData.asset_guid());
+            if (writeableDirectoriesByAsset.size() != 1) {
+                throw new IllegalArgumentException("No writeable directory found for asset.");
             }
-            SharedAsset sharedAsset = directory.sharedAssets().get(0);
-            if(!fileUploadData.asset_guid().equals(sharedAsset.assetGuid())) {
-                throw new IllegalArgumentException("Asset guid in path doesnt match asset guid of directory");
-            }
-            if(!directory.access().equals(AccessType.WRITE) && !directory.access().equals(AccessType.ADMIN)) {
-                throw  new RuntimeException("Share is not writeable");
-            }
-            return handle;
+            return writeableDirectoriesByAsset.get(0);
         });
     }
+
     public FileUploadResult upload(InputStream file, long crc, FileUploadData fileUploadData) {
         fileUploadData.validate();
-        if(fileUploadData.filePathAndName().toLowerCase().replace("/", "").startsWith("parent")) {
+        if (fileUploadData.filePathAndName().toLowerCase().replace("/", "").startsWith("parent")) {
             throw new IllegalArgumentException("File path cannot start with 'parent'");
         }
-        validateDirectory(fileUploadData);
-        CRC32 crc32 = new CRC32();
-        String filePath = fileUploadData.getFilePath();
-        File file1 = new File(fileUploadData.getBasePath());
-        File fileChecksum = new File(filePath + ".checksum");
-        if(!file1.exists()) {
+        Directory directory = getWriteableDirectory(fileUploadData);
+        String basePath = shareConfig.mountFolder() + fileUploadData.getBasePath();
+        File file1 = new File(basePath);
+        if (!file1.exists()) {
             throw new IllegalArgumentException("Share directory doesnt exist");
         }
-        File file2 = new File(filePath);
-        try (FileOutputStream fileOutput = new FileOutputStream(file2); FileWriter fileWriter = new FileWriter(fileChecksum);){
-            CheckedInputStream checkedInputStream = new CheckedInputStream(file,crc32);
-            checkedInputStream.transferTo(fileOutput);
-            long value = checkedInputStream.getChecksum().getValue();
-            fileWriter.write(value + "");
-            return new FileUploadResult(crc, value);
-
-        } catch (IOException e) {
-            throw new RuntimeException("Failed to write file");
-        }
+        return jdbi.inTransaction(h -> {
+            FileRepository fileRepository = h.attach(FileRepository.class);
+            long totalAllocatedByAsset = fileRepository.getTotalAllocatedByAsset(fileUploadData.asset_guid());
+            String fullPath = basePath + fileUploadData.filePathAndName();
+//            List<DasscoFile> filesByAssetGuid = fileRepository.getFilesByAssetPath(fullPath);
+            if ((totalAllocatedByAsset + fileUploadData.size_mb() * 1000000) / 1000000d > directory.allocatedStorageMb()) {
+                throw new IllegalArgumentException("Total size of asset files exceeds allocated disk space");
+            }
+            File file2 = new File(fullPath);
+            file2.getParentFile().mkdirs();
+            // Mark entry in filetable for deletion after file has been successfully received
+            boolean markForDeletion = file2.exists();
+            try (FileOutputStream fileOutput = new FileOutputStream(file2)) {
+                CRC32 crc32 = new CRC32();
+                CheckedInputStream checkedInputStream = new CheckedInputStream(file, crc32);
+                checkedInputStream.transferTo(fileOutput);
+                long value = checkedInputStream.getChecksum().getValue();
+                if(markForDeletion) {
+                    fileRepository.markForDeletion(fullPath);
+                }
+                fileRepository.insertFile(new DasscoFile(null, fileUploadData.asset_guid(), fullPath, file2.length(),value));
+                return new FileUploadResult(crc, value);
+            } catch (IOException e) {
+                throw new RuntimeException("Failed to write file", e);
+            }
+        });
     }
 
     public List<DasscoFile> listFilesByAssetGuid(String assetGuid) {
@@ -124,5 +129,19 @@ public class FileService {
             FileRepository attach = h.attach(FileRepository.class);
             return attach.getFilesByAssetGuid(assetGuid);
         });
+    }
+
+    public boolean deleteFile(FileUploadData fileUploadData) {
+        File file = new File(shareConfig.mountFolder() + fileUploadData.getFilePath());
+        if (file.exists()) {
+            if (file.isDirectory()) {
+                deleteAll(file);
+                return true;
+            } else {
+                return file.delete();
+            }
+        } else {
+            return false;
+        }
     }
 }
