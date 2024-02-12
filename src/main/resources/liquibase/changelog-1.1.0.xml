@@ -50,6 +50,15 @@
       <column name="creation_datetime" type="datetime">
         <constraints nullable="false"/>
       </column>
+      <column name="sync_user" type="text">
+        <constraints nullable="true"/>
+      </column>
+      <column name="sync_workstation" type="text">
+        <constraints nullable="true"/>
+      </column>
+      <column name="sync_pipeline" type="text">
+        <constraints nullable="true"/>
+      </column>
       <column name="allocated_storage_mb" type="int">
         <constraints nullable="false"/>
       </column>
@@ -61,7 +70,12 @@
       </column>
     </createTable>
   </changeSet>
-
+  <changeSet id="1.1.0:CLEAR_TABLES" author="Thomas Skov Bornerup">
+    <sql>
+      truncate table shared_assets;
+      truncate table user_access;
+    </sql>
+  </changeSet>
   <changeSet id="1.1.0:add_fks" author="Thomas Skov Bornerup">
     <addColumn tableName="shared_assets">
       <column name="directory_id" type="bigint">

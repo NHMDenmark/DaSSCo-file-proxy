@@ -15,6 +15,9 @@ public record Directory(Long directoryId
         , int allocatedStorageMb
         , boolean awaitingErdaSync
         , int erdaSyncAttempts
+        , String syncUser
+        , String syncWorkstation
+        , String syncPipeline
         , @Nullable List<SharedAsset> sharedAssets
         , @Nullable List<UserAccess> userAccess) {
 
@@ -22,6 +25,9 @@ public record Directory(Long directoryId
     public Directory {
     }
 
+    public Directory(Long directoryId, String uri, String node_host, AccessType access, Instant creationDatetime, int allocatedStorageMb, boolean awaitingErdaSync, int erdaSyncAttempts, List<SharedAsset> sharedAssets, List<UserAccess> userAccess) {
+        this(directoryId, uri, node_host, access, creationDatetime, allocatedStorageMb, awaitingErdaSync, erdaSyncAttempts, null, null, null, sharedAssets, userAccess);
+    }
 
     public Directory(Directory directory, Long directoryId) {
         this(directoryId
@@ -32,22 +38,13 @@ public record Directory(Long directoryId
                 , directory.allocatedStorageMb
                 , directory.awaitingErdaSync
                 , directory.erdaSyncAttempts
+                , directory.syncUser
+                , directory.syncWorkstation
+                , directory.syncPipeline
                 , directory.sharedAssets
                 , directory.userAccess);
     }
 
-    public Directory(Directory sambaServer, List<SharedAsset> sharedAssets, List<UserAccess> userAccess) {
-        this(sambaServer.directoryId
-                , sambaServer.uri()
-                , sambaServer.node_host
-                , sambaServer.access()
-                , sambaServer.creationDatetime
-                , sambaServer.allocatedStorageMb()
-                , sambaServer.awaitingErdaSync
-                , sambaServer.erdaSyncAttempts
-                , sharedAssets
-                , userAccess);
-    }
 
 
 }

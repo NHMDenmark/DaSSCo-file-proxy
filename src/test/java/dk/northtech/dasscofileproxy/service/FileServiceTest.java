@@ -132,7 +132,7 @@ public class FileServiceTest {
         Directory directory1 = httpShareService.createDirectory(directory);
         fileService.createShareFolder(new MinimalAsset("testUploadNotEnoughSpaceError", "testUploadNotEnoughSpaceErrorP", "i1", "c1"));
 //        httpShareService.createHttpShare(new CreationObj(Arrays.asList(new MinimalAsset("testUpload", "testUploadP", "i1", "c1")),Arrays.asList("Bazviolas"), 10), new User());
-        FileUploadResult upload = fileService.upload(new ByteArrayInputStream("Et håndtag i form af en springende hjort".getBytes()), 139372, new FileUploadData("testUploadNotEnoughSpaceError", "i1", "c1", "/folder/The Kosta Mojan.txt", 1));
+        FileUploadResult upload = fileService.upload(new ByteArrayInputStream("Et håndtag i form af en springende hjort".getBytes()), 139372, new FileUploadData("testUploadNotEnoughSpaceError", "i1", "c1", "/folder/The Kosst Amojan.txt", 1));
         IllegalArgumentException illegalArgumentException =
                 assertThrows(IllegalArgumentException.class
                         , () -> fileService.upload(

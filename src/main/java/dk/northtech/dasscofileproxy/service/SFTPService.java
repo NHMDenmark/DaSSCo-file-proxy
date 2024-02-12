@@ -3,14 +3,16 @@ package dk.northtech.dasscofileproxy.service;
 import com.jcraft.jsch.*;
 import dk.northtech.dasscofileproxy.configuration.DockerConfig;
 import dk.northtech.dasscofileproxy.configuration.SFTPConfig;
+import dk.northtech.dasscofileproxy.configuration.ShareConfig;
 import dk.northtech.dasscofileproxy.domain.*;
+import dk.northtech.dasscofileproxy.repository.DirectoryRepository;
+import dk.northtech.dasscofileproxy.repository.SharedAssetList;
 import jakarta.inject.Inject;
 import org.jdbi.v3.core.Jdbi;
 import org.jdbi.v3.core.mapper.reflect.ConstructorMapper;
 import org.jdbi.v3.sqlobject.SqlObjectPlugin;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.context.annotation.Lazy;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
@@ -29,24 +31,21 @@ public class SFTPService {
     private final Jdbi jdbi;
     private Session session;
     private FileService fileService;
-    private DockerConfig dockerConfig;
+    private ShareConfig shareConfig;
     private AssetService assetService;
-    private SambaServerService sambaServerService;
-
+//    private HttpShareService httpShareService;
     private static final Logger logger = LoggerFactory.getLogger(SFTPService.class);
 
-    private final List<SambaToMove> filesToMove = new ArrayList<>();
-
     @Inject
-    public SFTPService(SFTPConfig sftpConfig, DataSource dataSource, FileService fileService, DockerConfig dockerConfig, AssetService assetService, @Lazy SambaServerService sambaServerService) {
+    public SFTPService(SFTPConfig sftpConfig, DataSource dataSource, FileService fileService, ShareConfig shareConfig, AssetService assetService, Jdbi jdbi) {
         this.sftpConfig = sftpConfig;
         this.assetService = assetService;
         this.fileService = fileService;
-        this.dockerConfig = dockerConfig;
-        this.sambaServerService = sambaServerService;
-        this.jdbi = Jdbi.create(dataSource)
-                .installPlugin(new SqlObjectPlugin())
-                .registerRowMapper(ConstructorMapper.factory(AssetCache.class));
+        this.shareConfig = shareConfig;
+        this.jdbi = jdbi;
+//                Jdbi.create(dataSource)
+//                .installPlugin(new SqlObjectPlugin())
+//                .registerRowMapper(ConstructorMapper.factory(AssetCache.class));
     }
 
     public Session open() {
@@ -114,38 +113,53 @@ public class SFTPService {
         return fileList;
     }
 
-    public void moveToERDA(SambaToMove sambaToMove) {
-        if (sambaToMove.sambaServer.sharedAssets().size() == 1) {
-            this.filesToMove.add(sambaToMove);
+    public void moveToERDA(String assetGuid) {
+        Optional<Directory> writeableDirectory = fileService.getWriteableDirectory(assetGuid);
+        if (writeableDirectory.isPresent()) {
+           fileService.scheduleDirectoryForSynchronization(writeableDirectory.get().directoryId());
         } else {
-            throw new IllegalArgumentException("Cannot move share with multiple assets to ERDA");
+            throw new IllegalArgumentException("No writeable share for asset found");
         }
 
     }
+    public List<Directory> getHttpSharesToSynchronize(int maxAttempts) {
+        return jdbi.withHandle(h -> {
+            DirectoryRepository attach = h.attach(DirectoryRepository.class);
+            return attach.getDirectoriesForSynchronization(maxAttempts);
 
+        });
+    }
+
+    public List<SharedAsset> getShardAsset(long directoryId) {
+        return jdbi.withHandle(h -> {
+            SharedAssetList attach = h.attach(SharedAssetList.class);
+            return attach.getSharedAssetsByDirectory(directoryId);
+        });
+    }
     @Scheduled(cron = "0 * * * * *")
     public void moveFiles() {
         logger.info("checking files");
-        List<SambaToMove> serversToFlush;
+        List<Directory> directories = getHttpSharesToSynchronize(5);
         List<String> failedGuids = new ArrayList<>();
-        synchronized (filesToMove) {
-            serversToFlush = new ArrayList<>(filesToMove);
-            filesToMove.clear();
-        }
-        for (SambaToMove sambaToMove : serversToFlush) {
-            SambaServer sambaServer = sambaToMove.sambaServer;
-            if (sambaServer.sharedAssets().size() != 1) {
-                logger.error("Share that dont have exactly one asset cannot be moved to ERDA");
+
+//        synchronized (filesToMove) {
+//            serversToFlush = new ArrayList<>(filesToMove);
+//            filesToMove.clear();
+//        }
+        for (Directory directory : directories) {
+            List<SharedAsset> sharedAssetList = getShardAsset(directory.directoryId());
+            if(sharedAssetList.size() != 1) {
+                throw new RuntimeException("Directory has multiple shared assets");
             }
-            AssetFull fullAsset = assetService.getFullAsset(sambaServer.sharedAssets().get(0).assetGuid());
+            SharedAsset sharedAsset = sharedAssetList.get(0);
+
+            AssetFull fullAsset = assetService.getFullAsset(sharedAsset.assetGuid());
             if(fullAsset.asset_locked) {
                 failedGuids.add(fullAsset.asset_guid);
             }
-            String remotePath = getRemotePath(fullAsset);
-            getRemotePathElements(fullAsset);
-            String localMountFolder = dockerConfig.mountFolder() + "share_" + sambaServer.sambaServerId();
-            File localDirectory = new File(dockerConfig.mountFolder() + "share_" + sambaServer.sambaServerId());
-//            File[] allFiles = localDirectory.listFiles();
+            String remotePath = getRemotePath(new MinimalAsset(fullAsset.asset_guid, fullAsset.parent_guid, fullAsset.institution, fullAsset.institution));
+            String localMountFolder = directory.uri();
+            File localDirectory = new File(shareConfig.mountFolder() + directory.uri());
             List<File> files = fileService.listFiles(localDirectory, new ArrayList<>(),false, false);
             List<Path> remoteLocations = files.stream().map(file -> {
                 return Path.of(remotePath + "/" + file.toPath().toString().replace("\\", "/").replace(localMountFolder, ""));
@@ -158,9 +172,9 @@ public class SFTPService {
                 //handle files that have been deleted
                 List<String> filesToDelete = remoteFiles.stream().filter(f -> !uploadedFiles.contains(f)).collect(Collectors.toList());
                 deleteFiles(filesToDelete);
-                if (assetService.completeAsset(sambaToMove.assetUpdateRequest)) {
-                    sambaServerService.deleteSambaServer(sambaServer.sambaServerId());
-                    fileService.removeShareFolder(sambaServer.sambaServerId());
+                if (assetService.completeAsset(new AssetUpdateRequest(null, new MinimalAsset(sharedAsset.assetGuid(),null,null, null), directory.syncWorkstation(), directory.syncPipeline(), directory.syncUser()))) {
+                    fileService.deleteDirectory(directory.directoryId());
+                    fileService.removeShareFolder(directory);
                 }
                 ;
 
@@ -334,8 +348,8 @@ public class SFTPService {
         return sftpConfig.remoteFolder() + institution + "/" + collection + "/" + assetGuid;
     }
 
-    public String getRemotePath(AssetFull asset) {
-        return sftpConfig.remoteFolder() + asset.institution + "/" + asset.collection + "/" + asset.asset_guid;
+    public String getRemotePath(MinimalAsset asset) {
+        return sftpConfig.remoteFolder() + asset.institution() + "/" + asset.collection() + "/" + asset.asset_guid();
     }
 
     public List<String> getRemotePathElements(AssetFull asset) {
@@ -346,15 +360,15 @@ public class SFTPService {
         return sftpConfig.localFolder() + institution + "/" + collection + "/" + assetGuid;
     }
 
-    public void initAssetShare(String sharePath, String assetGuid) {
-        AssetFull asset = assetService.getFullAsset(assetGuid);
-        String remotePath = getRemotePath(asset);
+    public void initAssetShare(String sharePath, MinimalAsset minimalAsset) {
+//        AssetFull asset = assetService.getFullAsset(assetGuid);
+        String remotePath = getRemotePath(minimalAsset);
         try {
             if (!exists(remotePath)) {
                 logger.info("Remote path {} didnt exist ", remotePath);
             } else {
                 List<String> fileNames = listAllFiles(remotePath);
-                downloadFiles(fileNames, sharePath, assetGuid);
+                downloadFiles(fileNames, sharePath, minimalAsset.asset_guid());
             }
         } catch (Exception e) {
             throw new RuntimeException(e);
@@ -363,9 +377,9 @@ public class SFTPService {
 
             //If asset have parent download into parent folder
             //We could save a http request here as we dont need the full parent asset to get the remote location, it is in the same collection and institution.
-            if (asset.parent_guid != null) {
-                AssetFull parent = assetService.getFullAsset(asset.parent_guid);
-                String parentRemotePath = getRemotePath(parent);
+            if (minimalAsset.parentGuid() != null) {
+                AssetFull parent = assetService.getFullAsset(minimalAsset.parentGuid());
+                String parentRemotePath = getRemotePath(new MinimalAsset(parent.asset_guid, parent.parent_guid, parent.institution, parent.collection));
                 try {
                     if (!exists(parentRemotePath)) {
                         logger.info("Remote parent path {} didnt exist ", parentRemotePath);

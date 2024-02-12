@@ -1,11 +1,7 @@
 package dk.northtech.dasscofileproxy.webapi.v1;
 
-import dk.northtech.dasscofileproxy.configuration.DockerConfig;
 import dk.northtech.dasscofileproxy.domain.*;
-import dk.northtech.dasscofileproxy.service.DockerService;
-import dk.northtech.dasscofileproxy.service.FileService;
-import dk.northtech.dasscofileproxy.service.HttpShareService;
-import dk.northtech.dasscofileproxy.service.SambaServerService;
+import dk.northtech.dasscofileproxy.service.*;
 import dk.northtech.dasscofileproxy.webapi.UserMapper;
 import dk.northtech.dasscofileproxy.webapi.model.AssetStorageAllocation;
 import jakarta.annotation.security.RolesAllowed;
@@ -23,39 +19,45 @@ import static jakarta.ws.rs.core.MediaType.APPLICATION_JSON;
 public class HttpShareAPI {
     public static final Logger logger = LoggerFactory.getLogger(HttpShareAPI.class);
     HttpShareService httpShareService;
+    SFTPService sftpService;
 
     @Inject
-    public HttpShareAPI(HttpShareService httpShareService) {
+    public HttpShareAPI(HttpShareService httpShareService, SFTPService sftpService) {
         this.httpShareService = httpShareService;
+        this.sftpService = sftpService;
     }
 
+
+
     @POST
-    @Path("/createShare")
+    @Path("/assets/{assetGuid}/createShare")
     @Produces(MediaType.APPLICATION_JSON)
     @Consumes(APPLICATION_JSON)
     public HttpInfo createSambaServer(CreationObj creationObj, @Context SecurityContext securityContext) {
         User user = UserMapper.from(securityContext);
+        if(creationObj.allocation_mb() == 0) {
+            throw new IllegalArgumentException("Allocation cannot be 0");
+        }
         return httpShareService.createHttpShare(creationObj, user);
 
     }
 
     @POST
-    @Path("/assets/changeAllocation")
+    @Path("/assets/{assetGuid}/changeAllocation")
     @Produces(APPLICATION_JSON)
     @Consumes(APPLICATION_JSON)
-    @RolesAllowed({SecurityRoles.USER, SecurityRoles.ADMIN, SecurityRoles.ADMIN})
+    @RolesAllowed({SecurityRoles.USER, SecurityRoles.ADMIN})
     public HttpInfo updateStorageAllocation(AssetStorageAllocation newAllocation) {
         return httpShareService.allocateStorage(newAllocation);
     }
 
     @POST
-    @Path("/disconnectShare")
-    @Produces(MediaType.APPLICATION_JSON)
+    @Path("/assets/{assetGuid}/synchronize")
+    @Produces(APPLICATION_JSON)
     @Consumes(APPLICATION_JSON)
-    @RolesAllowed({SecurityRoles.USER, SecurityRoles.ADMIN, SecurityRoles.ADMIN})
-    public SambaInfo disconnectSambaServer(AssetSmbRequest assetSmbRequest, @Context SecurityContext securityContext) {
-        User user = UserMapper.from(securityContext);
-        return null;
-//        return httpShareService..disconnect(assetSmbRequest, user);
+    @RolesAllowed({SecurityRoles.USER, SecurityRoles.ADMIN})
+    public void synvhronize(String assetGuid) {
+        sftpService.moveToERDA(assetGuid);
     }
+
 }

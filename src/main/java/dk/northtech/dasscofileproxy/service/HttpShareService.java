@@ -22,15 +22,14 @@ import java.util.stream.Collectors;
 @Service
 public class HttpShareService {
     private final Jdbi jdbi;
-    private final DockerService dockerService;
+
     private final ShareConfig shareConfig;
     private final FileService fileService;
     private final SFTPService sftpService;
     private static final Logger logger = LoggerFactory.getLogger(HttpShareService.class);
 
     @Inject
-    public HttpShareService(DataSource dataSource, DockerService dockerService, FileService fileService, SFTPService sftpService, ShareConfig shareConfig) {
-        this.dockerService = dockerService;
+    public HttpShareService(DataSource dataSource,FileService fileService, SFTPService sftpService, ShareConfig shareConfig) {
         this.fileService = fileService;
         this.sftpService = sftpService;
         this.shareConfig = shareConfig;
@@ -66,12 +65,14 @@ public class HttpShareService {
         try {
             Instant creationDatetime = Instant.now();
             if (creationObj.users().size() > 0 && creationObj.assets().size() > 0) {
-                StorageMetrics storageMetrics = getStorageMetrics();
-                HttpInfo httpInfo = createHttpInfo(storageMetrics, creationObj);
-                logger.info("creation obj is valid");
                 if(creationObj.assets().size() != 1) {
                     throw new IllegalArgumentException("Number of assets must be one");
                 }
+                MinimalAsset minimalAsset = creationObj.assets().get(0);
+                FileService.AssetAllocation usageByAsset = fileService.getUsageByAsset(minimalAsset);
+                StorageMetrics storageMetrics = getStorageMetrics();
+                HttpInfo httpInfo = createHttpInfo(storageMetrics, creationObj, usageByAsset);
+                logger.info("creation obj is valid");
                 Directory dir = new Directory(null
                         , httpInfo.path()
                         , shareConfig.nodeHost()
@@ -86,18 +87,18 @@ public class HttpShareService {
                         .collect(Collectors.toList()), creationDatetime), setupUserAccess(creationObj.users(), creationDatetime)
                 );
                 Directory directory = createDirectory(dir);
-                String shareFolder = fileService.createShareFolder(creationObj.assets().get(0));
+                String shareFolder = fileService.createShareFolder(minimalAsset);
                 try {
                     if (creationObj.assets().size() == 1) {
-                        sftpService.initAssetShare(shareFolder, creationObj.assets().get(0).asset_guid());
+                        sftpService.initAssetShare(shareFolder, minimalAsset);
                         return httpInfo;
                     }
                 } catch (Exception e) {
                     logger.error("Failed to init asset share", e);
-                    deleteDirectory(directory.directoryId());
+                    fileService.deleteDirectory(directory.directoryId());
                     throw e;
                 }
-                return new HttpInfo(null, null, storageMetrics.total_storage_mb(), storageMetrics.cache_storage_mb(), storageMetrics.remaining_storage_mb(), storageMetrics.all_allocated_storage_mb(), 0, httpInfo.proxy_allocation_status_text(),httpInfo.httpAllocationStatus());
+                return new HttpInfo(null, null, storageMetrics.total_storage_mb(), storageMetrics.cache_storage_mb(), storageMetrics.remaining_storage_mb(), storageMetrics.all_allocated_storage_mb(), 0, httpInfo.proxy_allocation_status_text(),httpInfo.httpAllocationStatus(), 0);
             } else {
                 throw new BadRequestException("You have to provide users in this call");
             }
@@ -107,8 +108,8 @@ public class HttpShareService {
         }
     }
 
-    public HttpInfo createHttpInfo(StorageMetrics storageMetrics, CreationObj creationObj) {
-        if(storageMetrics.remaining_storage_mb()-creationObj.allocation_mb() < 0) {
+    public HttpInfo createHttpInfo(StorageMetrics storageMetrics, CreationObj creationObj, FileService.AssetAllocation assetAllocation) {
+        if(storageMetrics.remaining_storage_mb()-creationObj.allocation_mb() - assetAllocation.getTotalAllocationAsMb()  < 0) {
             return new HttpInfo(null
                     , shareConfig.nodeHost()
                     , storageMetrics.total_storage_mb()
@@ -117,10 +118,11 @@ public class HttpShareService {
                     , storageMetrics.remaining_storage_mb()
                     , 0
                     , null
-                    , HttpAllocationStatus.DISK_FULL);
+                    , HttpAllocationStatus.DISK_FULL
+                    , assetAllocation.getParentAllocationAsMb());
         }
         MinimalAsset minimalAsset = creationObj.assets().get(0);
-        String path = "/assetsfiles/" + minimalAsset.institution() + "/" + minimalAsset.collection() +"/" + minimalAsset.asset_guid() +"/";
+        String path = "/assetfiles/" + minimalAsset.institution() + "/" + minimalAsset.collection() +"/" + minimalAsset.asset_guid() +"/";
         return new HttpInfo(path
                 , shareConfig.nodeHost()
                 , storageMetrics.total_storage_mb()
@@ -129,7 +131,8 @@ public class HttpShareService {
                 , storageMetrics.remaining_storage_mb() - creationObj.allocation_mb()
                 , creationObj.allocation_mb()
                 , null
-                , HttpAllocationStatus.SUCCESS);
+                , HttpAllocationStatus.SUCCESS
+                , assetAllocation.getParentAllocationAsMb());
     }
 
     public StorageMetrics getStorageMetrics() {
@@ -148,22 +151,22 @@ public class HttpShareService {
         StorageMetrics storageMetrics = getStorageMetrics();
         return jdbi.withHandle(h -> {
             DirectoryRepository directoryRepository = h.attach(DirectoryRepository.class);
-            List<Directory> writeableDirectoriesByAsset = directoryRepository.getWriteableDirectoriesByAsset(newAllocation.assetGuid());
-            if(writeableDirectoriesByAsset.size() != 1) {
-                return new HttpInfo("Failed to allocate storage" , HttpAllocationStatus.ILLEGAL_STATE);
+            Optional<Directory> writeableDirectory = fileService.getWriteableDirectory(newAllocation.assetGuid());
+            if(writeableDirectory.isEmpty()) {
+                return new HttpInfo("Failed to allocate storage, no writeable directory found" , HttpAllocationStatus.ILLEGAL_STATE);
             }
             FileRepository fileRepository = h.attach(FileRepository.class);
             long totalAllocatedAsset = fileRepository.getTotalAllocatedByAsset(newAllocation.assetGuid());
             if(totalAllocatedAsset/1000 > newAllocation.new_allocation_mb()) {
                 return new HttpInfo("Size of files in share is greater than the new value", HttpAllocationStatus.ILLEGAL_STATE);
             }
-            Directory directory = writeableDirectoriesByAsset.get(0);
+            Directory directory = writeableDirectory.get();
             StorageMetrics resultMetrics = storageMetrics.allocate(newAllocation.new_allocation_mb() - directory.allocatedStorageMb());
             if(resultMetrics.remaining_storage_mb() < 0) {
-                return new HttpInfo(directory.uri(), directory.node_host(),storageMetrics.total_storage_mb(), storageMetrics.cache_storage_mb(),storageMetrics.all_allocated_storage_mb(), storageMetrics.remaining_storage_mb(), 0, "Cannot allocate more storage", HttpAllocationStatus.DISK_FULL);
+                return new HttpInfo(directory.uri(), directory.node_host(),storageMetrics.total_storage_mb(), storageMetrics.cache_storage_mb(),storageMetrics.all_allocated_storage_mb(), storageMetrics.remaining_storage_mb(), 0, "Cannot allocate more storage", HttpAllocationStatus.DISK_FULL, 0);
             }
             directoryRepository.updateAllocatedStorage(directory.directoryId(), newAllocation.new_allocation_mb());
-            return new HttpInfo(directory.uri(), directory.node_host(),resultMetrics.total_storage_mb(), resultMetrics.cache_storage_mb(),resultMetrics.all_allocated_storage_mb(), resultMetrics.remaining_storage_mb(), 0, "Cannot allocate more storage", HttpAllocationStatus.SUCCESS);
+            return new HttpInfo(directory.uri(), directory.node_host(),resultMetrics.total_storage_mb(), resultMetrics.cache_storage_mb(),resultMetrics.all_allocated_storage_mb(), resultMetrics.remaining_storage_mb(), 0, "Cannot allocate more storage", HttpAllocationStatus.SUCCESS, 0);
         });
     }
     public String generateRandomToken() {
@@ -179,23 +182,6 @@ public class HttpShareService {
                 .toString();
     }
 
-    public Optional<SambaServer> getSambaServer(String sambaName) {
-        long sambaServerId = parseId(sambaName);
-        return jdbi.withHandle(h -> {
-            SambaServerRepository smbRepo = h.attach(SambaServerRepository.class);
-            SambaServer sambaServer = smbRepo.getSambaServer(sambaServerId);
-            SharedAssetList attach = h.attach(SharedAssetList.class);
-            UserAccessList userAccessList = h.attach(UserAccessList.class);
-            if (sambaServer != null) {
-                return Optional.of(
-                        new SambaServer(sambaServer
-                                , attach.getSharedAssetsByDirectory(sambaServerId)
-                                , userAccessList.getUserAccess(sambaServerId)));
-            } else {
-                return Optional.empty();
-            }
-        });
-    }
 
     public long parseId(String sambaName) {
         if (Strings.isNullOrEmpty(sambaName)) {
@@ -212,87 +198,35 @@ public class HttpShareService {
         }
     }
 
-    public SambaInfo disconnect(AssetSmbRequest assetSmbRequest, User user) {
-        Optional<SambaServer> sambaServerOpt = getSambaServer(assetSmbRequest.shareName());
-        if (sambaServerOpt.isPresent()) {
-            SambaServer sambaServer = sambaServerOpt.get();
-            checkAccess(sambaServer, user);
-            if (checkAccess(sambaServer, user)) {
-                dockerService.removeContainer(assetSmbRequest.shareName());
-
-            } else {
-                throw new DasscoIllegalActionException();
-            }
-            return new SambaInfo(null, null, "share_" + sambaServer.sambaServerId(), null, SambaRequestStatus.OK_DISCONNECTED, null);
-        }
-        return new SambaInfo(null, null, null, null, SambaRequestStatus.SMB_FAILED, "Share was not found");
-    }
-
-    public boolean close(AssetUpdateRequest assetSmbRequest, User user, boolean force, boolean syncERDA) {
-        Optional<SambaServer> sambaServerOpt = getSambaServer(assetSmbRequest.shareName());
-        if (sambaServerOpt.isPresent()) {
-            SambaServer sambaServer = sambaServerOpt.get();
-//            checkAccess(sambaServer, user);
-            if (checkAccess(sambaServer, user)) {
-                if (syncERDA) {
-                    dockerService.removeContainer(assetSmbRequest.shareName());
-                    sftpService.moveToERDA(new SambaToMove(sambaServer, assetSmbRequest));
-                } else {
-                    deleteDirectory(sambaServer.sambaServerId());
-                    return dockerService.removeContainer(assetSmbRequest.shareName());
-                }
-                return false;
-            } else {
-                throw new DasscoIllegalActionException();
-            }
-        } else if (force) {
-            dockerService.removeContainer(assetSmbRequest.shareName());
-        }
-        return false;
-    }
 
 
-    public SambaServer open(AssetSmbRequest assetSmbRequest, User user) {
-        Optional<SambaServer> sambaServerOpt = getSambaServer(assetSmbRequest.shareName());
-        if (sambaServerOpt.isPresent()) {
-            SambaServer sambaServer = sambaServerOpt.get();
-            checkAccess(sambaServer, user);
-            if (checkAccess(sambaServer, user)) {
-                dockerService.startService(sambaServer);
-                jdbi.withHandle(h -> {
-                    SambaServerRepository attach = h.attach(SambaServerRepository.class);
-                    attach.updateShared(true, sambaServer.sambaServerId());
-                    return h;
-                });
-                return new SambaServer(sambaServer.sambaServerId(), sambaServer.sharePath(), true, sambaServer.containerPort(), sambaServer.access(), sambaServer.creationDatetime(), sambaServer.sharedAssets(), sambaServer.userAccess());
-            } else {
-                throw new DasscoIllegalActionException();
-            }
-        } else {
-            throw new IllegalArgumentException("Samba server doesnt exist");
-        }
-    }
+//    public boolean close(AssetUpdateRequest assetSmbRequest, User user, boolean force, boolean syncERDA) {
+//        Optional<SambaServer> sambaServerOpt = getSambaServer(assetSmbRequest.shareName());
+//        if (sambaServerOpt.isPresent()) {
+//            SambaServer sambaServer = sambaServerOpt.get();
+////            checkAccess(sambaServer, user);
+//            if (checkAccess(sambaServer, user)) {
+//                if (syncERDA) {
+//                    dockerService.removeContainer(assetSmbRequest.shareName());
+//                    sftpService.moveToERDA(new SambaToMove(sambaServer, assetSmbRequest));
+//                } else {
+//                    deleteDirectory(sambaServer.sambaServerId());
+//                    return dockerService.removeContainer(assetSmbRequest.shareName());
+//                }
+//                return false;
+//            } else {
+//                throw new DasscoIllegalActionException();
+//            }
+//        } else if (force) {
+//            dockerService.removeContainer(assetSmbRequest.shareName());
+//        }
+//        return false;
+//    }
 
-    public boolean checkAccess(SambaServer sambaServer, User user) {
-        for (UserAccess userAccess : sambaServer.userAccess()) {
-            if (Objects.equals(user.username, userAccess.username())) {
-                return true;
-            }
-        }
-        return false;
-    }
 
-    public void deleteDirectory(long directoryId) {
-        jdbi.inTransaction(h -> {
-            SharedAssetList sharedAssetRepository = h.attach(SharedAssetList.class);
-            UserAccessList userAccessRepository = h.attach(UserAccessList.class);
-            DirectoryRepository directoryRepository = h.attach(DirectoryRepository.class);
-            userAccessRepository.deleteUserAccess(directoryId);
-            sharedAssetRepository.deleteSharedAsset(directoryId);
-            directoryRepository.deleteSharedAsset(directoryId);
-            return h;
-        }).close();
-    }
+
+
+
 
     public List<UserAccess> setupUserAccess(List<String> users, Instant creationDateTime) {
         ArrayList<UserAccess> userAccess = new ArrayList<>();

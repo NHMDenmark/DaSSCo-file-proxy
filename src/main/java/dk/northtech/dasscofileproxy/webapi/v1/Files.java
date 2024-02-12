@@ -10,12 +10,14 @@ import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.*;
 
 import java.io.File;
+import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
 import java.util.List;
 
 import static jakarta.ws.rs.core.MediaType.APPLICATION_JSON;
 
-@Path("/files")
+@Path("/assetfiles")
 public class Files {
     private FileService fileService;
 
@@ -26,13 +28,13 @@ public class Files {
 
     @Context
     UriInfo uriInfo;
+
     @PUT
-    @Path("/shared/{shareId}/{institutionName}/{collectionName}/{assetGuid}/{paths: .+}")
+    @Path("/{institutionName}/{collectionName}/{assetGuid}/{paths: .+}")
     @Produces(MediaType.APPLICATION_JSON)
-    @Consumes(APPLICATION_JSON)
+    @Consumes(MediaType.APPLICATION_OCTET_STREAM)
     public Response createSambaServer(
-            @PathParam("shareId") long shareId
-            , @PathParam("institutionName") String institutionName
+            @PathParam("institutionName") String institutionName
             , @PathParam("collectionName") String collectionName
             , @PathParam("assetGuid") String assetGuid
             , @QueryParam("crc") long crc
@@ -40,24 +42,48 @@ public class Files {
             , @Context SecurityContext securityContext
             , InputStream file) {
         User user = UserMapper.from(securityContext);
-        if(fileSize == 0) {
+        if (fileSize == 0) {
             throw new IllegalArgumentException("file_size_mb cannot be 0");
         }
-        if(crc == 0) {
+        if (crc == 0) {
             throw new IllegalArgumentException("crc cannot be 0");
         }
         final String path
                 = uriInfo.getPathParameters().getFirst("paths");
-        FileUploadData fileUploadData = new FileUploadData(assetGuid, institutionName, collectionName,  path, fileSize);
+        FileUploadData fileUploadData = new FileUploadData(assetGuid, institutionName, collectionName, path, fileSize);
         FileUploadResult upload = fileService.upload(file, crc, fileUploadData);
         return Response.status(upload.getResponseCode()).entity(upload).build();
     }
 
-    @DELETE
-    @Path("/shares/{shareId}/{institutionName}/{collectionName}/{assetGuid}/{path: .+}")
-    @Produces(MediaType.APPLICATION_JSON)
+    @GET
+    @Path("/{institutionName}/{collectionName}/{assetGuid}/{paths: .+}")
+    @Produces(MediaType.APPLICATION_OCTET_STREAM)
     @Consumes(APPLICATION_JSON)
     public Response createSambaServer(
+            @PathParam("institutionName") String institutionName
+            , @PathParam("collectionName") String collectionName
+            , @PathParam("assetGuid") String assetGuid
+            , @Context SecurityContext securityContext
+    ) {
+        final String path
+                = uriInfo.getPathParameters().getFirst("paths");
+        User user = UserMapper.from(securityContext);
+        FileUploadData fileUploadData = new FileUploadData(assetGuid, institutionName, collectionName, path, 0);
+        InputStream is = fileService.getFile(fileUploadData);
+        if (is != null) {
+            StreamingOutput streamingOutput = output -> {
+                is.transferTo(output);
+                output.flush();
+            };
+        }
+        return Response.status(404).build();
+    }
+
+    @DELETE
+    @Path("/{institutionName}/{collectionName}/{assetGuid}/{path: .+}")
+    @Produces(MediaType.APPLICATION_JSON)
+    @Consumes(APPLICATION_JSON)
+    public Response deletefile(
             @PathParam("institutionName") String institutionName
             , @PathParam("collectionName") String collectionName
             , @PathParam("assetGuid") String assetGuid
@@ -65,7 +91,7 @@ public class Files {
         User user = UserMapper.from(securityContext);
         final String path
                 = uriInfo.getPathParameters().getFirst("paths");
-        boolean deleted = fileService.deleteFile(new FileUploadData(assetGuid, institutionName,collectionName, path, 0 ));
-        return Response.status(deleted ? 204:404).build();
+        boolean deleted = fileService.deleteFile(new FileUploadData(assetGuid, institutionName, collectionName, path, 0));
+        return Response.status(deleted ? 204 : 404).build();
     }
 }

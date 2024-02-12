@@ -27,6 +27,8 @@ class HttpShareServiceTest {
     @Inject
     HttpShareService httpShareService;
     @Inject
+    FileService fileservice;
+    @Inject
     DockerConfig dockerConfig;
 
     @Container
@@ -92,7 +94,7 @@ class HttpShareServiceTest {
         Directory directory = new Directory(null, "/i1/c1/deleteDirectory/", "test.dassco.dk", AccessType.WRITE, Instant.now(), 10,false, 0,Arrays.asList(azzet1), Arrays.asList(userAccess));
         Directory directory1 = httpShareService.createDirectory(directory);
         StorageMetrics storageMetricsBefore = httpShareService.getStorageMetrics();
-        httpShareService.deleteDirectory(directory1.directoryId());
+        fileservice.deleteDirectory(directory1.directoryId());
         StorageMetrics storageMetricsAfter = httpShareService.getStorageMetrics();
         assertThat(storageMetricsAfter.remaining_storage_mb()).isEqualTo(storageMetricsBefore.remaining_storage_mb() + 10);
         assertThat(storageMetricsAfter.all_allocated_storage_mb()).isEqualTo(storageMetricsBefore.all_allocated_storage_mb() -10);

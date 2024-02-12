@@ -6,6 +6,8 @@ import dk.northtech.dasscofileproxy.configuration.ShareConfig;
 import dk.northtech.dasscofileproxy.domain.*;
 import dk.northtech.dasscofileproxy.repository.DirectoryRepository;
 import dk.northtech.dasscofileproxy.repository.FileRepository;
+import dk.northtech.dasscofileproxy.repository.SharedAssetList;
+import dk.northtech.dasscofileproxy.repository.UserAccessList;
 import dk.northtech.dasscofileproxy.webapi.model.FileUploadData;
 import dk.northtech.dasscofileproxy.webapi.model.FileUploadResult;
 import jakarta.inject.Inject;
@@ -46,12 +48,47 @@ public class FileService {
         return newDirectory.getPath();
     }
 
+    public AssetAllocation getUsageByAsset(MinimalAsset minimalAsset) {
+        return jdbi.withHandle(h -> {
+            long assetAllocation = 0;
+            long parentAllocation = 0;
+            FileRepository attach = h.attach(FileRepository.class);
+            assetAllocation = attach.getTotalAllocatedByAsset(minimalAsset.asset_guid());
+            if (minimalAsset.parentGuid() != null) {
+                parentAllocation = attach.getTotalAllocatedByAsset(minimalAsset.parentGuid());
+            }
+            return new AssetAllocation(assetAllocation, parentAllocation);
+        });
+    }
 
-    public void removeShareFolder(Long shareId) {
+    public InputStream getFile(FileUploadData fileUploadData) {
+        File file = new File(shareConfig.mountFolder() + fileUploadData.filePathAndName());
+        if (file.exists()) {
+            try {
+                return new FileInputStream(file);
+            } catch (FileNotFoundException e) {
+                throw new RuntimeException(e);
+            }
+        } else {
+            return null;
+        }
+    }
+
+    record AssetAllocation(long assetBytes, long parentBytes) {
+        int getTotalAllocationAsMb() {
+            return (int) Math.ceil((assetBytes + parentBytes) / 1000000d);
+        }
+
+        int getParentAllocationAsMb() {
+            return (int) Math.ceil((parentBytes) / 1000000d);
+        }
+    }
+
+    public void removeShareFolder(Directory directory) {
         if (Strings.isNullOrEmpty(dockerConfig.mountFolder())) {
             throw new RuntimeException("Cannot delete share folder, mountFolder is null");
         }
-        Path path = Path.of(dockerConfig.mountFolder() + "share_" + shareId);
+        Path path = Path.of(dockerConfig.mountFolder() + directory.uri());
         deleteAll(path.toFile());
     }
 
@@ -78,15 +115,35 @@ public class FileService {
         dir.delete();
     }
 
-    public Directory getWriteableDirectory(FileUploadData fileUploadData) {
+    public Optional<Directory> getWriteableDirectory(String assetGuid) {
         return jdbi.withHandle(handle -> {
             DirectoryRepository directoryRepository = handle.attach(DirectoryRepository.class);
-            List<Directory> writeableDirectoriesByAsset = directoryRepository.getWriteableDirectoriesByAsset(fileUploadData.asset_guid());
+            List<Directory> writeableDirectoriesByAsset = directoryRepository.getWriteableDirectoriesByAsset(assetGuid);
             if (writeableDirectoriesByAsset.size() != 1) {
-                throw new IllegalArgumentException("No writeable directory found for asset.");
+                return Optional.empty();
             }
-            return writeableDirectoriesByAsset.get(0);
+            return Optional.of(writeableDirectoriesByAsset.get(0));
         });
+    }
+
+    public void scheduleDirectoryForSynchronization(long directoryId) {
+        jdbi.withHandle(h -> {
+            DirectoryRepository attach = h.attach(DirectoryRepository.class);
+            attach.scheduleDiretoryForSynchronization(directoryId);
+            return h;
+        }).close();
+    }
+
+    public void deleteDirectory(long directoryId) {
+        jdbi.inTransaction(h -> {
+            SharedAssetList sharedAssetRepository = h.attach(SharedAssetList.class);
+            UserAccessList userAccessRepository = h.attach(UserAccessList.class);
+            DirectoryRepository directoryRepository = h.attach(DirectoryRepository.class);
+            userAccessRepository.deleteUserAccess(directoryId);
+            sharedAssetRepository.deleteSharedAsset(directoryId);
+            directoryRepository.deleteSharedAsset(directoryId);
+            return h;
+        }).close();
     }
 
     public FileUploadResult upload(InputStream file, long crc, FileUploadData fileUploadData) {
@@ -94,7 +151,10 @@ public class FileService {
         if (fileUploadData.filePathAndName().toLowerCase().replace("/", "").startsWith("parent")) {
             throw new IllegalArgumentException("File path cannot start with 'parent'");
         }
-        Directory directory = getWriteableDirectory(fileUploadData);
+        Optional<Directory> directory = getWriteableDirectory(fileUploadData.asset_guid());
+        if (directory.isEmpty()) {
+            throw new IllegalArgumentException("There is no writeable directory for this asset");
+        }
         String basePath = shareConfig.mountFolder() + "/" + fileUploadData.getBasePath();
         File file1 = new File(basePath);
         if (!file1.exists()) {
@@ -105,21 +165,21 @@ public class FileService {
             long totalAllocatedByAsset = fileRepository.getTotalAllocatedByAsset(fileUploadData.asset_guid());
             String fullPath = basePath + fileUploadData.filePathAndName();
 //            List<DasscoFile> filesByAssetGuid = fileRepository.getFilesByAssetPath(fullPath);
-            if ((totalAllocatedByAsset + fileUploadData.size_mb() * 1000000) / 1000000d > directory.allocatedStorageMb()) {
+            if ((totalAllocatedByAsset + fileUploadData.size_mb() * 1000000) / 1000000d > directory.get().allocatedStorageMb()) {
                 throw new IllegalArgumentException("Total size of asset files exceeds allocated disk space");
             }
             File file2 = new File(fullPath);
             file2.getParentFile().mkdirs();
             // Mark entry in filetable for deletion after file has been successfully received
             boolean markForDeletion = file2.exists();
-            System.out.println("hell o 1 " + markForDeletion);
+            logger.info("Receiving: " + fullPath);
             try (FileOutputStream fileOutput = new FileOutputStream(file2)) {
                 CRC32 crc32 = new CRC32();
                 CheckedInputStream checkedInputStream = new CheckedInputStream(file, crc32);
                 checkedInputStream.transferTo(fileOutput);
                 long value = checkedInputStream.getChecksum().getValue();
                 if (markForDeletion) {
-                    System.out.println("hell o 2");
+                    logger.info("Marking overwritten file for deletion upon sync");
                     fileRepository.markForDeletion(fileUploadData.getFilePath());
                 }
                 fileRepository.insertFile(new DasscoFile(null, fileUploadData.asset_guid(), fileUploadData.getFilePath(), file2.length(), value));
