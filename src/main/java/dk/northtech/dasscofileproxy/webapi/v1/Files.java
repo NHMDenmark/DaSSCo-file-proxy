@@ -94,4 +94,18 @@ public class Files {
         boolean deleted = fileService.deleteFile(new FileUploadData(assetGuid, institutionName, collectionName, path, 0));
         return Response.status(deleted ? 204 : 404).build();
     }
+
+    @DELETE
+    @Path("/{institutionName}/{collectionName}/{assetGuid}/")
+    @Produces(MediaType.APPLICATION_JSON)
+    @Consumes(APPLICATION_JSON)
+    public Response deleteAsset(
+            @PathParam("institutionName") String institutionName
+            , @PathParam("collectionName") String collectionName
+            , @PathParam("assetGuid") String assetGuid
+            , @Context SecurityContext securityContext) {
+        User user = UserMapper.from(securityContext);
+        boolean deleted = fileService.deleteFile(new FileUploadData(assetGuid, institutionName, collectionName, null, 0));
+        return Response.status(deleted ? 204 : 404).build();
+    }
 }

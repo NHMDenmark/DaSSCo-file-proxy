@@ -44,7 +44,4 @@ public record Directory(Long directoryId
                 , directory.sharedAssets
                 , directory.userAccess);
     }
-
-
-
 }

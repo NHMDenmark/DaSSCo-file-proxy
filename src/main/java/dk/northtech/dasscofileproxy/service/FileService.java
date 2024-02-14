@@ -215,7 +215,9 @@ public class FileService {
             }
             return h;
         }).close();
+        System.out.println(file);
         if (!file.exists()) {
+            logger.info("File or folder did not exist");
             return false;
         }
         List<File> files = file.isDirectory() ? listFiles(file, new ArrayList<>(), false, true) : Arrays.asList(file);
@@ -229,7 +231,10 @@ public class FileService {
             throw new IllegalArgumentException("Collection must be present");
         }
         // Get all asset files so we can schedule the deleted files for deletion
-        Map<String, DasscoFile> collect = listFilesByAssetGuid(fileUploadData.asset_guid()).stream().collect(Collectors.toMap(x -> shareConfig.mountFolder() + x.path(), x -> x));
+        Map<String, DasscoFile> collect = listFilesByAssetGuid(fileUploadData.asset_guid())
+                .stream()
+                .filter(x -> !x.deleteAfterSync())
+                .collect(Collectors.toMap(x -> shareConfig.mountFolder() + x.path(), x -> x));
         collect.keySet().forEach(x -> {
             System.out.println(x);
         });
