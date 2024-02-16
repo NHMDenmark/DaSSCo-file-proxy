@@ -54,25 +54,41 @@ public class FileService {
             long parentAllocation = 0;
             FileRepository attach = h.attach(FileRepository.class);
             assetAllocation = attach.getTotalAllocatedByAsset(minimalAsset.asset_guid());
-            if (minimalAsset.parentGuid() != null) {
-                parentAllocation = attach.getTotalAllocatedByAsset(minimalAsset.parentGuid());
+            if (minimalAsset.parent_guid() != null) {
+                parentAllocation = attach.getTotalAllocatedByAsset(minimalAsset.parent_guid());
             }
             return new AssetAllocation(assetAllocation, parentAllocation);
         });
     }
 
-    public InputStream getFile(FileUploadData fileUploadData) {
-        File file = new File(shareConfig.mountFolder() + fileUploadData.filePathAndName());
+    public Optional<FileResult> getFile(FileUploadData fileUploadData) {
+        File file = new File(shareConfig.mountFolder() + fileUploadData.getFilePath());
         if (file.exists()) {
             try {
-                return new FileInputStream(file);
+                return Optional.of(new FileResult(new FileInputStream(file), file.getName()));
             } catch (FileNotFoundException e) {
                 throw new RuntimeException(e);
             }
         } else {
-            return null;
+            return Optional.empty();
         }
     }
+
+    public List<String> listAvailableFiles(FileUploadData fileUploadData) {
+        List<String> links = new ArrayList<>();
+        File file = new File(shareConfig.mountFolder() + fileUploadData.getBasePath());
+        return listFiles(file, new ArrayList<>(), true, false)
+                .stream()
+                .map(f -> {
+                    String path = f.toString();
+                    String pathWithoutDir = path.replace("\\", "/")
+                            .replace(shareConfig.mountFolder(), "");
+                    return shareConfig.nodeHost() + "/api" +pathWithoutDir;
+                })
+                .collect(Collectors.toList());
+    }
+
+    public record FileResult(InputStream is, String filename){};
 
     record AssetAllocation(long assetBytes, long parentBytes) {
         int getTotalAllocationAsMb() {
@@ -126,10 +142,10 @@ public class FileService {
         });
     }
 
-    public void scheduleDirectoryForSynchronization(long directoryId) {
+    public void scheduleDirectoryForSynchronization(long directoryId,AssetUpdate assetUpdate) {
         jdbi.withHandle(h -> {
             DirectoryRepository attach = h.attach(DirectoryRepository.class);
-            attach.scheduleDiretoryForSynchronization(directoryId);
+            attach.scheduleDiretoryForSynchronization(directoryId, assetUpdate);
             return h;
         }).close();
     }
@@ -191,6 +207,7 @@ public class FileService {
     }
 
     public List<DasscoFile> listFilesByAssetGuid(String assetGuid) {
+
         return jdbi.withHandle(h -> {
             FileRepository attach = h.attach(FileRepository.class);
             return attach.getFilesByAssetGuid(assetGuid);
@@ -245,6 +262,7 @@ public class FileService {
                         .sorted(Comparator.reverseOrder())
                         //Prevents the deletion of the base folder
                         .filter(z -> (!file.toString().equals(z.toString()) || fileUploadData.filePathAndName() != null))
+                        .filter(x -> !x.toString().contains("parent") )
                         .forEach(file1 -> {
                             boolean isFile = Files.isRegularFile(file1.toPath());
                             file1.delete();

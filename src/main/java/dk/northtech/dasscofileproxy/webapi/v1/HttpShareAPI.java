@@ -56,8 +56,13 @@ public class HttpShareAPI {
     @Produces(APPLICATION_JSON)
     @Consumes(APPLICATION_JSON)
     @RolesAllowed({SecurityRoles.USER, SecurityRoles.ADMIN})
-    public void synvhronize(String assetGuid) {
-        sftpService.moveToERDA(assetGuid);
+    public void synchronize(
+            @PathParam("assetGuid") String assetGuid
+            , @QueryParam("workstation") String workstation
+            , @QueryParam("pipeline") String pipeline
+            , @Context SecurityContext securityContext) {
+        User user = UserMapper.from(securityContext);
+        sftpService.moveToERDA(new AssetUpdate(assetGuid,workstation,pipeline,user.username));
     }
 
 }

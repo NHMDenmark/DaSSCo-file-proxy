@@ -7,13 +7,14 @@ public record FileUploadData(String asset_guid, String institution, String colle
     public String getFilePath() {
         String lastPart = "/";
         if(filePathAndName != null) {
-            lastPart = (filePathAndName.startsWith("/")? filePathAndName : "/" + filePathAndName);
+            lastPart = (filePathAndName.startsWith("/") ? filePathAndName : "/" + filePathAndName);
         }
         return "/assetfiles/" + institution + "/" + collection + "/" + asset_guid + lastPart;
     }
     public String getBasePath() {
         return "/assetfiles/" + institution + "/" + collection + "/" + asset_guid + "/";
     }
+
     public void validate() {
         if(Strings.isNullOrEmpty(asset_guid)) {
             throw new IllegalArgumentException("assetGuid is missing");

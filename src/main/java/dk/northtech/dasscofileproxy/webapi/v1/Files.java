@@ -8,12 +8,11 @@ import dk.northtech.dasscofileproxy.webapi.model.FileUploadResult;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.*;
+import org.apache.tika.Tika;
 
-import java.io.File;
-import java.io.IOException;
 import java.io.InputStream;
-import java.io.OutputStream;
 import java.util.List;
+import java.util.Optional;
 
 import static jakarta.ws.rs.core.MediaType.APPLICATION_JSON;
 
@@ -33,7 +32,7 @@ public class Files {
     @Path("/{institutionName}/{collectionName}/{assetGuid}/{paths: .+}")
     @Produces(MediaType.APPLICATION_JSON)
     @Consumes(MediaType.APPLICATION_OCTET_STREAM)
-    public Response createSambaServer(
+    public Response putFile(
             @PathParam("institutionName") String institutionName
             , @PathParam("collectionName") String collectionName
             , @PathParam("assetGuid") String assetGuid
@@ -55,11 +54,12 @@ public class Files {
         return Response.status(upload.getResponseCode()).entity(upload).build();
     }
 
+
     @GET
     @Path("/{institutionName}/{collectionName}/{assetGuid}/{paths: .+}")
-    @Produces(MediaType.APPLICATION_OCTET_STREAM)
+//    @Produces(MediaType.APPLICATION_OCTET_STREAM)
     @Consumes(APPLICATION_JSON)
-    public Response createSambaServer(
+    public Response getFile(
             @PathParam("institutionName") String institutionName
             , @PathParam("collectionName") String collectionName
             , @PathParam("assetGuid") String assetGuid
@@ -69,20 +69,40 @@ public class Files {
                 = uriInfo.getPathParameters().getFirst("paths");
         User user = UserMapper.from(securityContext);
         FileUploadData fileUploadData = new FileUploadData(assetGuid, institutionName, collectionName, path, 0);
-        InputStream is = fileService.getFile(fileUploadData);
-        if (is != null) {
+        Optional<FileService.FileResult> getFileResult = fileService.getFile(fileUploadData);
+        if (getFileResult.isPresent()) {
+            FileService.FileResult fileResult = getFileResult.get();
             StreamingOutput streamingOutput = output -> {
-                is.transferTo(output);
+                fileResult.is().transferTo(output);
                 output.flush();
             };
+
+            return Response.status(200)
+                    .header("Content-Disposition", "attachment; filename=" + fileResult.filename())
+                    .header("Content-Type", new Tika().detect(fileResult.filename())).entity(streamingOutput).build();
         }
         return Response.status(404).build();
     }
 
+    @GET
+    @Path("/{institutionName}/{collectionName}/{assetGuid}/")
+    @Produces(APPLICATION_JSON)
+    @Consumes(APPLICATION_JSON)
+    public List<String> listFiles(
+            @PathParam("institutionName") String institutionName
+            , @PathParam("collectionName") String collectionName
+            , @PathParam("assetGuid") String assetGuid
+            , @Context SecurityContext securityContext
+    ) {
+        User user = UserMapper.from(securityContext);
+        List<String> links = fileService.listAvailableFiles(new FileUploadData(assetGuid, institutionName, collectionName, null, 0));
+        return links;
+    }
+
     @DELETE
     @Path("/{institutionName}/{collectionName}/{assetGuid}/{path: .+}")
-    @Produces(MediaType.APPLICATION_JSON)
-    @Consumes(APPLICATION_JSON)
+//    @Produces(MediaType.APPLICATION_JSON)
+//    @Consumes(APPLICATION_JSON)
     public Response deletefile(
             @PathParam("institutionName") String institutionName
             , @PathParam("collectionName") String collectionName
@@ -95,6 +115,7 @@ public class Files {
         return Response.status(deleted ? 204 : 404).build();
     }
 
+    //Delete all files under an azzet
     @DELETE
     @Path("/{institutionName}/{collectionName}/{assetGuid}/")
     @Produces(MediaType.APPLICATION_JSON)

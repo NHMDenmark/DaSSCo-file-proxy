@@ -15,6 +15,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import javax.sql.DataSource;
+import java.io.File;
 import java.time.Instant;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -137,7 +138,7 @@ public class HttpShareService {
 
     public StorageMetrics getStorageMetrics() {
         return jdbi.withHandle(h -> {
-            int totalDiskSpace = shareConfig.totalDiskspace();
+            int totalDiskSpace = (int) (new File("/").getTotalSpace() / 1000000);
             int cacheDiskSpace = shareConfig.cacheDiskspace();
             int totalAllocated = 0;
             DirectoryRepository attach = h.attach(DirectoryRepository.class);

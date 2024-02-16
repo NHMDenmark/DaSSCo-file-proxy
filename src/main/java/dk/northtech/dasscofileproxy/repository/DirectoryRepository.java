@@ -1,5 +1,6 @@
 package dk.northtech.dasscofileproxy.repository;
 
+import dk.northtech.dasscofileproxy.domain.AssetUpdate;
 import dk.northtech.dasscofileproxy.domain.Directory;
 import org.jdbi.v3.sqlobject.customizer.Bind;
 import org.jdbi.v3.sqlobject.customizer.BindMethods;
@@ -38,8 +39,8 @@ public interface DirectoryRepository {
     @SqlQuery("SELECT sum(allocated_storage_mb) as totalAllocated FROM directories")
     int getTotalAllocated();
 
-    @SqlUpdate("UPDATE directories d SET d.awaiting_erda_sync = TRUE,  d.sync_digitiser = :digitiser, sync_workstation = :workstation, sync_pipeline = :sync_pipeline where d.directory_id = :directoryId")
-    void scheduleDiretoryForSynchronization(long directoryId);
+    @SqlUpdate("UPDATE directories SET awaiting_erda_sync = TRUE,  sync_user = :digitiser, sync_workstation = :workstation, sync_pipeline = :pipeline where directory_id = :directoryId")
+    void scheduleDiretoryForSynchronization(long directoryId,  @BindMethods AssetUpdate assetUpdate);
 
     //This should look for node host in future
     @SqlQuery("UPDATE directories SET erda_sync_attempts = erda_sync_attempts + 1 WHERE awaiting_erda_sync = true AND erda_sync_attempts <= :maxAttempts RETURNING *")

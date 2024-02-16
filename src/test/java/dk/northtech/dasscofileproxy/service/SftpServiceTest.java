@@ -20,6 +20,8 @@ import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.Collection;
 
+import static com.google.common.truth.Truth.assertThat;
+
 @SpringBootTest
 @Testcontainers
 @Disabled
@@ -97,9 +99,10 @@ class SftpServiceTest {
     public void testExists() {
         try {
             String localFile = "target/sample.txt";
-            String remoteDir = "/test-institution/test-collection/28";
-            boolean exists = sftpService.exists(remoteDir);
+            String remoteDir = "/test-institution/test-collection/a4";
+            boolean exists = sftpService.exists(remoteDir,true);
             System.out.println(exists);
+            assertThat(exists).isTrue();
         } catch (SftpException | IOException e) {
             throw new RuntimeException(e);
         }

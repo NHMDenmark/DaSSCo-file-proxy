@@ -1,7 +1,6 @@
 package dk.northtech.dasscofileproxy.service;
 
 import com.jcraft.jsch.*;
-import dk.northtech.dasscofileproxy.configuration.DockerConfig;
 import dk.northtech.dasscofileproxy.configuration.SFTPConfig;
 import dk.northtech.dasscofileproxy.configuration.ShareConfig;
 import dk.northtech.dasscofileproxy.domain.*;
@@ -9,8 +8,6 @@ import dk.northtech.dasscofileproxy.repository.DirectoryRepository;
 import dk.northtech.dasscofileproxy.repository.SharedAssetList;
 import jakarta.inject.Inject;
 import org.jdbi.v3.core.Jdbi;
-import org.jdbi.v3.core.mapper.reflect.ConstructorMapper;
-import org.jdbi.v3.sqlobject.SqlObjectPlugin;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -113,15 +110,15 @@ public class SFTPService {
         return fileList;
     }
 
-    public void moveToERDA(String assetGuid) {
-        Optional<Directory> writeableDirectory = fileService.getWriteableDirectory(assetGuid);
+    public void moveToERDA(AssetUpdate assetUpdate) {
+        Optional<Directory> writeableDirectory = fileService.getWriteableDirectory(assetUpdate.assetGuid());
         if (writeableDirectory.isPresent()) {
-           fileService.scheduleDirectoryForSynchronization(writeableDirectory.get().directoryId());
+           fileService.scheduleDirectoryForSynchronization(writeableDirectory.get().directoryId(), assetUpdate);
         } else {
             throw new IllegalArgumentException("No writeable share for asset found");
         }
-
     }
+
     public List<Directory> getHttpSharesToSynchronize(int maxAttempts) {
         return jdbi.withHandle(h -> {
             DirectoryRepository attach = h.attach(DirectoryRepository.class);
@@ -155,13 +152,17 @@ public class SFTPService {
 
             AssetFull fullAsset = assetService.getFullAsset(sharedAsset.assetGuid());
             if(fullAsset.asset_locked) {
+                logger.info("Asset {} is locked", sharedAsset.assetGuid());
                 failedGuids.add(fullAsset.asset_guid);
             }
-            String remotePath = getRemotePath(new MinimalAsset(fullAsset.asset_guid, fullAsset.parent_guid, fullAsset.institution, fullAsset.institution));
-            String localMountFolder = directory.uri();
+            String remotePath = getRemotePath(new MinimalAsset(fullAsset.asset_guid, fullAsset.parent_guid, fullAsset.institution, fullAsset.collection));
+            String localMountFolder = this.shareConfig.mountFolder() + directory.uri();
             File localDirectory = new File(shareConfig.mountFolder() + directory.uri());
             List<File> files = fileService.listFiles(localDirectory, new ArrayList<>(),false, false);
             List<Path> remoteLocations = files.stream().map(file -> {
+                logger.info("Remote path is: " + remotePath);
+                logger.info("Local base path is: " + localMountFolder);
+                logger.info("File path is: " + file.toPath().toString().replace("\\", "/"));
                 return Path.of(remotePath + "/" + file.toPath().toString().replace("\\", "/").replace(localMountFolder, ""));
             }).collect(Collectors.toList());
             createSubDirsIfNotExists(remoteLocations);
@@ -176,8 +177,6 @@ public class SFTPService {
                     fileService.deleteDirectory(directory.directoryId());
                     fileService.removeShareFolder(directory);
                 }
-                ;
-
             } catch (Exception e) {
                 failedGuids.add(fullAsset.asset_guid);
                 throw new RuntimeException(e);
@@ -262,13 +261,17 @@ public class SFTPService {
         return exists;
     }
 
-    public boolean exists(String path) throws IOException, SftpException {
-        ChannelSftp channel = startChannelSftp();
-        String parentPath = path.substring(0, path.lastIndexOf('/'));
-        System.out.println(parentPath);
+    public boolean exists(String path, boolean isFolder) throws IOException, SftpException {
         // List the contents of the parent directory
+        ChannelSftp channel = startChannelSftp();
         try {
+            String parentPath = path.substring(0, path.lastIndexOf('/'));
             Vector<ChannelSftp.LsEntry> entries = channel.ls(parentPath);
+            if(isFolder) {
+                if (entries.size() >0) {
+                    return true;
+                }
+            }
             // Iterate through the entries to check if the file or folder exists
             for (ChannelSftp.LsEntry entry : entries) {
                 String[] split = path.split("/");
@@ -276,8 +279,12 @@ public class SFTPService {
                     // File or folder exists
                     return true;
                 }
+//                if {
+//
+//                }
             }
         } catch (Exception e) {
+            channel.disconnect();
             // File or folder does not exist
             return false;
         }
@@ -349,7 +356,7 @@ public class SFTPService {
     }
 
     public String getRemotePath(MinimalAsset asset) {
-        return sftpConfig.remoteFolder() + asset.institution() + "/" + asset.collection() + "/" + asset.asset_guid();
+        return sftpConfig.remoteFolder() + asset.institution() + "/" + asset.collection() + "/" + asset.asset_guid() + "/";
     }
 
     public List<String> getRemotePathElements(AssetFull asset) {
@@ -363,8 +370,9 @@ public class SFTPService {
     public void initAssetShare(String sharePath, MinimalAsset minimalAsset) {
 //        AssetFull asset = assetService.getFullAsset(assetGuid);
         String remotePath = getRemotePath(minimalAsset);
+        logger.info("Initialising asset folder, remote path is {}", remotePath);
         try {
-            if (!exists(remotePath)) {
+            if (!exists(remotePath, true)) {
                 logger.info("Remote path {} didnt exist ", remotePath);
             } else {
                 List<String> fileNames = listAllFiles(remotePath);
@@ -374,22 +382,27 @@ public class SFTPService {
             throw new RuntimeException(e);
         }
         try {
+            logger.info("Initialising parent folder, parent_guid is {}", minimalAsset.parent_guid());
 
             //If asset have parent download into parent folder
             //We could save a http request here as we dont need the full parent asset to get the remote location, it is in the same collection and institution.
-            if (minimalAsset.parentGuid() != null) {
-                AssetFull parent = assetService.getFullAsset(minimalAsset.parentGuid());
+            if (minimalAsset.parent_guid() != null) {
+                AssetFull parent = assetService.getFullAsset(minimalAsset.parent_guid());
                 String parentRemotePath = getRemotePath(new MinimalAsset(parent.asset_guid, parent.parent_guid, parent.institution, parent.collection));
+                logger.info("Initialising parent folder, remote path is {}", parentRemotePath);
                 try {
-                    if (!exists(parentRemotePath)) {
+                    if (!exists(parentRemotePath,true)) {
                         logger.info("Remote parent path {} didnt exist ", parentRemotePath);
-                        return;
+                        throw new RuntimeException();
+//                        return;
                     }
                 } catch (Exception e) {
                     throw new RuntimeException(e);
                 }
                 List<String> parentFileNames = listAllFiles(parentRemotePath);
                 downloadFiles(parentFileNames, sharePath + "/parent", parent.asset_guid);
+            } else {
+                throw new RuntimeException("parent iz nullz");
             }
         } catch (Exception e) {
             throw new RuntimeException(e);
