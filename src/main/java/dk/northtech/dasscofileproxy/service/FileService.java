@@ -1,7 +1,6 @@
 package dk.northtech.dasscofileproxy.service;
 
 import com.google.common.base.Strings;
-import dk.northtech.dasscofileproxy.configuration.DockerConfig;
 import dk.northtech.dasscofileproxy.configuration.ShareConfig;
 import dk.northtech.dasscofileproxy.domain.*;
 import dk.northtech.dasscofileproxy.repository.DirectoryRepository;
@@ -27,15 +26,15 @@ import java.util.zip.CheckedInputStream;
 
 @Service
 public class FileService {
-    DockerConfig dockerConfig;
     ShareConfig shareConfig;
     Jdbi jdbi;
+    AssetService assetService;
     private static final Logger logger = LoggerFactory.getLogger(FileService.class);
 
     @Inject
-    public FileService(DockerConfig dockerConfig, ShareConfig shareConfig, Jdbi jdbi) {
-        this.dockerConfig = dockerConfig;
+    public FileService(ShareConfig shareConfig, Jdbi jdbi, AssetService assetService) {
         this.shareConfig = shareConfig;
+        this.assetService = assetService;
         this.jdbi = jdbi;
     }
 
@@ -101,10 +100,10 @@ public class FileService {
     }
 
     public void removeShareFolder(Directory directory) {
-        if (Strings.isNullOrEmpty(dockerConfig.mountFolder())) {
+        if (Strings.isNullOrEmpty(shareConfig.mountFolder())) {
             throw new RuntimeException("Cannot delete share folder, mountFolder is null");
         }
-        Path path = Path.of(dockerConfig.mountFolder() + directory.uri());
+        Path path = Path.of(shareConfig.mountFolder() + directory.uri());
         deleteAll(path.toFile());
     }
 
@@ -146,6 +145,15 @@ public class FileService {
         jdbi.withHandle(h -> {
             DirectoryRepository attach = h.attach(DirectoryRepository.class);
             attach.scheduleDiretoryForSynchronization(directoryId, assetUpdate);
+            return h;
+        }).close();
+        assetService.setAssestStatus(assetUpdate.assetGuid(), InternalStatus.ASSET_RECEIVED, null);
+    }
+
+    public void deleteFilesMarkedAsDeleteByAsset(String asset_guid) {
+        jdbi.withHandle(h -> {
+            FileRepository attach = h.attach(FileRepository.class);
+            attach.deleteFilesMarkedForDeletionByAssetGuid(asset_guid);
             return h;
         }).close();
     }
@@ -252,9 +260,6 @@ public class FileService {
                 .stream()
                 .filter(x -> !x.deleteAfterSync())
                 .collect(Collectors.toMap(x -> shareConfig.mountFolder() + x.path(), x -> x));
-        collect.keySet().forEach(x -> {
-            System.out.println(x);
-        });
         if (file.isDirectory()) {
             try (var dirStream = Files.walk(Paths.get(shareConfig.mountFolder() + fileUploadData.getFilePath()))) {
                 dirStream
@@ -284,9 +289,5 @@ public class FileService {
             }
         }
         return true;
-    }
-
-    public void deleteFile() {
-
     }
 }

@@ -133,11 +133,13 @@ public class SFTPService {
             return attach.getSharedAssetsByDirectory(directoryId);
         });
     }
+
+    record FailedAsset(String guid, String errorMessage){}
     @Scheduled(cron = "0 * * * * *")
     public void moveFiles() {
         logger.info("checking files");
-        List<Directory> directories = getHttpSharesToSynchronize(5);
-        List<String> failedGuids = new ArrayList<>();
+        List<Directory> directories = getHttpSharesToSynchronize(shareConfig.maxErdaSyncAttempts());
+        List<FailedAsset> failedGuids = new ArrayList<>();
 
 //        synchronized (filesToMove) {
 //            serversToFlush = new ArrayList<>(filesToMove);
@@ -150,10 +152,11 @@ public class SFTPService {
             }
             SharedAsset sharedAsset = sharedAssetList.get(0);
 
+            try {
             AssetFull fullAsset = assetService.getFullAsset(sharedAsset.assetGuid());
             if(fullAsset.asset_locked) {
                 logger.info("Asset {} is locked", sharedAsset.assetGuid());
-                failedGuids.add(fullAsset.asset_guid);
+                failedGuids.add(new FailedAsset(fullAsset.asset_guid, "Asset is locked"));
             }
             String remotePath = getRemotePath(new MinimalAsset(fullAsset.asset_guid, fullAsset.parent_guid, fullAsset.institution, fullAsset.collection));
             String localMountFolder = this.shareConfig.mountFolder() + directory.uri();
@@ -165,25 +168,35 @@ public class SFTPService {
                 logger.info("File path is: " + file.toPath().toString().replace("\\", "/"));
                 return Path.of(remotePath + "/" + file.toPath().toString().replace("\\", "/").replace(localMountFolder, ""));
             }).collect(Collectors.toList());
-            createSubDirsIfNotExists(remoteLocations);
             List<String> remoteFiles = listAllFiles(remotePath);
 //            }
-            try {
+                createSubDirsIfNotExists(remoteLocations);
                 final Set<String> uploadedFiles = putFilesOnRemotePathBulk(files, localMountFolder, remotePath);
                 //handle files that have been deleted
                 List<String> filesToDelete = remoteFiles.stream().filter(f -> !uploadedFiles.contains(f)).collect(Collectors.toList());
                 deleteFiles(filesToDelete);
                 if (assetService.completeAsset(new AssetUpdateRequest(null, new MinimalAsset(sharedAsset.assetGuid(),null,null, null), directory.syncWorkstation(), directory.syncPipeline(), directory.syncUser()))) {
+                    //Clean up local dir and its metadata
                     fileService.deleteDirectory(directory.directoryId());
                     fileService.removeShareFolder(directory);
+                    //Clean up files
+                    fileService.deleteFilesMarkedAsDeleteByAsset(sharedAsset.assetGuid());
                 }
             } catch (Exception e) {
-                failedGuids.add(fullAsset.asset_guid);
-                throw new RuntimeException(e);
+                logger.warn("ERDA export failed, failed asset guid: {}" , sharedAsset.assetGuid());
+                logger.warn("ERDA sync attempts for failed asset {}", directory.erdaSyncAttempts());
+                logger.info("ERDA sync max attempts {}", shareConfig.maxErdaSyncAttempts());
+
+                if(directory.erdaSyncAttempts() == shareConfig.maxErdaSyncAttempts()) {
+                    logger.info("Asset failed");
+                    failedGuids.add(new FailedAsset(sharedAsset.assetGuid(), e.getMessage()));
+                }
+                logger.error("Error doing ERDA synchronisation", e);
             }
         }
-        for (String s : failedGuids) {
-            assetService.setFailedStatus(s, InternalStatus.ERDA_ERROR);
+        for (FailedAsset s : failedGuids) {
+            logger.error("ERDA sync failed for asset {}, retry attemps exhausted", s.guid);
+            assetService.setAssestStatus(s.guid(), InternalStatus.ERDA_ERROR, s.errorMessage);
         }
     }
 
@@ -323,7 +336,7 @@ public class SFTPService {
         ChannelSftp channel = startChannelSftp();
         try {
             for (String location : locations) {
-                //remove institution/collection/guid from local path //TODO we use nested structure locally now... i think
+
                 String destinationLocation = destination + location.substring(location.indexOf(asset_guid) + asset_guid.length());
                 logger.info("Getting from {} saving in {}", location, destinationLocation);
                 File parentDir = new File(destinationLocation.substring(0, destinationLocation.lastIndexOf('/')));

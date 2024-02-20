@@ -39,10 +39,10 @@ public interface DirectoryRepository {
     @SqlQuery("SELECT sum(allocated_storage_mb) as totalAllocated FROM directories")
     int getTotalAllocated();
 
-    @SqlUpdate("UPDATE directories SET awaiting_erda_sync = TRUE,  sync_user = :digitiser, sync_workstation = :workstation, sync_pipeline = :pipeline where directory_id = :directoryId")
+    @SqlUpdate("UPDATE directories SET awaiting_erda_sync = TRUE,  sync_user = :digitiser, sync_workstation = :workstation, sync_pipeline = :pipeline, erda_sync_attempts = 0 where directory_id = :directoryId")
     void scheduleDiretoryForSynchronization(long directoryId,  @BindMethods AssetUpdate assetUpdate);
 
     //This should look for node host in future
-    @SqlQuery("UPDATE directories SET erda_sync_attempts = erda_sync_attempts + 1 WHERE awaiting_erda_sync = true AND erda_sync_attempts <= :maxAttempts RETURNING *")
+    @SqlQuery("UPDATE directories SET erda_sync_attempts = erda_sync_attempts + 1 WHERE awaiting_erda_sync = true AND erda_sync_attempts < :maxAttempts RETURNING *")
     List<Directory> getDirectoriesForSynchronization(int maxAttempts);
 }

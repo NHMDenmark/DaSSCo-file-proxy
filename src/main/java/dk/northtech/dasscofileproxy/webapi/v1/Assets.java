@@ -32,4 +32,26 @@ public class Assets {
         User user = UserMapper.from(securityContext);
         return fileService.listFilesByAssetGuid(assetGuid);
     }
+
+//    @GET
+//    @Path("/{assetGuid}/status")
+//    @Produces(MediaType.APPLICATION_JSON)
+//    @Consumes(APPLICATION_JSON)
+//    public List<AssetStatusInfo> getStatus(
+//            @PathParam("assetGuid") String assetGuid
+//            , @Context SecurityContext securityContext) {
+//        User user = UserMapper.from(securityContext);
+//        return fileService.listFilesByAssetGuid(assetGuid);
+//    }
+//
+//    @GET
+//    @Path("/{assetGuid}/status")
+//    @Produces(MediaType.APPLICATION_JSON)
+//    @Consumes(APPLICATION_JSON)
+//    public List<DasscoFile> getStatus(
+//            @PathParam("assetGuid") String assetGuid
+//            , @Context SecurityContext securityContext) {
+//        User user = UserMapper.from(securityContext);
+//        return fileService.listFilesByAssetGuid(assetGuid);
+//    }
 }

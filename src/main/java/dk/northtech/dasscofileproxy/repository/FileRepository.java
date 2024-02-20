@@ -29,6 +29,9 @@ public interface FileRepository {
     @SqlUpdate("DELETE FROM files WHERE asset_guid = :assetGuid")
     void deleteFilesByAssetGuid(@Bind String assetGuid);
 
+    @SqlUpdate("DELETE FROM files WHERE delete_after_sync = TRUE AND asset_guid = :assetGuid")
+    void deleteFilesMarkedForDeletionByAssetGuid(@Bind String assetGuid);
+
     @SqlUpdate("DELETE FROM files WHERE file_id = :fileId AND delete_after_sync = TRUE")
     void deleteFile(@Bind String assetGuid);
 
