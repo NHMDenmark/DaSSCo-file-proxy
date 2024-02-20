@@ -30,7 +30,7 @@ public class SFTPService {
     private FileService fileService;
     private ShareConfig shareConfig;
     private AssetService assetService;
-//    private HttpShareService httpShareService;
+    //    private HttpShareService httpShareService;
     private static final Logger logger = LoggerFactory.getLogger(SFTPService.class);
 
     @Inject
@@ -113,7 +113,7 @@ public class SFTPService {
     public void moveToERDA(AssetUpdate assetUpdate) {
         Optional<Directory> writeableDirectory = fileService.getWriteableDirectory(assetUpdate.assetGuid());
         if (writeableDirectory.isPresent()) {
-           fileService.scheduleDirectoryForSynchronization(writeableDirectory.get().directoryId(), assetUpdate);
+            fileService.scheduleDirectoryForSynchronization(writeableDirectory.get().directoryId(), assetUpdate);
         } else {
             throw new IllegalArgumentException("No writeable share for asset found");
         }
@@ -134,7 +134,9 @@ public class SFTPService {
         });
     }
 
-    record FailedAsset(String guid, String errorMessage){}
+    record FailedAsset(String guid, String errorMessage) {
+    }
+
     @Scheduled(cron = "0 * * * * *")
     public void moveFiles() {
         logger.info("checking files");
@@ -147,35 +149,35 @@ public class SFTPService {
 //        }
         for (Directory directory : directories) {
             List<SharedAsset> sharedAssetList = getShardAsset(directory.directoryId());
-            if(sharedAssetList.size() != 1) {
+            if (sharedAssetList.size() != 1) {
                 throw new RuntimeException("Directory has multiple shared assets");
             }
             SharedAsset sharedAsset = sharedAssetList.get(0);
 
             try {
-            AssetFull fullAsset = assetService.getFullAsset(sharedAsset.assetGuid());
-            if(fullAsset.asset_locked) {
-                logger.info("Asset {} is locked", sharedAsset.assetGuid());
-                failedGuids.add(new FailedAsset(fullAsset.asset_guid, "Asset is locked"));
-            }
-            String remotePath = getRemotePath(new MinimalAsset(fullAsset.asset_guid, fullAsset.parent_guid, fullAsset.institution, fullAsset.collection));
-            String localMountFolder = this.shareConfig.mountFolder() + directory.uri();
-            File localDirectory = new File(shareConfig.mountFolder() + directory.uri());
-            List<File> files = fileService.listFiles(localDirectory, new ArrayList<>(),false, false);
-            List<Path> remoteLocations = files.stream().map(file -> {
-                logger.info("Remote path is: " + remotePath);
-                logger.info("Local base path is: " + localMountFolder);
-                logger.info("File path is: " + file.toPath().toString().replace("\\", "/"));
-                return Path.of(remotePath + "/" + file.toPath().toString().replace("\\", "/").replace(localMountFolder, ""));
-            }).collect(Collectors.toList());
-            List<String> remoteFiles = listAllFiles(remotePath);
-//            }
+                AssetFull fullAsset = assetService.getFullAsset(sharedAsset.assetGuid());
+                if (fullAsset.asset_locked) {
+                    logger.info("Asset {} is locked", sharedAsset.assetGuid());
+                    failedGuids.add(new FailedAsset(fullAsset.asset_guid, "Asset is locked"));
+                }
+                String remotePath = getRemotePath(new MinimalAsset(fullAsset.asset_guid, fullAsset.parent_guid, fullAsset.institution, fullAsset.collection));
+                String localMountFolder = this.shareConfig.mountFolder() + directory.uri();
+                File localDirectory = new File(shareConfig.mountFolder() + directory.uri());
+                List<File> files = fileService.listFiles(localDirectory, new ArrayList<>(), false, false);
+                List<Path> remoteLocations = files.stream().map(file -> {
+                    logger.info("Remote path is: " + remotePath);
+                    logger.info("Local base path is: " + localMountFolder);
+                    logger.info("File path is: " + file.toPath().toString().replace("\\", "/"));
+                    return Path.of(remotePath + "/" + file.toPath().toString().replace("\\", "/").replace(localMountFolder, ""));
+                }).collect(Collectors.toList());
                 createSubDirsIfNotExists(remoteLocations);
+                List<String> remoteFiles = listAllFiles(remotePath);
+//            }
                 final Set<String> uploadedFiles = putFilesOnRemotePathBulk(files, localMountFolder, remotePath);
                 //handle files that have been deleted
                 List<String> filesToDelete = remoteFiles.stream().filter(f -> !uploadedFiles.contains(f)).collect(Collectors.toList());
                 deleteFiles(filesToDelete);
-                if (assetService.completeAsset(new AssetUpdateRequest(null, new MinimalAsset(sharedAsset.assetGuid(),null,null, null), directory.syncWorkstation(), directory.syncPipeline(), directory.syncUser()))) {
+                if (assetService.completeAsset(new AssetUpdateRequest(null, new MinimalAsset(sharedAsset.assetGuid(), null, null, null), directory.syncWorkstation(), directory.syncPipeline(), directory.syncUser()))) {
                     //Clean up local dir and its metadata
                     fileService.deleteDirectory(directory.directoryId());
                     fileService.removeShareFolder(directory);
@@ -183,11 +185,11 @@ public class SFTPService {
                     fileService.deleteFilesMarkedAsDeleteByAsset(sharedAsset.assetGuid());
                 }
             } catch (Exception e) {
-                logger.warn("ERDA export failed, failed asset guid: {}" , sharedAsset.assetGuid());
+                logger.warn("ERDA export failed, failed asset guid: {}", sharedAsset.assetGuid());
                 logger.warn("ERDA sync attempts for failed asset {}", directory.erdaSyncAttempts());
                 logger.info("ERDA sync max attempts {}", shareConfig.maxErdaSyncAttempts());
 
-                if(directory.erdaSyncAttempts() == shareConfig.maxErdaSyncAttempts()) {
+                if (directory.erdaSyncAttempts() == shareConfig.maxErdaSyncAttempts()) {
                     logger.info("Asset failed");
                     failedGuids.add(new FailedAsset(sharedAsset.assetGuid(), e.getMessage()));
                 }
@@ -280,8 +282,8 @@ public class SFTPService {
         try {
             String parentPath = path.substring(0, path.lastIndexOf('/'));
             Vector<ChannelSftp.LsEntry> entries = channel.ls(parentPath);
-            if(isFolder) {
-                if (entries.size() >0) {
+            if (isFolder) {
+                if (entries.size() > 0) {
                     return true;
                 }
             }
@@ -404,7 +406,7 @@ public class SFTPService {
                 String parentRemotePath = getRemotePath(new MinimalAsset(parent.asset_guid, parent.parent_guid, parent.institution, parent.collection));
                 logger.info("Initialising parent folder, remote path is {}", parentRemotePath);
                 try {
-                    if (!exists(parentRemotePath,true)) {
+                    if (!exists(parentRemotePath, true)) {
                         logger.info("Remote parent path {} didnt exist ", parentRemotePath);
                         throw new RuntimeException();
 //                        return;

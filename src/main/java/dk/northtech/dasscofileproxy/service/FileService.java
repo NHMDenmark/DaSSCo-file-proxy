@@ -82,7 +82,7 @@ public class FileService {
                     String path = f.toString();
                     String pathWithoutDir = path.replace("\\", "/")
                             .replace(shareConfig.mountFolder(), "");
-                    return shareConfig.nodeHost() + "/api" +pathWithoutDir;
+                    return shareConfig.nodeHost() + "/file_proxy/api" +pathWithoutDir;
                 })
                 .collect(Collectors.toList());
     }

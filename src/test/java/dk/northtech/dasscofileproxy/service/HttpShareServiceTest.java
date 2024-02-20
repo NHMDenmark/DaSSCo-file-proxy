@@ -1,6 +1,5 @@
 package dk.northtech.dasscofileproxy.service;
 
-import dk.northtech.dasscofileproxy.configuration.DockerConfig;
 import dk.northtech.dasscofileproxy.domain.*;
 import dk.northtech.dasscofileproxy.webapi.model.AssetStorageAllocation;
 import jakarta.inject.Inject;
@@ -18,7 +17,6 @@ import java.time.Instant;
 import java.util.Arrays;
 
 import static com.google.common.truth.Truth.assertThat;
-import static org.junit.jupiter.api.Assertions.*;
 
 @SpringBootTest
 @Testcontainers
@@ -28,8 +26,6 @@ class HttpShareServiceTest {
     HttpShareService httpShareService;
     @Inject
     FileService fileservice;
-    @Inject
-    DockerConfig dockerConfig;
 
     @Container
     static GenericContainer postgreSQL = new GenericContainer(DockerImageName.parse("apache/age:v1.1.0"))
@@ -65,7 +61,7 @@ class HttpShareServiceTest {
         Directory directory = new Directory(null, "/i1/c1/alloc8Extra/", "test.dassco.dk", AccessType.WRITE, Instant.now(), 10,false,0, Arrays.asList(azzet1), Arrays.asList(userAccess));
         Directory directory1 = httpShareService.createDirectory(directory);
         HttpInfo httpInfo = httpShareService.allocateStorage(new AssetStorageAllocation("alloc8Extra", 14));
-        assertThat(httpInfo.httpAllocationStatus()).isEqualTo(HttpAllocationStatus.SUCCESS);
+        assertThat(httpInfo.http_allocation_status()).isEqualTo(HttpAllocationStatus.SUCCESS);
         StorageMetrics result = httpShareService.getStorageMetrics();
         assertThat(result.all_allocated_storage_mb()).isEqualTo(storageMetrics.all_allocated_storage_mb() + 14);
         assertThat(result.cache_storage_mb()).isEqualTo(200);
@@ -81,7 +77,7 @@ class HttpShareServiceTest {
         StorageMetrics storageMetrics = httpShareService.getStorageMetrics();
         HttpInfo httpInfo = httpShareService.allocateStorage(new AssetStorageAllocation("alloc8ExtraNotEnoughSpace", 2000));
         StorageMetrics resultMetrics = httpShareService.getStorageMetrics();
-        assertThat(httpInfo.httpAllocationStatus()).isEqualTo(HttpAllocationStatus.DISK_FULL);
+        assertThat(httpInfo.http_allocation_status()).isEqualTo(HttpAllocationStatus.DISK_FULL);
         assertThat(resultMetrics.all_allocated_storage_mb()).isEqualTo(storageMetrics.all_allocated_storage_mb());
         assertThat(resultMetrics.cache_storage_mb()).isEqualTo(resultMetrics.cache_storage_mb());
         assertThat(resultMetrics.remaining_storage_mb()).isEqualTo(resultMetrics.remaining_storage_mb());
