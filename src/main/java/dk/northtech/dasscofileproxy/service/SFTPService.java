@@ -46,29 +46,23 @@ public class SFTPService {
     }
 
     public Session open() {
-        System.out.println("BEFORE JSch()");
+        logger.info("Connecting to ERDA");
         try {
             JSch jSch = new JSch();
 
-            System.out.println("After JSch()");
             // Add the private key file for authentication
             jSch.addIdentity(sftpConfig.privateKey(), sftpConfig.passphrase());
-            System.out.println("jSch");
 
-            System.out.println("Before Session");
             Session session = jSch.getSession(sftpConfig.username(), sftpConfig.host(), sftpConfig.port());
             session.setConfig("PreferredAuthentications", "publickey");
-            System.out.println("After Session");
 
             // Disable strict host key checking
             session.setConfig("StrictHostKeyChecking", "no");
 
-            System.out.println("Connect");
             session.connect();
-            System.out.println("After Connect");
             return session;
         } catch (JSchException e) {
-            System.out.println("Shii, " + e);
+            logger.error("Failed to connect to ERDA: {}",e.getMessage());
             throw new RuntimeException(e);
         }
     }
@@ -93,18 +87,14 @@ public class SFTPService {
     }
 
     public Collection<String> listFiles(String path) throws JSchException, SftpException {
-        System.out.println("START");
         List<String> fileList = new ArrayList<>();
         ChannelSftp channel = startChannelSftp();
-        System.out.println("AFTER CHANNEL");
         Vector<ChannelSftp.LsEntry> files = channel.ls(path);
-        System.out.println("AFTER LS");
         for (ChannelSftp.LsEntry entry : files) {
             if (!entry.getAttrs().isDir()) {
                 fileList.add(entry.getFilename());
             }
         }
-        System.out.println("BEFORE DC");
         disconnect(channel);
 
         return fileList;
@@ -224,6 +214,7 @@ public class SFTPService {
         ChannelSftp channelSftp = startChannelSftp();
         try {
             for (String filePath : filesToDelete) {
+                logger.info("Deleting remote file {}", filePath);
                 channelSftp.rm(filePath);
             }
         } catch (SftpException e) {
@@ -323,7 +314,6 @@ public class SFTPService {
 
         Vector<ChannelSftp.LsEntry> files = channel.ls(path);
         for (ChannelSftp.LsEntry entry : files) {
-            System.out.println("Found " + entry.getFilename());
             if (!entry.getAttrs().isDir()) {
                 foundFiles.add(path + "/" + entry.getFilename());
             } else {
@@ -416,8 +406,6 @@ public class SFTPService {
                 }
                 List<String> parentFileNames = listAllFiles(parentRemotePath);
                 downloadFiles(parentFileNames, sharePath + "/parent", parent.asset_guid);
-            } else {
-                throw new RuntimeException("parent iz nullz");
             }
         } catch (Exception e) {
             throw new RuntimeException(e);

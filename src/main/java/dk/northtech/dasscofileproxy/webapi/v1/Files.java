@@ -29,7 +29,7 @@ public class Files {
     UriInfo uriInfo;
 
     @PUT
-    @Path("/{institutionName}/{collectionName}/{assetGuid}/{paths: .+}")
+    @Path("/{institutionName}/{collectionName}/{assetGuid}/{path: .+}")
     @Produces(MediaType.APPLICATION_JSON)
     @Consumes(MediaType.APPLICATION_OCTET_STREAM)
     public Response putFile(
@@ -48,7 +48,7 @@ public class Files {
             throw new IllegalArgumentException("crc cannot be 0");
         }
         final String path
-                = uriInfo.getPathParameters().getFirst("paths");
+                = uriInfo.getPathParameters().getFirst("path");
         FileUploadData fileUploadData = new FileUploadData(assetGuid, institutionName, collectionName, path, fileSize);
         FileUploadResult upload = fileService.upload(file, crc, fileUploadData);
         return Response.status(upload.getResponseCode()).entity(upload).build();
@@ -56,7 +56,7 @@ public class Files {
 
 
     @GET
-    @Path("/{institutionName}/{collectionName}/{assetGuid}/{paths: .+}")
+    @Path("/{institutionName}/{collectionName}/{assetGuid}/{path: .+}")
 //    @Produces(MediaType.APPLICATION_OCTET_STREAM)
     @Consumes(APPLICATION_JSON)
     public Response getFile(
@@ -66,7 +66,7 @@ public class Files {
             , @Context SecurityContext securityContext
     ) {
         final String path
-                = uriInfo.getPathParameters().getFirst("paths");
+                = uriInfo.getPathParameters().getFirst("path");
         User user = UserMapper.from(securityContext);
         FileUploadData fileUploadData = new FileUploadData(assetGuid, institutionName, collectionName, path, 0);
         Optional<FileService.FileResult> getFileResult = fileService.getFile(fileUploadData);
@@ -110,7 +110,7 @@ public class Files {
             , @Context SecurityContext securityContext) {
         User user = UserMapper.from(securityContext);
         final String path
-                = uriInfo.getPathParameters().getFirst("paths");
+                = uriInfo.getPathParameters().getFirst("path");
         boolean deleted = fileService.deleteFile(new FileUploadData(assetGuid, institutionName, collectionName, path, 0));
         return Response.status(deleted ? 204 : 404).build();
     }

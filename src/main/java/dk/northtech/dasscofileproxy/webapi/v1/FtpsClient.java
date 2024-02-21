@@ -73,7 +73,6 @@ public class FtpsClient {
             if (parts.length!=2) return Response.status(Response.Status.BAD_REQUEST).entity("Authorization header must comply with basic auth headers, i.e. the headers content should look like \"Bearer {token}\".").build();
             DecodedJWT jwt = JWT.decode(parts[1]);
 
-            System.out.println(jwt.getClaims().get("realm_access").toString());
             String rolesStr = jwt.getClaims().get("realm_access").toString();
             String toConvert = rolesStr.substring(rolesStr.indexOf("["));
             toConvert = toConvert.substring(0, toConvert.indexOf("]")+1);
@@ -96,17 +95,6 @@ public class FtpsClient {
         // Build full path for requested file
         String path = "DaSSCoStorage/" + assetFull.institution + "/" + assetFull.collection + "/" + guid + "/" + file;
 
-        System.out.println(path);
-        // Check if the file is already cached
-        // TODO: Fix caching after demo
-        /*
-        InputStream cached = ftpsService.getCached("cached/" + path);
-        if (cached != null) {
-            // Refresh the time to live for the cached file
-            ftpsService.refreshTimeToLive(path);
-            return Response.ok(cached).build(); // Return the cached file
-        }
-         */
 
         // Open the FTP service connection
         ftpsService.open();

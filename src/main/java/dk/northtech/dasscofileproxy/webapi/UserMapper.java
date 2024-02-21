@@ -24,7 +24,6 @@ public class UserMapper {
         if(securityContext.isUserInRole(SecurityRoles.SERVICE)) {
             user.roles.add(SecurityRoles.SERVICE);
         }
-        System.out.println(securityContext.getClass());
         user.keycloakId = String.valueOf(tokenAttributes.get("sub"));
         user.username = String.valueOf(tokenAttributes.get("preferred_username"));
         user.token = token.getToken().getTokenValue();

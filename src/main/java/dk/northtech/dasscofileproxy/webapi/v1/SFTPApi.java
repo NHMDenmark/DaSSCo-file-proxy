@@ -52,7 +52,6 @@ public class SFTPApi {
     public Collection<String> listItems(@PathParam("institution") String institution
             , @PathParam("collection") String collection
             , @PathParam("guid") String guid) throws JSchException, SftpException {
-        System.out.println("/DaSSCoStorage/" + institution + "/" + collection + "/" + guid);
         return this.sftpService.listFiles("/DaSSCoStorage/" + institution + "/" + collection + "/" + guid);
     }
 
@@ -78,7 +77,6 @@ public class SFTPApi {
             }
             DecodedJWT jwt = JWT.decode(parts[1]);
 
-            System.out.println(jwt.getClaims().get("realm_access").toString());
             String rolesStr = jwt.getClaims().get("realm_access").toString();
             String toConvert = rolesStr.substring(rolesStr.indexOf("["));
             toConvert = toConvert.substring(0, toConvert.indexOf("]")+1);
