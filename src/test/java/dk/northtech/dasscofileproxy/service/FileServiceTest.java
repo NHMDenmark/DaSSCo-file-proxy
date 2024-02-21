@@ -1,6 +1,5 @@
 package dk.northtech.dasscofileproxy.service;
 
-import dk.northtech.dasscofileproxy.configuration.DockerConfig;
 import dk.northtech.dasscofileproxy.domain.*;
 import dk.northtech.dasscofileproxy.repository.FileRepository;
 import dk.northtech.dasscofileproxy.webapi.model.FileUploadData;
