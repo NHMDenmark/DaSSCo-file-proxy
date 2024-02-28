@@ -33,12 +33,38 @@ public class HttpShareAPI {
     @Path("/assets/{assetGuid}/createShare")
     @Produces(MediaType.APPLICATION_JSON)
     @Consumes(APPLICATION_JSON)
+    @RolesAllowed({SecurityRoles.USER, SecurityRoles.ADMIN, SecurityRoles.SERVICE})
     public HttpInfo createSambaServer(CreationObj creationObj, @Context SecurityContext securityContext) {
         User user = UserMapper.from(securityContext);
         if(creationObj.allocation_mb() == 0) {
             throw new IllegalArgumentException("Allocation cannot be 0");
         }
         return httpShareService.createHttpShare(creationObj, user);
+
+    }
+
+    @POST
+    @Path("/assets/{assetGuid}/createShareInternal")
+    @RolesAllowed({SecurityRoles.SERVICE})
+    @Produces(MediaType.APPLICATION_JSON)
+    @Consumes(APPLICATION_JSON)
+    public HttpInfo createSambaServerInternal(CreationObj creationObj, @Context SecurityContext securityContext) {
+        User user = UserMapper.from(securityContext);
+        if(creationObj.allocation_mb() == 0) {
+            throw new IllegalArgumentException("Allocation cannot be 0");
+        }
+        return httpShareService.createHttpShareInternal(creationObj, user);
+
+    }
+
+    @POST
+    @Path("/assets/{assetGuid}/deleteShare")
+    @Produces(MediaType.APPLICATION_JSON)
+    @Consumes(APPLICATION_JSON)
+    public HttpInfo close( @Context SecurityContext securityContext
+    , @PathParam("assetGuid") String assetGuid) {
+        User user = UserMapper.from(securityContext);
+        return httpShareService.closeShare(user, assetGuid);
 
     }
 

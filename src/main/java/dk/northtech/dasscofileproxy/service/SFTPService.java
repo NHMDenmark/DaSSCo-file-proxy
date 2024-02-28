@@ -315,9 +315,9 @@ public class SFTPService {
         Vector<ChannelSftp.LsEntry> files = channel.ls(path);
         for (ChannelSftp.LsEntry entry : files) {
             if (!entry.getAttrs().isDir()) {
-                foundFiles.add(path + "/" + entry.getFilename());
+                foundFiles.add(path +  entry.getFilename());
             } else {
-                listFolder(foundFiles, path + "/" + entry.getFilename(), channel);
+                listFolder(foundFiles, path + entry.getFilename(), channel);
             }
         }
         return foundFiles;
@@ -398,7 +398,7 @@ public class SFTPService {
                 try {
                     if (!exists(parentRemotePath, true)) {
                         logger.info("Remote parent path {} didnt exist ", parentRemotePath);
-                        throw new RuntimeException();
+                        throw new RuntimeException("Remote path doesnt exist");
 //                        return;
                     }
                 } catch (Exception e) {

@@ -1,6 +1,5 @@
 package dk.northtech.dasscofileproxy.service;
 
-import com.google.common.base.Strings;
 import dk.northtech.dasscofileproxy.configuration.ShareConfig;
 import dk.northtech.dasscofileproxy.domain.*;
 import dk.northtech.dasscofileproxy.repository.*;
@@ -26,13 +25,15 @@ public class HttpShareService {
     private final ShareConfig shareConfig;
     private final FileService fileService;
     private final SFTPService sftpService;
+    private final AssetService assetService;
     private static final Logger logger = LoggerFactory.getLogger(HttpShareService.class);
 
     @Inject
-    public HttpShareService(DataSource dataSource,FileService fileService, SFTPService sftpService, ShareConfig shareConfig) {
+    public HttpShareService(DataSource dataSource,FileService fileService, SFTPService sftpService, ShareConfig shareConfig, AssetService assetService) {
         this.fileService = fileService;
         this.sftpService = sftpService;
         this.shareConfig = shareConfig;
+        this.assetService = assetService;
         this.jdbi = Jdbi.create(dataSource)
                 .installPlugin(new SqlObjectPlugin())
                 .registerRowMapper(ConstructorMapper.factory(Directory.class))
@@ -61,14 +62,22 @@ public class HttpShareService {
         );
     }
 
-    public HttpInfo createHttpShare(CreationObj creationObj, User user) {
+    public HttpInfo createHttpShareInternal(CreationObj creationObj, User user) {
         try {
             Instant creationDatetime = Instant.now();
-            if (creationObj.users().size() > 0 && creationObj.assets().size() > 0) {
+            if (!creationObj.users().isEmpty() && !creationObj.assets().isEmpty()) {
                 if(creationObj.assets().size() != 1) {
                     throw new IllegalArgumentException("Number of assets must be one");
                 }
-                MinimalAsset minimalAsset = creationObj.assets().get(0);
+                MinimalAsset minimalAsset = creationObj.assets().getFirst();
+                AssetFull fullAsset = assetService.getFullAsset(minimalAsset.asset_guid());
+                if(fullAsset != null && fullAsset.asset_locked) {
+                    throw new DasscoIllegalActionException("Asset is locked");
+                }
+                // Prevents people from checking out random assets as parents
+                if(fullAsset != null && fullAsset.parent_guid != null && minimalAsset.parent_guid() != null && !fullAsset.parent_guid.equals(minimalAsset.parent_guid())) {
+                    throw new DasscoIllegalActionException("Provided parent is different than the actual parent of the asset");
+                }
                 FileService.AssetAllocation usageByAsset = fileService.getUsageByAsset(minimalAsset);
                 StorageMetrics storageMetrics = getStorageMetrics();
                 HttpInfo httpInfo = createHttpInfo(storageMetrics, creationObj, usageByAsset);
@@ -82,9 +91,10 @@ public class HttpShareService {
                         , false
                         , 0
                         , setupSharedAssets(creationObj.assets()
-                        .stream()
-                        .map(asset -> asset.asset_guid())
-                        .collect(Collectors.toList()), creationDatetime), setupUserAccess(creationObj.users(), creationDatetime)
+                            .stream()
+                            .map(MinimalAsset::asset_guid)
+                            .collect(Collectors.toList()), creationDatetime)
+                        , setupUserAccess(creationObj.users(), creationDatetime)
                 );
                 Directory directory = createDirectory(dir);
                 String shareFolder = fileService.createShareFolder(minimalAsset);
@@ -153,12 +163,12 @@ public class HttpShareService {
             DirectoryRepository directoryRepository = h.attach(DirectoryRepository.class);
             Optional<Directory> writeableDirectory = fileService.getWriteableDirectory(newAllocation.asset_guid());
             if(writeableDirectory.isEmpty()) {
-                return new HttpInfo("Failed to allocate storage, no writeable directory found" , HttpAllocationStatus.ILLEGAL_STATE);
+                return new HttpInfo("Failed to allocate storage, no writeable directory found" , HttpAllocationStatus.BAD_REQUEST);
             }
             FileRepository fileRepository = h.attach(FileRepository.class);
             long totalAllocatedAsset = fileRepository.getTotalAllocatedByAsset(newAllocation.asset_guid());
-            if(totalAllocatedAsset/1000 > newAllocation.new_allocation_mb()) {
-                return new HttpInfo("Size of files in share is greater than the new value", HttpAllocationStatus.ILLEGAL_STATE);
+            if(totalAllocatedAsset/1000000 > newAllocation.new_allocation_mb()) {
+                return new HttpInfo("Size of files in share is greater than the new value", HttpAllocationStatus.BAD_REQUEST);
             }
             Directory directory = writeableDirectory.get();
             StorageMetrics resultMetrics = storageMetrics.allocate(newAllocation.new_allocation_mb() - directory.allocatedStorageMb());
@@ -183,21 +193,6 @@ public class HttpShareService {
     }
 
 
-    public long parseId(String sambaName) {
-        if (Strings.isNullOrEmpty(sambaName)) {
-            throw new IllegalArgumentException("sambaName cannot be null");
-        }
-        String[] splitName = sambaName.split("_");
-        if (splitName.length < 2) {
-            throw new RuntimeException("sambaName should follow the format share_<id>");
-        }
-        try {
-            return Long.parseLong(splitName[1]);
-        } catch (Exception e) {
-            throw new RuntimeException("sambaName should follow the format share_<id>");
-        }
-    }
-
 
     public List<UserAccess> setupUserAccess(List<String> users, Instant creationDateTime) {
         ArrayList<UserAccess> userAccess = new ArrayList<>();
@@ -215,6 +210,56 @@ public class HttpShareService {
             sharedAssets.add(new SharedAsset(null, null, assetGuid, creationDateTime));
         });
         return sharedAssets;
+    }
+
+    public HttpInfo closeShare(User user, String assetGuid) {
+        Optional<Directory> dirToDeleteOpt = fileService.getWriteableDirectory(assetGuid);
+        StorageMetrics storageMetrics = getStorageMetrics();
+        if(dirToDeleteOpt.isEmpty()){
+            return new HttpInfo(null
+                    , shareConfig.nodeHost()
+                    , storageMetrics.total_storage_mb()
+                    , storageMetrics.cache_storage_mb()
+                    , storageMetrics.all_allocated_storage_mb()
+                    , storageMetrics.remaining_storage_mb()
+                    , 0
+                    , "No share found"
+                    , HttpAllocationStatus.SHARE_NOT_FOUND
+                    , 0);
+        }
+        Directory directoryToDelete = dirToDeleteOpt.get();
+        return jdbi.withHandle(h -> {
+            UserAccessList attach = h.attach(UserAccessList.class);
+            List<UserAccess> userAccess = attach.getUserAccess(directoryToDelete.directoryId());
+            Optional<UserAccess> first = userAccess.stream().filter(x -> x.username().equals(user.username)).findFirst();
+            if(first.isEmpty() && !user.roles.contains(Role.ADMIN.name())){
+                logger.warn("User {} tried to delete directory they do not have access to", user.username);
+                throw new DasscoIllegalActionException();
+            }
+            fileService.removeShareFolder(directoryToDelete);
+            fileService.deleteDirectory(directoryToDelete.directoryId());
+            return new HttpInfo(null
+                    , null
+                    , shareConfig.totalDiskSpace()
+                    , storageMetrics.cache_storage_mb()
+                    , storageMetrics.all_allocated_storage_mb()-directoryToDelete.allocatedStorageMb()
+                    , storageMetrics.remaining_storage_mb() + directoryToDelete.allocatedStorageMb()
+                    ,0
+                    ,"Shared deleted"
+                    , HttpAllocationStatus.SUCCESS
+                    , 0);
+        });
+    }
+
+    public HttpInfo createHttpShare(CreationObj creationObj, User user) {
+        if(creationObj.assets().size() != 1) {
+            throw new DasscoIllegalActionException("You may only checkout one asset using this API");
+        }
+        AssetFull fullAsset = assetService.getFullAsset(creationObj.assets().getFirst().asset_guid());
+        if(fullAsset.asset_locked) {
+            throw new DasscoIllegalActionException("Asset is locked");
+        }
+        return createHttpShareInternal(creationObj, user);
     }
 }
 
