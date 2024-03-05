@@ -32,6 +32,14 @@ public interface FileRepository {
     @SqlUpdate("DELETE FROM files WHERE delete_after_sync = TRUE AND asset_guid = :assetGuid")
     void deleteFilesMarkedForDeletionByAssetGuid(@Bind String assetGuid);
 
+    // For undoing all local changes without syncing to ERDA.
+    @SqlUpdate("DELETE FROM files WHERE asset_guid = :assetGuid AND sync_status = 'NEW_FILE'::file_sync_status")
+    void deleteNewFiles(@Bind String assetGuid);
+
+    // For undoing all local changes without syncing to ERDA.
+    @SqlUpdate(" UPDATE files SET delete_after_sync = false WHERE = asset_guid = :assetGuid AND sync_status = 'SYNCHRONIZED'::file_sync_status")
+    void resetDeleteFlag(@Bind String assetGuid);
+
     @SqlUpdate("DELETE FROM files WHERE file_id = :fileId AND delete_after_sync = TRUE")
     void deleteFile(@Bind String assetGuid);
 

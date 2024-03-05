@@ -100,6 +100,7 @@ public class FileService {
     }
 
     public void removeShareFolder(Directory directory) {
+        //avoid deleting everything in the filesystem
         if (Strings.isNullOrEmpty(shareConfig.mountFolder())) {
             throw new RuntimeException("Cannot delete share folder, mountFolder is null");
         }
@@ -163,6 +164,21 @@ public class FileService {
             SharedAssetList sharedAssetRepository = h.attach(SharedAssetList.class);
             UserAccessList userAccessRepository = h.attach(UserAccessList.class);
             DirectoryRepository directoryRepository = h.attach(DirectoryRepository.class);
+            userAccessRepository.deleteUserAccess(directoryId);
+            sharedAssetRepository.deleteSharedAsset(directoryId);
+            directoryRepository.deleteSharedAsset(directoryId);
+            return h;
+        }).close();
+    }
+
+    public void resetDirectoryAndResetFiles(long directoryId, String assetGuid) {
+        jdbi.inTransaction(h -> {
+            SharedAssetList sharedAssetRepository = h.attach(SharedAssetList.class);
+            UserAccessList userAccessRepository = h.attach(UserAccessList.class);
+            DirectoryRepository directoryRepository = h.attach(DirectoryRepository.class);
+            FileRepository fileRepository = h.attach(FileRepository.class);
+            fileRepository.resetDeleteFlag(assetGuid);
+            fileRepository.deleteNewFiles(assetGuid);
             userAccessRepository.deleteUserAccess(directoryId);
             sharedAssetRepository.deleteSharedAsset(directoryId);
             directoryRepository.deleteSharedAsset(directoryId);

@@ -9,6 +9,7 @@ import jakarta.inject.Inject;
 import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.MediaType;
+import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.core.SecurityContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -70,10 +71,11 @@ public class HttpShareAPI {
     @Path("/assets/{assetGuid}/deleteShare")
     @Produces(MediaType.APPLICATION_JSON)
     @Consumes(APPLICATION_JSON)
-    public HttpInfo close( @Context SecurityContext securityContext
+    public Response close(@Context SecurityContext securityContext
     , @PathParam("assetGuid") String assetGuid) {
         User user = UserMapper.from(securityContext);
-        return httpShareService.closeShare(user, assetGuid);
+        HttpInfo httpInfo = httpShareService.deleteShare(user, assetGuid);
+        return Response.status(httpInfo.http_allocation_status().httpCode).entity(httpInfo).build();
 
     }
 

@@ -18,7 +18,7 @@ public interface DirectoryRepository {
     @SqlUpdate(INSERT)
     @GetGeneratedKeys
     public long insertDirectory(@BindMethods Directory directory);
-
+//TODO check if this returns id.
     //Find a directory by assetGuid. Should only return one as only single asset directories will have write access.
     @SqlQuery("""
         SELECT d.* FROM directories d 

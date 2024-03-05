@@ -135,6 +135,7 @@ public class SFTPService {
                     //handle files that have been deleted
                     List<String> filesToDelete = remoteFiles.stream().filter(f -> !uploadedFiles.contains(f)).collect(Collectors.toList());
                     erdaClient.deleteFiles(filesToDelete);
+
                     if (assetService.completeAsset(new AssetUpdateRequest(null, new MinimalAsset(sharedAsset.assetGuid(), null, null, null), directory.syncWorkstation(), directory.syncPipeline(), directory.syncUser()))) {
                         //Clean up local dir and its metadata
                         fileService.deleteDirectory(directory.directoryId());

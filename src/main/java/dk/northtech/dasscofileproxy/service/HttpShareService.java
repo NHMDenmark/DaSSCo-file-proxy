@@ -212,7 +212,7 @@ public class HttpShareService {
         return sharedAssets;
     }
 
-    public HttpInfo closeShare(User user, String assetGuid) {
+    public HttpInfo deleteShare(User user, String assetGuid) {
         Optional<Directory> dirToDeleteOpt = fileService.getWriteableDirectory(assetGuid);
         StorageMetrics storageMetrics = getStorageMetrics();
         if(dirToDeleteOpt.isEmpty()){
@@ -236,8 +236,10 @@ public class HttpShareService {
                 logger.warn("User {} tried to delete directory they do not have access to", user.username);
                 throw new DasscoIllegalActionException();
             }
-            fileService.removeShareFolder(directoryToDelete);
+            //Clean up database structures
             fileService.deleteDirectory(directoryToDelete.directoryId());
+            //Clean up files
+            fileService.removeShareFolder(directoryToDelete);
             return new HttpInfo(null
                     , null
                     , shareConfig.totalDiskSpace()
