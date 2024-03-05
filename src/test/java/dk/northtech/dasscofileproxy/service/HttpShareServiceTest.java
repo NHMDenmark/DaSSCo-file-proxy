@@ -1,5 +1,6 @@
 package dk.northtech.dasscofileproxy.service;
 
+import dk.northtech.dasscofileproxy.configuration.ShareConfig;
 import dk.northtech.dasscofileproxy.domain.*;
 import dk.northtech.dasscofileproxy.webapi.model.AssetStorageAllocation;
 import jakarta.inject.Inject;
@@ -26,7 +27,8 @@ class HttpShareServiceTest {
     HttpShareService httpShareService;
     @Inject
     FileService fileservice;
-
+    @Inject
+    ShareConfig shareConfig;
     @Container
     static GenericContainer postgreSQL = new GenericContainer(DockerImageName.parse("apache/age:v1.1.0"))
             .withExposedPorts(5432)
@@ -75,7 +77,7 @@ class HttpShareServiceTest {
         Directory directory = new Directory(null, "/i1/c1/alloc8ExtraNotEnoughSpace/", "test.dassco.dk", AccessType.WRITE, Instant.now(), 10,false,0, Arrays.asList(azzet1), Arrays.asList(userAccess));
         Directory directory1 = httpShareService.createDirectory(directory);
         StorageMetrics storageMetrics = httpShareService.getStorageMetrics();
-        HttpInfo httpInfo = httpShareService.allocateStorage(new AssetStorageAllocation("alloc8ExtraNotEnoughSpace", 2000));
+        HttpInfo httpInfo = httpShareService.allocateStorage(new AssetStorageAllocation("alloc8ExtraNotEnoughSpace", shareConfig.totalDiskSpace() -9));
         StorageMetrics resultMetrics = httpShareService.getStorageMetrics();
         assertThat(httpInfo.http_allocation_status()).isEqualTo(HttpAllocationStatus.DISK_FULL);
         assertThat(resultMetrics.all_allocated_storage_mb()).isEqualTo(storageMetrics.all_allocated_storage_mb());

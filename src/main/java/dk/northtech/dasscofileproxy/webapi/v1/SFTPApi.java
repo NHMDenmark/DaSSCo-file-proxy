@@ -4,8 +4,10 @@ import com.auth0.jwt.JWT;
 import com.auth0.jwt.interfaces.DecodedJWT;
 import com.jcraft.jsch.JSchException;
 import com.jcraft.jsch.SftpException;
+import dk.northtech.dasscofileproxy.configuration.SFTPConfig;
 import dk.northtech.dasscofileproxy.domain.AssetFull;
 import dk.northtech.dasscofileproxy.service.AssetService;
+import dk.northtech.dasscofileproxy.service.ERDAClient;
 import dk.northtech.dasscofileproxy.service.SFTPService;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.*;
@@ -29,12 +31,15 @@ public class SFTPApi {
 
     private final SFTPService sftpService;
 
+    private final SFTPConfig sftpConfig;
+
     private final AssetService assetService;
 
     @Inject
-    public SFTPApi(SFTPService sftpService, AssetService assetService) {
+    public SFTPApi(SFTPService sftpService, AssetService assetService, SFTPConfig sftpConfig) {
         this.sftpService = sftpService;
         this.assetService = assetService;
+        this.sftpConfig = sftpConfig;
     }
 
 
@@ -52,7 +57,7 @@ public class SFTPApi {
     public Collection<String> listItems(@PathParam("institution") String institution
             , @PathParam("collection") String collection
             , @PathParam("guid") String guid) throws JSchException, SftpException {
-        return this.sftpService.listFiles("/DaSSCoStorage/" + institution + "/" + collection + "/" + guid);
+        return new ERDAClient(sftpConfig).listFiles("/DaSSCoStorage/" + institution + "/" + collection + "/" + guid);
     }
 
     @GET
@@ -109,7 +114,7 @@ public class SFTPApi {
 
 
         // Download the file from the SFTP server
-        InputStream fileStream = sftpService.getFileInputStream(remotePath + "/" + file);
+        InputStream fileStream = new ERDAClient(sftpConfig).getFileInputStream(remotePath + "/" + file);
         if (fileStream == null) {
             // File not found on the FTP server
             return Response.status(404).entity("The requested resource could not be found.").build();

@@ -34,8 +34,17 @@ public class HttpShareAPI {
     @Produces(MediaType.APPLICATION_JSON)
     @Consumes(APPLICATION_JSON)
     @RolesAllowed({SecurityRoles.USER, SecurityRoles.ADMIN, SecurityRoles.SERVICE})
-    public HttpInfo createSambaServer(CreationObj creationObj, @Context SecurityContext securityContext) {
+    public HttpInfo createSambaServer(CreationObj creationObj
+            , @PathParam("assetGuid") String assetGuid
+            , @Context SecurityContext securityContext) {
         User user = UserMapper.from(securityContext);
+        if(creationObj.assets().size() != 1) {
+            throw new DasscoIllegalActionException("You may only checkout one asset using this API");
+        }
+        MinimalAsset minimalAsset = creationObj.assets().getFirst();
+        if(!assetGuid.equals(minimalAsset.asset_guid())) {
+            throw new IllegalArgumentException("Asset guid in query param doesnt match the one in the provided asset");
+        }
         if(creationObj.allocation_mb() == 0) {
             throw new IllegalArgumentException("Allocation cannot be 0");
         }
@@ -45,7 +54,7 @@ public class HttpShareAPI {
 
     @POST
     @Path("/assets/{assetGuid}/createShareInternal")
-    @RolesAllowed({SecurityRoles.SERVICE})
+    @RolesAllowed({SecurityRoles.SERVICE, SecurityRoles.ADMIN})
     @Produces(MediaType.APPLICATION_JSON)
     @Consumes(APPLICATION_JSON)
     public HttpInfo createSambaServerInternal(CreationObj creationObj, @Context SecurityContext securityContext) {

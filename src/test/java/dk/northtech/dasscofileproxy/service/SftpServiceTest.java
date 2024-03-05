@@ -1,6 +1,7 @@
 package dk.northtech.dasscofileproxy.service;
 
 import com.jcraft.jsch.*;
+import dk.northtech.dasscofileproxy.configuration.SFTPConfig;
 import jakarta.inject.Inject;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
@@ -29,6 +30,8 @@ class SftpServiceTest {
 
     @Inject
     SFTPService sftpService;
+    @Inject
+    SFTPConfig sftpConfig;
 
     @Container
     static GenericContainer postgreSQL = new GenericContainer(DockerImageName.parse("apache/age:v1.1.0"))
@@ -60,7 +63,7 @@ class SftpServiceTest {
             String localFile = "target/sample.txt";
             String remoteDir = "TestInstitution/test-collection/testAsset_2/file_1.txt";
 
-            sftpService.putFileToPath(localFile, remoteDir);
+            new ERDAClient(sftpConfig).putFileToPath(localFile, remoteDir);
         } catch (JSchException e) {
             throw new RuntimeException(e);
         }
@@ -72,7 +75,7 @@ class SftpServiceTest {
         try {
             String remoteDir = "TestInstitution/test-collection/testAsset_2";
 
-            Collection<String> files = sftpService.listFiles(remoteDir);
+            Collection<String> files = new ERDAClient(sftpConfig).listFiles(remoteDir);
 
             files.forEach(System.out::println);
 
@@ -88,7 +91,7 @@ class SftpServiceTest {
             String localFile = "target/sample.txt";
             String remoteDir = "TestInstitution/test-collection/testAsset_2/file_1.txt";
 
-            sftpService.downloadFile(remoteDir, localFile);
+            new ERDAClient(sftpConfig).downloadFile(remoteDir, localFile);
         } catch (SftpException | IOException e) {
             throw new RuntimeException(e);
         }
@@ -100,7 +103,7 @@ class SftpServiceTest {
         try {
             String localFile = "target/sample.txt";
             String remoteDir = "/test-institution/test-collection/a4";
-            boolean exists = sftpService.exists(remoteDir,true);
+            boolean exists = new ERDAClient(sftpConfig).exists(remoteDir,true);
             System.out.println(exists);
             assertThat(exists).isTrue();
         } catch (SftpException | IOException e) {

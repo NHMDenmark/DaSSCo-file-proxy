@@ -206,7 +206,7 @@ public class FileService {
                     logger.info("Marking overwritten file for deletion upon sync");
                     fileRepository.markForDeletion(fileUploadData.getFilePath());
                 }
-                fileRepository.insertFile(new DasscoFile(null, fileUploadData.asset_guid(), fileUploadData.getFilePath(), file2.length(), value));
+                fileRepository.insertFile(new DasscoFile(null, fileUploadData.asset_guid(), fileUploadData.getFilePath(), file2.length(), value, FileSyncStatus.NEW_FILE));
                 return new FileUploadResult(crc, value);
             } catch (IOException e) {
                 throw new RuntimeException("Failed to write file", e);
@@ -222,7 +222,7 @@ public class FileService {
         });
     }
 
-    public void markDasscoFileToBeDelitetd(String path) {
+    public void markDasscoFileToBeDeleted(String path) {
         jdbi.withHandle(h -> {
             FileRepository attach = h.attach(FileRepository.class);
             attach.markForDeletion(path);
@@ -274,7 +274,7 @@ public class FileService {
                             if (isFile) {
                                 String normalisedPath = file1.toString().replace('\\', '/');
                                 if (collect.containsKey(normalisedPath)) {
-                                    markDasscoFileToBeDelitetd(collect.get(normalisedPath).path());
+                                    markDasscoFileToBeDeleted(collect.get(normalisedPath).path());
                                 }
                             }
                         });
@@ -285,7 +285,7 @@ public class FileService {
             file.delete();
             String normalisedPath = file.toString().replace('\\', '/');
             if (collect.containsKey(normalisedPath)) {
-                markDasscoFileToBeDelitetd(collect.get(normalisedPath).path());
+                markDasscoFileToBeDeleted(collect.get(normalisedPath).path());
             }
         }
         return true;

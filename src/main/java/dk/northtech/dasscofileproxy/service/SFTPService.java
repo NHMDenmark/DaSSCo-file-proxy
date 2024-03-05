@@ -1,6 +1,7 @@
 package dk.northtech.dasscofileproxy.service;
 
-import com.jcraft.jsch.*;
+//import com.jcraft.jsch.*;
+
 import dk.northtech.dasscofileproxy.configuration.SFTPConfig;
 import dk.northtech.dasscofileproxy.configuration.ShareConfig;
 import dk.northtech.dasscofileproxy.domain.*;
@@ -26,7 +27,7 @@ import java.util.stream.Collectors;
 public class SFTPService {
     private final SFTPConfig sftpConfig;
     private final Jdbi jdbi;
-    private Session session;
+
     private FileService fileService;
     private ShareConfig shareConfig;
     private AssetService assetService;
@@ -45,60 +46,26 @@ public class SFTPService {
 //                .registerRowMapper(ConstructorMapper.factory(AssetCache.class));
     }
 
-    public Session open() {
-        logger.info("Connecting to ERDA");
-        try {
-            JSch jSch = new JSch();
 
-            // Add the private key file for authentication
-            jSch.addIdentity(sftpConfig.privateKey(), sftpConfig.passphrase());
+//    public void disconnect(ChannelSftp channel) {
+//        channel.exit();
+//        session.disconnect();
+//    }
+//
+//    public ChannelSftp startChannelSftp() {
+//        System.out.println("BEFORE OPEN()");
+//        session = open();
+//        System.out.println("AFTER OPEN");
+//        ChannelSftp channel = null;
+//        try {
+//            channel = (ChannelSftp) session.openChannel("sftp");
+//            channel.connect();
+//        } catch (JSchException e) {
+//            throw new RuntimeException(e);
+//        }
+//        return channel;
+//    }
 
-            Session session = jSch.getSession(sftpConfig.username(), sftpConfig.host(), sftpConfig.port());
-            session.setConfig("PreferredAuthentications", "publickey");
-
-            // Disable strict host key checking
-            session.setConfig("StrictHostKeyChecking", "no");
-
-            session.connect();
-            return session;
-        } catch (JSchException e) {
-            logger.error("Failed to connect to ERDA: {}",e.getMessage());
-            throw new RuntimeException(e);
-        }
-    }
-
-    public void disconnect(ChannelSftp channel) {
-        channel.exit();
-        session.disconnect();
-    }
-
-    public ChannelSftp startChannelSftp() {
-        System.out.println("BEFORE OPEN()");
-        session = open();
-        System.out.println("AFTER OPEN");
-        ChannelSftp channel = null;
-        try {
-            channel = (ChannelSftp) session.openChannel("sftp");
-            channel.connect();
-        } catch (JSchException e) {
-            throw new RuntimeException(e);
-        }
-        return channel;
-    }
-
-    public Collection<String> listFiles(String path) throws JSchException, SftpException {
-        List<String> fileList = new ArrayList<>();
-        ChannelSftp channel = startChannelSftp();
-        Vector<ChannelSftp.LsEntry> files = channel.ls(path);
-        for (ChannelSftp.LsEntry entry : files) {
-            if (!entry.getAttrs().isDir()) {
-                fileList.add(entry.getFilename());
-            }
-        }
-        disconnect(channel);
-
-        return fileList;
-    }
 
     public void moveToERDA(AssetUpdate assetUpdate) {
         Optional<Directory> writeableDirectory = fileService.getWriteableDirectory(assetUpdate.assetGuid());
@@ -137,223 +104,63 @@ public class SFTPService {
 //            serversToFlush = new ArrayList<>(filesToMove);
 //            filesToMove.clear();
 //        }
-        for (Directory directory : directories) {
-            List<SharedAsset> sharedAssetList = getShardAsset(directory.directoryId());
-            if (sharedAssetList.size() != 1) {
-                throw new RuntimeException("Directory has multiple shared assets");
-            }
-            SharedAsset sharedAsset = sharedAssetList.get(0);
-
-            try {
-                AssetFull fullAsset = assetService.getFullAsset(sharedAsset.assetGuid());
-                if (fullAsset.asset_locked) {
-                    logger.info("Asset {} is locked", sharedAsset.assetGuid());
-                    failedGuids.add(new FailedAsset(fullAsset.asset_guid, "Asset is locked"));
+        try (ERDAClient erdaClient = new ERDAClient(sftpConfig)) {
+            for (Directory directory : directories) {
+                List<SharedAsset> sharedAssetList = getShardAsset(directory.directoryId());
+                if (sharedAssetList.size() != 1) {
+                    throw new RuntimeException("Directory has multiple shared assets");
                 }
-                String remotePath = getRemotePath(new MinimalAsset(fullAsset.asset_guid, fullAsset.parent_guid, fullAsset.institution, fullAsset.collection));
-                String localMountFolder = this.shareConfig.mountFolder() + directory.uri();
-                File localDirectory = new File(shareConfig.mountFolder() + directory.uri());
-                List<File> files = fileService.listFiles(localDirectory, new ArrayList<>(), false, false);
-                List<Path> remoteLocations = files.stream().map(file -> {
-                    logger.info("Remote path is: " + remotePath);
-                    logger.info("Local base path is: " + localMountFolder);
-                    logger.info("File path is: " + file.toPath().toString().replace("\\", "/"));
-                    return Path.of(remotePath + "/" + file.toPath().toString().replace("\\", "/").replace(localMountFolder, ""));
-                }).collect(Collectors.toList());
-                createSubDirsIfNotExists(remoteLocations);
-                List<String> remoteFiles = listAllFiles(remotePath);
+                SharedAsset sharedAsset = sharedAssetList.get(0);
+
+                try {
+                    AssetFull fullAsset = assetService.getFullAsset(sharedAsset.assetGuid());
+                    if (fullAsset.asset_locked) {
+                        logger.info("Asset {} is locked", sharedAsset.assetGuid());
+                        failedGuids.add(new FailedAsset(fullAsset.asset_guid, "Asset is locked"));
+                    }
+                    String remotePath = getRemotePath(new MinimalAsset(fullAsset.asset_guid, fullAsset.parent_guid, fullAsset.institution, fullAsset.collection));
+                    String localMountFolder = this.shareConfig.mountFolder() + directory.uri();
+                    File localDirectory = new File(shareConfig.mountFolder() + directory.uri());
+                    List<File> files = fileService.listFiles(localDirectory, new ArrayList<>(), false, false);
+                    List<Path> remoteLocations = files.stream().map(file -> {
+                        logger.info("Remote path is: " + remotePath);
+                        logger.info("Local base path is: " + localMountFolder);
+                        logger.info("File path is: " + file.toPath().toString().replace("\\", "/"));
+                        return Path.of(remotePath + "/" + file.toPath().toString().replace("\\", "/").replace(localMountFolder, ""));
+                    }).collect(Collectors.toList());
+                    erdaClient.createSubDirsIfNotExists(remoteLocations);
+                    List<String> remoteFiles = erdaClient.listAllFiles(remotePath);
 //            }
-                final Set<String> uploadedFiles = putFilesOnRemotePathBulk(files, localMountFolder, remotePath);
-                //handle files that have been deleted
-                List<String> filesToDelete = remoteFiles.stream().filter(f -> !uploadedFiles.contains(f)).collect(Collectors.toList());
-                deleteFiles(filesToDelete);
-                if (assetService.completeAsset(new AssetUpdateRequest(null, new MinimalAsset(sharedAsset.assetGuid(), null, null, null), directory.syncWorkstation(), directory.syncPipeline(), directory.syncUser()))) {
-                    //Clean up local dir and its metadata
-                    fileService.deleteDirectory(directory.directoryId());
-                    fileService.removeShareFolder(directory);
-                    //Clean up files
-                    fileService.deleteFilesMarkedAsDeleteByAsset(sharedAsset.assetGuid());
-                }
-            } catch (Exception e) {
-                logger.warn("ERDA export failed, failed asset guid: {}", sharedAsset.assetGuid());
-                logger.warn("ERDA sync attempts for failed asset {}", directory.erdaSyncAttempts());
-                logger.info("ERDA sync max attempts {}", shareConfig.maxErdaSyncAttempts());
+                    final Set<String> uploadedFiles = erdaClient.putFilesOnRemotePathBulk(files, localMountFolder, remotePath);
+                    //handle files that have been deleted
+                    List<String> filesToDelete = remoteFiles.stream().filter(f -> !uploadedFiles.contains(f)).collect(Collectors.toList());
+                    erdaClient.deleteFiles(filesToDelete);
+                    if (assetService.completeAsset(new AssetUpdateRequest(null, new MinimalAsset(sharedAsset.assetGuid(), null, null, null), directory.syncWorkstation(), directory.syncPipeline(), directory.syncUser()))) {
+                        //Clean up local dir and its metadata
+                        fileService.deleteDirectory(directory.directoryId());
+                        fileService.removeShareFolder(directory);
+                        //Clean up files
+                        fileService.deleteFilesMarkedAsDeleteByAsset(sharedAsset.assetGuid());
+                    }
+                } catch (Exception e) {
+                    logger.warn("ERDA export failed, failed asset guid: {}", sharedAsset.assetGuid());
+                    logger.warn("ERDA sync attempts for failed asset {}", directory.erdaSyncAttempts());
+                    logger.info("ERDA sync max attempts {}", shareConfig.maxErdaSyncAttempts());
 
-                if (directory.erdaSyncAttempts() == shareConfig.maxErdaSyncAttempts()) {
-                    logger.info("Asset failed");
-                    failedGuids.add(new FailedAsset(sharedAsset.assetGuid(), e.getMessage()));
+                    if (directory.erdaSyncAttempts() == shareConfig.maxErdaSyncAttempts()) {
+                        logger.info("Asset failed");
+                        failedGuids.add(new FailedAsset(sharedAsset.assetGuid(), e.getMessage()));
+                    }
+                    logger.error("Error doing ERDA synchronisation", e);
                 }
-                logger.error("Error doing ERDA synchronisation", e);
             }
+        } catch (Exception e) {
+            throw new RuntimeException(e);
         }
         for (FailedAsset s : failedGuids) {
             logger.error("ERDA sync failed for asset {}, retry attemps exhausted", s.guid);
             assetService.setAssestStatus(s.guid(), InternalStatus.ERDA_ERROR, s.errorMessage);
         }
-    }
-
-    private Set<String> putFilesOnRemotePathBulk(List<File> files, String localMountFolder, String remotePath) {
-        ChannelSftp channel = startChannelSftp();
-        try {
-            HashSet<String> uploadedFiles = new HashSet<>();
-            for (File file : files) {
-                String fullRemotePath = remotePath + file.toPath().toString().replace("\\", "/").replace(localMountFolder, "");
-                logger.info("moving from localPath {}, to remotePath {}", file.getPath(), fullRemotePath);
-                channel.put(file.getPath(), fullRemotePath);
-                uploadedFiles.add(fullRemotePath);
-            }
-            return uploadedFiles;
-        } catch (SftpException e) {
-            throw new RuntimeException(e);
-        } finally {
-            disconnect(channel);
-        }
-    }
-
-    private void deleteFiles(List<String> filesToDelete) {
-        ChannelSftp channelSftp = startChannelSftp();
-        try {
-            for (String filePath : filesToDelete) {
-                logger.info("Deleting remote file {}", filePath);
-                channelSftp.rm(filePath);
-            }
-        } catch (SftpException e) {
-            throw new RuntimeException(e);
-        } finally {
-            channelSftp.disconnect();
-        }
-    }
-
-    private void createSubDirsIfNotExists(List<Path> paths) {
-        ChannelSftp channelSftp = startChannelSftp();
-        for (Path path : paths) {
-            //Last element is the file itself
-            int directoryDepth = path.getNameCount() - 1;
-            String remotePath = "";
-            for (int i = 0; i < directoryDepth; i++) {
-                remotePath += path.getName(i) + "/";
-                try {
-                    channelSftp.mkdir(remotePath);
-                } catch (Exception e) {
-                    //OK, the folder already exists
-                }
-            }
-        }
-
-    }
-
-    public void putFileToPath(String localPath, String remotePath) throws JSchException {
-        ChannelSftp channel = startChannelSftp();
-        try {
-            channel.put(localPath, remotePath);
-        } catch (SftpException e) {
-            throw new RuntimeException(e);
-        } finally {
-            disconnect(channel);
-
-        }
-    }
-
-    public boolean makeDirectory(String path) throws SftpException {
-        ChannelSftp channel = startChannelSftp();
-
-        // Create the empty folder
-        channel.mkdir(path);
-
-        SftpATTRS attrs = channel.stat(path);
-        boolean exists = attrs.isDir();
-
-        disconnect(channel);
-        return exists;
-    }
-
-    public boolean exists(String path, boolean isFolder) throws IOException, SftpException {
-        // List the contents of the parent directory
-        ChannelSftp channel = startChannelSftp();
-        try {
-            String parentPath = path.substring(0, path.lastIndexOf('/'));
-            Vector<ChannelSftp.LsEntry> entries = channel.ls(parentPath);
-            if (isFolder) {
-                if (entries.size() > 0) {
-                    return true;
-                }
-            }
-            // Iterate through the entries to check if the file or folder exists
-            for (ChannelSftp.LsEntry entry : entries) {
-                String[] split = path.split("/");
-                if (entry.getFilename().equals(split[split.length - 1])) {
-                    // File or folder exists
-                    return true;
-                }
-//                if {
-//
-//                }
-            }
-        } catch (Exception e) {
-            channel.disconnect();
-            // File or folder does not exist
-            return false;
-        }
-
-        return false;
-    }
-
-    //Recursively get all files
-    public List<String> listAllFiles(String path) {
-        ChannelSftp channel = startChannelSftp();
-        try {
-            return listFolder(new ArrayList<>(), path, channel);
-        } catch (SftpException e) {
-            throw new RuntimeException("Failed to list all files", e);
-        } finally {
-            channel.disconnect();
-        }
-    }
-
-    public List<String> listFolder(List<String> foundFiles, String path, ChannelSftp channel) throws SftpException {
-
-        Vector<ChannelSftp.LsEntry> files = channel.ls(path);
-        for (ChannelSftp.LsEntry entry : files) {
-            if (!entry.getAttrs().isDir()) {
-                foundFiles.add(path +  entry.getFilename());
-            } else {
-                listFolder(foundFiles, path + entry.getFilename(), channel);
-            }
-        }
-        return foundFiles;
-    }
-
-    //Takes a list of file locations and downloads the files
-    public void downloadFiles(List<String> locations, String destination, String asset_guid) {
-        ChannelSftp channel = startChannelSftp();
-        try {
-            for (String location : locations) {
-
-                String destinationLocation = destination + location.substring(location.indexOf(asset_guid) + asset_guid.length());
-                logger.info("Getting from {} saving in {}", location, destinationLocation);
-                File parentDir = new File(destinationLocation.substring(0, destinationLocation.lastIndexOf('/')));
-                if (!parentDir.exists()) {
-                    parentDir.mkdirs();
-                }
-                channel.get(location, destinationLocation);
-
-            }
-        } catch (SftpException e) {
-            throw new RuntimeException(e);
-        } finally {
-            channel.disconnect();
-        }
-    }
-
-    public InputStream getFileInputStream(String path) throws IOException, SftpException {
-        ChannelSftp channel = startChannelSftp();
-        return channel.get(path);
-    }
-
-    public void downloadFile(String path, String destination) throws IOException, SftpException {
-        ChannelSftp channel = startChannelSftp();
-        channel.get(path, destination);
-        disconnect(channel);
     }
 
     public String getRemotePath(String institution, String collection, String assetGuid) {
@@ -376,36 +183,36 @@ public class SFTPService {
 //        AssetFull asset = assetService.getFullAsset(assetGuid);
         String remotePath = getRemotePath(minimalAsset);
         logger.info("Initialising asset folder, remote path is {}", remotePath);
-        try {
-            if (!exists(remotePath, true)) {
+        try (ERDAClient erdaClient = new ERDAClient(sftpConfig)) {
+            if (!erdaClient.exists(remotePath, true)) {
                 logger.info("Remote path {} didnt exist ", remotePath);
             } else {
-                List<String> fileNames = listAllFiles(remotePath);
-                downloadFiles(fileNames, sharePath, minimalAsset.asset_guid());
+                List<String> fileNames = erdaClient.listAllFiles(remotePath);
+                erdaClient.downloadFiles(fileNames, sharePath, minimalAsset.asset_guid());
             }
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
-        try {
-            logger.info("Initialising parent folder, parent_guid is {}", minimalAsset.parent_guid());
+            try {
+                logger.info("Initialising parent folder, parent_guid is {}", minimalAsset.parent_guid());
 
-            //If asset have parent download into parent folder
-            //We could save a http request here as we dont need the full parent asset to get the remote location, it is in the same collection and institution.
-            if (minimalAsset.parent_guid() != null) {
-                AssetFull parent = assetService.getFullAsset(minimalAsset.parent_guid());
-                String parentRemotePath = getRemotePath(new MinimalAsset(parent.asset_guid, parent.parent_guid, parent.institution, parent.collection));
-                logger.info("Initialising parent folder, remote path is {}", parentRemotePath);
-                try {
-                    if (!exists(parentRemotePath, true)) {
-                        logger.info("Remote parent path {} didnt exist ", parentRemotePath);
-                        throw new RuntimeException("Remote path doesnt exist");
+                //If asset have parent download into parent folder
+                //We could save a http request here as we dont need the full parent asset to get the remote location, it is in the same collection and institution.
+                if (minimalAsset.parent_guid() != null) {
+                    AssetFull parent = assetService.getFullAsset(minimalAsset.parent_guid());
+                    String parentRemotePath = getRemotePath(new MinimalAsset(parent.asset_guid, parent.parent_guid, parent.institution, parent.collection));
+                    logger.info("Initialising parent folder, remote path is {}", parentRemotePath);
+                    try {
+                        if (!erdaClient.exists(parentRemotePath, true)) {
+                            logger.info("Remote parent path {} didnt exist ", parentRemotePath);
+                            throw new RuntimeException("Remote path doesnt exist");
 //                        return;
+                        }
+                    } catch (Exception e) {
+                        throw new RuntimeException(e);
                     }
-                } catch (Exception e) {
-                    throw new RuntimeException(e);
+                    List<String> parentFileNames = erdaClient.listAllFiles(parentRemotePath);
+                    erdaClient.downloadFiles(parentFileNames, sharePath + "/parent", parent.asset_guid);
                 }
-                List<String> parentFileNames = listAllFiles(parentRemotePath);
-                downloadFiles(parentFileNames, sharePath + "/parent", parent.asset_guid);
+            } catch (Exception e) {
+                throw new RuntimeException(e);
             }
         } catch (Exception e) {
             throw new RuntimeException(e);
@@ -414,13 +221,13 @@ public class SFTPService {
 
 
     public void cacheFile(String remotePath, String localPath) {
-        try {
+        try (ERDAClient erdaClient = new ERDAClient(sftpConfig)) {
 
             String parentPath = localPath.substring(0, localPath.lastIndexOf('/'));
 
             Files.createDirectories(Path.of(parentPath));
 
-            this.downloadFile(remotePath, localPath);
+            erdaClient.downloadFile(remotePath, localPath);
 
             long savedFileSize = Files.size(Path.of(localPath));
 
@@ -448,7 +255,7 @@ public class SFTPService {
             );
         } catch (IOException e) {
             e.printStackTrace();
-        } catch (SftpException e) {
+        } catch (Exception e) {
             throw new RuntimeException(e);
         }
     }

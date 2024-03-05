@@ -131,7 +131,7 @@ public class HttpShareService {
                     , HttpAllocationStatus.DISK_FULL
                     , assetAllocation.getParentAllocationAsMb());
         }
-        MinimalAsset minimalAsset = creationObj.assets().get(0);
+        MinimalAsset minimalAsset = creationObj.assets().getFirst();
         String path = "/assetfiles/" + minimalAsset.institution() + "/" + minimalAsset.collection() +"/" + minimalAsset.asset_guid() +"/";
         return new HttpInfo(path
                 , shareConfig.nodeHost()
@@ -252,9 +252,6 @@ public class HttpShareService {
     }
 
     public HttpInfo createHttpShare(CreationObj creationObj, User user) {
-        if(creationObj.assets().size() != 1) {
-            throw new DasscoIllegalActionException("You may only checkout one asset using this API");
-        }
         AssetFull fullAsset = assetService.getFullAsset(creationObj.assets().getFirst().asset_guid());
         if(fullAsset.asset_locked) {
             throw new DasscoIllegalActionException("Asset is locked");

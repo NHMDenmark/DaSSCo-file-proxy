@@ -16,11 +16,13 @@ import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.utility.DockerImageName;
 
-import java.io.ByteArrayInputStream;
+import java.io.*;
+import java.nio.channels.FileChannel;
 import java.time.Instant;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 import static com.google.common.truth.Truth.assertThat;
 import static org.junit.Assert.assertThrows;
@@ -146,9 +148,9 @@ public class FileServiceTest {
     public void testListFilesByGuid() {
         fileService.jdbi.withHandle(h -> {
             FileRepository attach = h.attach(FileRepository.class);
-            attach.insertFile(new DasscoFile(null, "a1", "/file.jpg", 13245L, 123));
-            attach.insertFile(new DasscoFile(null, "a2", "/test/tezt.txt", 13245L, 123));
-            attach.insertFile(new DasscoFile(null, "a2", "/test/tezt2.txt", 10000L, 12332));
+            attach.insertFile(new DasscoFile(null, "a1", "/file.jpg", 13245L, 123, FileSyncStatus.NEW_FILE));
+            attach.insertFile(new DasscoFile(null, "a2", "/test/tezt.txt", 13245L, 123, FileSyncStatus.NEW_FILE));
+            attach.insertFile(new DasscoFile(null, "a2", "/test/tezt2.txt", 10000L, 12332, FileSyncStatus.NEW_FILE));
             return h;
         }).close();
         List<DasscoFile> result = fileService.listFilesByAssetGuid("a1");
@@ -175,5 +177,20 @@ public class FileServiceTest {
             return h;
         }).close();
     }
+
+//    @Test
+//    public void tezt() {
+//        File file = new File("C:/Users/Thomas/Documents/dassco-file-proxy/target/The.Navidson.Record.1080p.BluRay.x264.AC3.erdatv.mp4");
+//        try {
+//            FileOutputStream fileOutputStream = new FileOutputStream(file);
+//            for(int i = 0 ; i < 100000000 ; i++) {
+//                fileOutputStream.write(UUID.randomUUID().toString().getBytes());
+//        }
+//        } catch (FileNotFoundException e) {
+//            throw new RuntimeException(e);
+//        } catch (IOException e) {
+//            throw new RuntimeException(e);
+//        }
+//    }
 
 }
