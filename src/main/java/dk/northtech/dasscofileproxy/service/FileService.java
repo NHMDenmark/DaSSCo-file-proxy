@@ -82,12 +82,23 @@ public class FileService {
                     String path = f.toString();
                     String pathWithoutDir = path.replace("\\", "/")
                             .replace(shareConfig.mountFolder(), "");
-                    return shareConfig.nodeHost() + "/file_proxy/api" +pathWithoutDir;
+                    return shareConfig.nodeHost() + "/file_proxy/api" + pathWithoutDir;
                 })
                 .collect(Collectors.toList());
     }
 
-    public record FileResult(InputStream is, String filename){};
+    public void markFilesAsSynced(String assetGuid) {
+        jdbi.withHandle(h -> {
+            FileRepository fileRepository = h.attach(FileRepository.class);
+            fileRepository.setSynchronizedStatus(assetGuid);
+            return h;
+        });
+    }
+
+    public record FileResult(InputStream is, String filename) {
+    }
+
+    ;
 
     record AssetAllocation(long assetBytes, long parentBytes) {
         int getTotalAllocationAsMb() {
@@ -105,7 +116,10 @@ public class FileService {
             throw new RuntimeException("Cannot delete share folder, mountFolder is null");
         }
         Path path = Path.of(shareConfig.mountFolder() + directory.uri());
-        deleteAll(path.toFile());
+        File file = path.toFile();
+        if (file.exists()) {
+            deleteAll(file);
+        }
     }
 
     public List<File> listFiles(File directory, List<File> files, boolean includeParents, boolean includeFolders) {
@@ -131,6 +145,7 @@ public class FileService {
         dir.delete();
     }
 
+
     public Optional<Directory> getWriteableDirectory(String assetGuid) {
         return jdbi.withHandle(handle -> {
             DirectoryRepository directoryRepository = handle.attach(DirectoryRepository.class);
@@ -142,7 +157,7 @@ public class FileService {
         });
     }
 
-    public void scheduleDirectoryForSynchronization(long directoryId,AssetUpdate assetUpdate) {
+    public void scheduleDirectoryForSynchronization(long directoryId, AssetUpdate assetUpdate) {
         jdbi.withHandle(h -> {
             DirectoryRepository attach = h.attach(DirectoryRepository.class);
             attach.scheduleDiretoryForSynchronization(directoryId, assetUpdate);
@@ -283,7 +298,7 @@ public class FileService {
                         .sorted(Comparator.reverseOrder())
                         //Prevents the deletion of the base folder
                         .filter(z -> (!file.toString().equals(z.toString()) || fileUploadData.filePathAndName() != null))
-                        .filter(x -> !x.toString().contains("parent") )
+                        .filter(x -> !x.toString().contains("parent"))
                         .forEach(file1 -> {
                             boolean isFile = Files.isRegularFile(file1.toPath());
                             file1.delete();

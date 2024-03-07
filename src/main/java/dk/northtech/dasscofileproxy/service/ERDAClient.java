@@ -46,7 +46,7 @@ public class ERDAClient implements AutoCloseable {
 
     public void disconnect(ChannelSftp channel) {
         channel.exit();
-        session.disconnect();
+//        session.disconnect();
     }
 
     public ChannelSftp startChannelSftp() {
@@ -178,6 +178,7 @@ public class ERDAClient implements AutoCloseable {
 
     //Recursively get all files
     public List<String> listAllFiles(String path) {
+        logger.info("looking 4 filez @ path: " + path);
         ChannelSftp channel = startChannelSftp();
         try {
             return listFolder(new ArrayList<>(), path, channel);
@@ -189,13 +190,22 @@ public class ERDAClient implements AutoCloseable {
     }
 
     public List<String> listFolder(List<String> foundFiles, String path, ChannelSftp channel) throws SftpException {
-
+        logger.info("Lookhing ath philes on: " + path);
         Vector<ChannelSftp.LsEntry> files = channel.ls(path);
         for (ChannelSftp.LsEntry entry : files) {
             if (!entry.getAttrs().isDir()) {
-                foundFiles.add(path +  entry.getFilename());
+                if(path.endsWith("/")) {
+                    foundFiles.add(path +  entry.getFilename());
+                } else {
+                    foundFiles.add(path +  "/"+entry.getFilename());
+                }
+//                foundFiles.add(path +  entry.getFilename());
             } else {
-                listFolder(foundFiles, path + entry.getFilename(), channel);
+                if(path.endsWith("/")) {
+                    listFolder(foundFiles, path + entry.getFilename(), channel);
+                } else {
+                    listFolder(foundFiles, path +"/"+ entry.getFilename(), channel);
+                }
             }
         }
         return foundFiles;

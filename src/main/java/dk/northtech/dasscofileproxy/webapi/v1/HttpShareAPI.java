@@ -67,9 +67,10 @@ public class HttpShareAPI {
 
     }
 
-    @POST
+    @DELETE
     @Path("/assets/{assetGuid}/deleteShare")
     @Produces(MediaType.APPLICATION_JSON)
+    @RolesAllowed({SecurityRoles.SERVICE,SecurityRoles.USER, SecurityRoles.ADMIN})
     @Consumes(APPLICATION_JSON)
     public Response close(@Context SecurityContext securityContext
     , @PathParam("assetGuid") String assetGuid) {

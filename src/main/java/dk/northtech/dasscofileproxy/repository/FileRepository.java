@@ -37,7 +37,7 @@ public interface FileRepository {
     void deleteNewFiles(@Bind String assetGuid);
 
     // For undoing all local changes without syncing to ERDA.
-    @SqlUpdate(" UPDATE files SET delete_after_sync = false WHERE = asset_guid = :assetGuid AND sync_status = 'SYNCHRONIZED'::file_sync_status")
+    @SqlUpdate("UPDATE files SET delete_after_sync = false WHERE asset_guid = :assetGuid AND sync_status = 'SYNCHRONIZED'::file_sync_status")
     void resetDeleteFlag(@Bind String assetGuid);
 
     @SqlUpdate("DELETE FROM files WHERE file_id = :fileId AND delete_after_sync = TRUE")
@@ -45,6 +45,9 @@ public interface FileRepository {
 
     @SqlUpdate("UPDATE files SET delete_after_sync = true WHERE path = :path")
     void markForDeletion(@Bind String path);
+
+    @SqlUpdate("UPDATE files SET sync_status = 'SYNCHRONIZED'::file_sync_status WHERE asset_guid = :assetGuid AND sync_status = 'NEW_FILE'::file_sync_status")
+    void setSynchronizedStatus(@Bind String assetGuid);
 
     @SqlQuery("SELECT sum(size_bytes) as totalAllocated FROM files WHERE asset_guid = :assetGuid AND delete_after_sync = FALSE")
     long getTotalAllocatedByAsset(String assetGuid);
