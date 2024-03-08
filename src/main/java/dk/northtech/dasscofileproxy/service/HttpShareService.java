@@ -232,7 +232,7 @@ public class HttpShareService {
             UserAccessList attach = h.attach(UserAccessList.class);
             List<UserAccess> userAccess = attach.getUserAccess(directoryToDelete.directoryId());
             Optional<UserAccess> first = userAccess.stream().filter(x -> x.username().equals(user.username)).findFirst();
-            if(first.isEmpty() && !user.roles.contains(Role.ADMIN.name())){
+            if(first.isEmpty() && !user.roles.contains(Role.ADMIN.roleName)){
                 user.roles.forEach(x -> System.out.println("Rolo" + x));
                 logger.warn("User {} tried to delete directory they do not have access to", user.username);
                 throw new DasscoIllegalActionException();
