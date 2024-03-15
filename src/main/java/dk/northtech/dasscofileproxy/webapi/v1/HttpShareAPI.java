@@ -46,8 +46,8 @@ public class HttpShareAPI {
         if(!assetGuid.equals(minimalAsset.asset_guid())) {
             throw new IllegalArgumentException("Asset guid in query param doesnt match the one in the provided asset");
         }
-        if(creationObj.allocation_mb() == 0) {
-            throw new IllegalArgumentException("Allocation cannot be 0");
+        if(creationObj.allocation_mb() <= 0) {
+            throw new IllegalArgumentException("Allocation must be a positive integer");
         }
         return httpShareService.createHttpShare(creationObj, user);
 
@@ -60,8 +60,8 @@ public class HttpShareAPI {
     @Consumes(APPLICATION_JSON)
     public HttpInfo createSambaServerInternal(CreationObj creationObj, @Context SecurityContext securityContext) {
         User user = UserMapper.from(securityContext);
-        if(creationObj.allocation_mb() == 0) {
-            throw new IllegalArgumentException("Allocation cannot be 0");
+        if(creationObj.allocation_mb() <= 0) {
+            throw new IllegalArgumentException("Allocation must be a positive integer");
         }
         return httpShareService.createHttpShareInternal(creationObj, user);
 
