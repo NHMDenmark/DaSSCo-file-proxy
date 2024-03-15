@@ -108,7 +108,7 @@ public class HttpShareService {
                     fileService.deleteDirectory(directory.directoryId());
                     throw e;
                 }
-                return new HttpInfo(null, null, storageMetrics.total_storage_mb(), storageMetrics.cache_storage_mb(), storageMetrics.remaining_storage_mb(), storageMetrics.all_allocated_storage_mb(), 0, httpInfo.proxy_allocation_status_text(),httpInfo.http_allocation_status(), 0);
+                return new HttpInfo(null, null, storageMetrics.total_storage_mb(), storageMetrics.cache_storage_mb(), storageMetrics.remaining_storage_mb(), storageMetrics.all_allocated_storage_mb(), 0, httpInfo.allocation_status_text(),httpInfo.http_allocation_status(), 0);
             } else {
                 throw new BadRequestException("You have to provide users in this call");
             }
@@ -176,7 +176,7 @@ public class HttpShareService {
                 return new HttpInfo(directory.uri(), directory.node_host(),storageMetrics.total_storage_mb(), storageMetrics.cache_storage_mb(),storageMetrics.all_allocated_storage_mb(), storageMetrics.remaining_storage_mb(), 0, "Cannot allocate more storage", HttpAllocationStatus.DISK_FULL, 0);
             }
             directoryRepository.updateAllocatedStorage(directory.directoryId(), newAllocation.new_allocation_mb());
-            return new HttpInfo(directory.uri(), directory.node_host(),resultMetrics.total_storage_mb(), resultMetrics.cache_storage_mb(),resultMetrics.all_allocated_storage_mb(), resultMetrics.remaining_storage_mb(), 0, null, HttpAllocationStatus.SUCCESS, 0);
+            return new HttpInfo(directory.uri(), directory.node_host(),resultMetrics.total_storage_mb(), resultMetrics.cache_storage_mb(),resultMetrics.all_allocated_storage_mb(), resultMetrics.remaining_storage_mb(), newAllocation.new_allocation_mb(), null, HttpAllocationStatus.SUCCESS, 0);
         });
     }
     public String generateRandomToken() {
@@ -233,7 +233,6 @@ public class HttpShareService {
             List<UserAccess> userAccess = attach.getUserAccess(directoryToDelete.directoryId());
             Optional<UserAccess> first = userAccess.stream().filter(x -> x.username().equals(user.username)).findFirst();
             if(first.isEmpty() && !user.roles.contains(Role.ADMIN.roleName)){
-                user.roles.forEach(x -> System.out.println("Rolo" + x));
                 logger.warn("User {} tried to delete directory they do not have access to", user.username);
                 throw new DasscoIllegalActionException();
             }
@@ -256,8 +255,15 @@ public class HttpShareService {
 
     public HttpInfo createHttpShare(CreationObj creationObj, User user) {
         AssetFull fullAsset = assetService.getFullAsset(creationObj.assets().getFirst().asset_guid());
+        if(fullAsset == null) {
+            throw new DasscoIllegalActionException("Asset ["+creationObj.assets().getFirst().asset_guid()+"] was not found");
+        }
         if(fullAsset.asset_locked) {
             throw new DasscoIllegalActionException("Asset is locked");
+        }
+        Optional<Directory> writeableDirectory = fileService.getWriteableDirectory(creationObj.assets().getFirst().asset_guid());
+        if(writeableDirectory.isPresent()){
+            throw new DasscoIllegalActionException("Asset is already checked out");
         }
         return createHttpShareInternal(creationObj, user);
     }
