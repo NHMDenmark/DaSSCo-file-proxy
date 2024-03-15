@@ -81,6 +81,9 @@ public class HttpShareService {
                 FileService.AssetAllocation usageByAsset = fileService.getUsageByAsset(minimalAsset);
                 StorageMetrics storageMetrics = getStorageMetrics();
                 HttpInfo httpInfo = createHttpInfo(storageMetrics, creationObj, usageByAsset);
+                if(httpInfo.http_allocation_status() != HttpAllocationStatus.SUCCESS) {
+                    return httpInfo;
+                }
                 logger.info("creation obj is valid");
                 Directory dir = new Directory(null
                         , httpInfo.path()
@@ -119,6 +122,18 @@ public class HttpShareService {
     }
 
     public HttpInfo createHttpInfo(StorageMetrics storageMetrics, CreationObj creationObj, FileService.AssetAllocation assetAllocation) {
+        if(assetAllocation.getTotalAllocationAsMb() > creationObj.allocation_mb()) {
+            return new HttpInfo(null
+                    , shareConfig.nodeHost()
+                    , storageMetrics.total_storage_mb()
+                    , storageMetrics.cache_storage_mb()
+                    , storageMetrics.all_allocated_storage_mb()
+                    , storageMetrics.remaining_storage_mb()
+                    , 0
+                    , "Total size of existing asset files (and parent folder), exceeds requested allocation"
+                    , HttpAllocationStatus.BAD_REQUEST
+                    , assetAllocation.getParentAllocationAsMb());
+        }
         if(storageMetrics.remaining_storage_mb()-creationObj.allocation_mb() - assetAllocation.getTotalAllocationAsMb()  < 0) {
             return new HttpInfo(null
                     , shareConfig.nodeHost()
