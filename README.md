@@ -4,11 +4,9 @@
 * In ``application.properties``, make sure the ``share.mountFolder`` variable is a path on your PC
 
 ## Running database and keycloak
-* Be sure these aren't already running in _dassco-asset-service_
-* Run ``docker compose -f docker-compose-keycloak.yaml up --build``
-* Run ``docker compose -f docker-compose-postgres.yaml up --build``
-* Run the project either
-  * Through Spring Boot (preferred)
-    * ``mvn spring-boot:run`` 
-  * With docker
-    * ``docker compose -f docker-compose-app.yaml up --build``
+* Make sure the ``KEYCLOAK_ADMIN_CLIENT_SECRET`` is updated and correct
+* Run ``docker compose up --build``
+
+## Run the application
+* Click the run button or use the command ``mvn spring-boot:run`` 
+* You can add the ``docker-compose-app.yaml`` file to the ``docker-compose.yaml`` file if you want to run it with the keycloak and database instead 

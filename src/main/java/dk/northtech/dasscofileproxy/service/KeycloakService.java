@@ -99,9 +99,10 @@ public class KeycloakService {
             HttpRequest request = HttpRequest.newBuilder()
                     .uri(new URI(this.keycloakAdminConfig.keycloakUrl() + "realms/" + this.keycloakAdminConfig.adminRealm() + "/protocol/openid-connect/token"))
                     .header("Content-Type", "application/x-www-form-urlencoded")
-                    .header("Authorization", "Basic " + base64ClientCredentials)
+                    //.header("Authorization", "Basic " + base64ClientCredentials)
                     .POST(HttpRequest.BodyPublishers.ofString("grant_type=client_credentials&"
-                            + "scope=openid offline_access"))
+                            + "client_id=" + this.keycloakAdminConfig.clientId() + "&" + "client_secret=" + this.keycloakAdminConfig.clientSecret()
+                            + "&scope=openid offline_access"))
                     .build();
 
             HttpResponse<String> response = HttpClient.newBuilder()
@@ -109,6 +110,7 @@ public class KeycloakService {
                     .send(request, HttpResponse.BodyHandlers.ofString());
 
             String json = response.body();
+            System.out.println(response);
             keycloakToken = objectMapper.readValue(json, KeycloakToken.class);
             return keycloakToken;
         } catch (URISyntaxException | InterruptedException | IOException e) {
