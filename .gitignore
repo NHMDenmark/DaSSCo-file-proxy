@@ -486,3 +486,4 @@ $RECYCLE.BIN/
 
 # End of https://www.toptal.com/developers/gitignore/api/git,java,node,linux,macos,maven,windows,angular,eclipse,intellij+all,netbeans,visualstudiocode
 application-local.properties
+private.pem
