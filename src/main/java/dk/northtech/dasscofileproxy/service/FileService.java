@@ -16,9 +16,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.io.*;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
+import java.nio.file.*;
 import java.util.*;
 import java.util.stream.Collectors;
 import java.util.zip.CRC32;
@@ -227,23 +225,40 @@ public class FileService {
             file2.getParentFile().mkdirs();
             // Mark entry in filetable for deletion after file has been successfully received
             boolean markForDeletion = file2.exists();
+            String tempName = "." + System.currentTimeMillis() + ".temp";
             logger.info("Receiving: " + fullPath);
-            try (FileOutputStream fileOutput = new FileOutputStream(file2)) {
+            // Use tempfile so we dont overwrite existing files when crc doesnt match
+            File tempFile = new File(fullPath + tempName);
+            long value = 0;
+            try (FileOutputStream fileOutput = new FileOutputStream(tempFile)) {
                 CRC32 crc32 = new CRC32();
                 CheckedInputStream checkedInputStream = new CheckedInputStream(file, crc32);
                 checkedInputStream.transferTo(fileOutput);
-                long value = checkedInputStream.getChecksum().getValue();
-                if(crc == value)  {
+                value = checkedInputStream.getChecksum().getValue();
+            } catch (IOException e) {
+                tempFile.delete();
+                throw new RuntimeException("Failed to write file", e);
+            }
+            try {
+                if (crc == value) {
                     if (markForDeletion) {
                         logger.info("Marking overwritten file for deletion upon sync");
                         fileRepository.markForDeletion(fileUploadData.getFilePath());
                     }
-                    fileRepository.insertFile(new DasscoFile(null, fileUploadData.asset_guid(), fileUploadData.getFilePath(), file2.length(), value, FileSyncStatus.NEW_FILE));
+                    long fileSize = tempFile.length();
+                    // Move to actual location and overwrite existing file if present.
+                    Files.move(tempFile.toPath(), file2.toPath(), StandardCopyOption.REPLACE_EXISTING);
+                    fileRepository.insertFile(new DasscoFile(null, fileUploadData.asset_guid(), fileUploadData.getFilePath(), fileSize, value, FileSyncStatus.NEW_FILE));
                 }
-                return new FileUploadResult(crc, value);
+
             } catch (IOException e) {
-                throw new RuntimeException("Failed to write file", e);
+                throw new RuntimeException("Failed to cleanup temp file", e);
             }
+            finally {
+                // always cleanup temp file
+                tempFile.delete();
+            }
+            return new FileUploadResult(crc, value);
         });
     }
 
