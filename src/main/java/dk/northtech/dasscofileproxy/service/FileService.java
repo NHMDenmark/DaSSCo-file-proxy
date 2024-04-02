@@ -233,11 +233,13 @@ public class FileService {
                 CheckedInputStream checkedInputStream = new CheckedInputStream(file, crc32);
                 checkedInputStream.transferTo(fileOutput);
                 long value = checkedInputStream.getChecksum().getValue();
-                if (markForDeletion) {
-                    logger.info("Marking overwritten file for deletion upon sync");
-                    fileRepository.markForDeletion(fileUploadData.getFilePath());
+                if(crc == value)  {
+                    if (markForDeletion) {
+                        logger.info("Marking overwritten file for deletion upon sync");
+                        fileRepository.markForDeletion(fileUploadData.getFilePath());
+                    }
+                    fileRepository.insertFile(new DasscoFile(null, fileUploadData.asset_guid(), fileUploadData.getFilePath(), file2.length(), value, FileSyncStatus.NEW_FILE));
                 }
-                fileRepository.insertFile(new DasscoFile(null, fileUploadData.asset_guid(), fileUploadData.getFilePath(), file2.length(), value, FileSyncStatus.NEW_FILE));
                 return new FileUploadResult(crc, value);
             } catch (IOException e) {
                 throw new RuntimeException("Failed to write file", e);
