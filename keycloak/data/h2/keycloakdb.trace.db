@@ -3908,3 +3908,2208 @@ Caused by: java.lang.InterruptedException: sleep interrupted
 	at java.base/java.lang.Thread.sleep(Native Method)
 	at org.h2.store.FileLock.sleep(FileLock.java:422)
 	... 17 more
+2023-11-15 10:04:02 database: flush
+org.h2.message.DbException: General error: "org.h2.mvstore.MVStoreException: Could not open file /opt/keycloak/data/h2/keycloakdb.mv.db [2.1.214/1]" [50000-214]
+	at org.h2.message.DbException.get(DbException.java:212)
+	at org.h2.message.DbException.convert(DbException.java:395)
+	at org.h2.mvstore.db.Store.lambda$new$0(Store.java:125)
+	at org.h2.mvstore.MVStore.handleException(MVStore.java:3318)
+	at org.h2.mvstore.MVStore.panic(MVStore.java:593)
+	at org.h2.mvstore.MVStore.<init>(MVStore.java:469)
+	at org.h2.mvstore.MVStore$Builder.open(MVStore.java:4082)
+	at org.h2.mvstore.db.Store.<init>(Store.java:136)
+	at org.h2.engine.Database.<init>(Database.java:324)
+	at org.h2.engine.Engine.openSession(Engine.java:92)
+	at org.h2.engine.Engine.openSession(Engine.java:222)
+	at org.h2.engine.Engine.createSession(Engine.java:201)
+	at org.h2.engine.SessionRemote.connectEmbeddedOrServer(SessionRemote.java:338)
+	at org.h2.jdbc.JdbcConnection.<init>(JdbcConnection.java:122)
+	at org.h2.jdbcx.JdbcDataSource.getXAConnection(JdbcDataSource.java:322)
+	at io.agroal.pool.ConnectionFactory.createConnection(ConnectionFactory.java:232)
+	at io.agroal.pool.ConnectionPool$CreateConnectionTask.call(ConnectionPool.java:535)
+	at io.agroal.pool.ConnectionPool$CreateConnectionTask.call(ConnectionPool.java:516)
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:264)
+	at io.agroal.pool.util.PriorityScheduledExecutor.beforeExecute(PriorityScheduledExecutor.java:75)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1126)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:628)
+	at java.base/java.lang.Thread.run(Thread.java:829)
+Caused by: org.h2.jdbc.JdbcSQLNonTransientException: General error: "org.h2.mvstore.MVStoreException: Could not open file /opt/keycloak/data/h2/keycloakdb.mv.db [2.1.214/1]" [50000-214]
+	at org.h2.message.DbException.getJdbcSQLException(DbException.java:554)
+	at org.h2.message.DbException.getJdbcSQLException(DbException.java:477)
+	... 23 more
+Caused by: org.h2.mvstore.MVStoreException: Could not open file /opt/keycloak/data/h2/keycloakdb.mv.db [2.1.214/1]
+	at org.h2.mvstore.DataUtils.newMVStoreException(DataUtils.java:1004)
+	at org.h2.mvstore.FileStore.open(FileStore.java:185)
+	at org.h2.mvstore.FileStore.open(FileStore.java:128)
+	at org.h2.mvstore.MVStore.<init>(MVStore.java:452)
+	... 17 more
+Caused by: java.nio.channels.ClosedByInterruptException
+	at java.base/java.nio.channels.spi.AbstractInterruptibleChannel.end(AbstractInterruptibleChannel.java:199)
+	at java.base/sun.nio.ch.FileChannelImpl.endBlocking(FileChannelImpl.java:162)
+	at java.base/sun.nio.ch.FileChannelImpl.size(FileChannelImpl.java:388)
+	at org.h2.mvstore.FileStore.open(FileStore.java:182)
+	... 19 more
+2023-11-15 10:04:04 database: opening /opt/keycloak/data/h2/keycloakdb
+org.h2.message.DbException: IO Exception: "/opt/keycloak/data/h2/keycloakdb.mv.db" [90028-214]
+	at org.h2.message.DbException.get(DbException.java:212)
+	at org.h2.mvstore.db.Store.convertMVStoreException(Store.java:171)
+	at org.h2.mvstore.db.Store.<init>(Store.java:145)
+	at org.h2.engine.Database.<init>(Database.java:324)
+	at org.h2.engine.Engine.openSession(Engine.java:92)
+	at org.h2.engine.Engine.openSession(Engine.java:222)
+	at org.h2.engine.Engine.createSession(Engine.java:201)
+	at org.h2.engine.SessionRemote.connectEmbeddedOrServer(SessionRemote.java:338)
+	at org.h2.jdbc.JdbcConnection.<init>(JdbcConnection.java:122)
+	at org.h2.jdbcx.JdbcDataSource.getXAConnection(JdbcDataSource.java:322)
+	at io.agroal.pool.ConnectionFactory.createConnection(ConnectionFactory.java:232)
+	at io.agroal.pool.ConnectionPool$CreateConnectionTask.call(ConnectionPool.java:535)
+	at io.agroal.pool.ConnectionPool$CreateConnectionTask.call(ConnectionPool.java:516)
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:264)
+	at io.agroal.pool.util.PriorityScheduledExecutor.beforeExecute(PriorityScheduledExecutor.java:75)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1126)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:628)
+	at java.base/java.lang.Thread.run(Thread.java:829)
+Caused by: org.h2.jdbc.JdbcSQLNonTransientException: IO Exception: "/opt/keycloak/data/h2/keycloakdb.mv.db" [90028-214]
+	at org.h2.message.DbException.getJdbcSQLException(DbException.java:554)
+	at org.h2.message.DbException.getJdbcSQLException(DbException.java:477)
+	... 18 more
+Caused by: org.h2.mvstore.MVStoreException: Could not open file /opt/keycloak/data/h2/keycloakdb.mv.db [2.1.214/1]
+	at org.h2.mvstore.DataUtils.newMVStoreException(DataUtils.java:1004)
+	at org.h2.mvstore.FileStore.open(FileStore.java:185)
+	at org.h2.mvstore.FileStore.open(FileStore.java:128)
+	at org.h2.mvstore.MVStore.<init>(MVStore.java:452)
+	at org.h2.mvstore.MVStore$Builder.open(MVStore.java:4082)
+	at org.h2.mvstore.db.Store.<init>(Store.java:136)
+	... 15 more
+Caused by: java.nio.channels.ClosedByInterruptException
+	at java.base/java.nio.channels.spi.AbstractInterruptibleChannel.end(AbstractInterruptibleChannel.java:199)
+	at java.base/sun.nio.ch.FileChannelImpl.endBlocking(FileChannelImpl.java:162)
+	at java.base/sun.nio.ch.FileChannelImpl.size(FileChannelImpl.java:388)
+	at org.h2.mvstore.FileStore.open(FileStore.java:182)
+	... 19 more
+2023-11-15 10:04:05 database: opening /opt/keycloak/data/h2/keycloakdb
+org.h2.message.DbException: Error opening database: "Sleep interrupted" [8000-214]
+	at org.h2.message.DbException.get(DbException.java:212)
+	at org.h2.store.FileLock.getExceptionFatal(FileLock.java:429)
+	at org.h2.store.FileLock.sleep(FileLock.java:424)
+	at org.h2.store.FileLock.lockFile(FileLock.java:334)
+	at org.h2.store.FileLock.lock(FileLock.java:110)
+	at org.h2.engine.Database.<init>(Database.java:315)
+	at org.h2.engine.Engine.openSession(Engine.java:92)
+	at org.h2.engine.Engine.openSession(Engine.java:222)
+	at org.h2.engine.Engine.createSession(Engine.java:201)
+	at org.h2.engine.SessionRemote.connectEmbeddedOrServer(SessionRemote.java:338)
+	at org.h2.jdbc.JdbcConnection.<init>(JdbcConnection.java:122)
+	at org.h2.jdbcx.JdbcDataSource.getXAConnection(JdbcDataSource.java:322)
+	at io.agroal.pool.ConnectionFactory.createConnection(ConnectionFactory.java:232)
+	at io.agroal.pool.ConnectionPool$CreateConnectionTask.call(ConnectionPool.java:535)
+	at io.agroal.pool.ConnectionPool$CreateConnectionTask.call(ConnectionPool.java:516)
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:264)
+	at io.agroal.pool.util.PriorityScheduledExecutor.beforeExecute(PriorityScheduledExecutor.java:75)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1126)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:628)
+	at java.base/java.lang.Thread.run(Thread.java:829)
+Caused by: org.h2.jdbc.JdbcSQLNonTransientConnectionException: Error opening database: "Sleep interrupted" [8000-214]
+	at org.h2.message.DbException.getJdbcSQLException(DbException.java:504)
+	at org.h2.message.DbException.getJdbcSQLException(DbException.java:477)
+	... 20 more
+Caused by: java.lang.InterruptedException: sleep interrupted
+	at java.base/java.lang.Thread.sleep(Native Method)
+	at org.h2.store.FileLock.sleep(FileLock.java:422)
+	... 17 more
+2023-12-21 10:39:34 database: opening /opt/keycloak/data/h2/keycloakdb
+org.h2.message.DbException: Error opening database: "Sleep interrupted" [8000-214]
+	at org.h2.message.DbException.get(DbException.java:212)
+	at org.h2.store.FileLock.getExceptionFatal(FileLock.java:429)
+	at org.h2.store.FileLock.sleep(FileLock.java:424)
+	at org.h2.store.FileLock.lockFile(FileLock.java:334)
+	at org.h2.store.FileLock.lock(FileLock.java:110)
+	at org.h2.engine.Database.<init>(Database.java:315)
+	at org.h2.engine.Engine.openSession(Engine.java:92)
+	at org.h2.engine.Engine.openSession(Engine.java:222)
+	at org.h2.engine.Engine.createSession(Engine.java:201)
+	at org.h2.engine.SessionRemote.connectEmbeddedOrServer(SessionRemote.java:338)
+	at org.h2.jdbc.JdbcConnection.<init>(JdbcConnection.java:122)
+	at org.h2.jdbcx.JdbcDataSource.getXAConnection(JdbcDataSource.java:322)
+	at io.agroal.pool.ConnectionFactory.createConnection(ConnectionFactory.java:232)
+	at io.agroal.pool.ConnectionPool$CreateConnectionTask.call(ConnectionPool.java:535)
+	at io.agroal.pool.ConnectionPool$CreateConnectionTask.call(ConnectionPool.java:516)
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:264)
+	at io.agroal.pool.util.PriorityScheduledExecutor.beforeExecute(PriorityScheduledExecutor.java:75)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1126)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:628)
+	at java.base/java.lang.Thread.run(Thread.java:829)
+Caused by: org.h2.jdbc.JdbcSQLNonTransientConnectionException: Error opening database: "Sleep interrupted" [8000-214]
+	at org.h2.message.DbException.getJdbcSQLException(DbException.java:504)
+	at org.h2.message.DbException.getJdbcSQLException(DbException.java:477)
+	... 20 more
+Caused by: java.lang.InterruptedException: sleep interrupted
+	at java.base/java.lang.Thread.sleep(Native Method)
+	at org.h2.store.FileLock.sleep(FileLock.java:422)
+	... 17 more
+2023-12-21 10:39:38 database: opening /opt/keycloak/data/h2/keycloakdb
+org.h2.message.DbException: Error opening database: "Sleep interrupted" [8000-214]
+	at org.h2.message.DbException.get(DbException.java:212)
+	at org.h2.store.FileLock.getExceptionFatal(FileLock.java:429)
+	at org.h2.store.FileLock.sleep(FileLock.java:424)
+	at org.h2.store.FileLock.lockFile(FileLock.java:324)
+	at org.h2.store.FileLock.lock(FileLock.java:110)
+	at org.h2.engine.Database.<init>(Database.java:315)
+	at org.h2.engine.Engine.openSession(Engine.java:92)
+	at org.h2.engine.Engine.openSession(Engine.java:222)
+	at org.h2.engine.Engine.createSession(Engine.java:201)
+	at org.h2.engine.SessionRemote.connectEmbeddedOrServer(SessionRemote.java:338)
+	at org.h2.jdbc.JdbcConnection.<init>(JdbcConnection.java:122)
+	at org.h2.jdbcx.JdbcDataSource.getXAConnection(JdbcDataSource.java:322)
+	at io.agroal.pool.ConnectionFactory.createConnection(ConnectionFactory.java:232)
+	at io.agroal.pool.ConnectionPool$CreateConnectionTask.call(ConnectionPool.java:535)
+	at io.agroal.pool.ConnectionPool$CreateConnectionTask.call(ConnectionPool.java:516)
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:264)
+	at io.agroal.pool.util.PriorityScheduledExecutor.beforeExecute(PriorityScheduledExecutor.java:75)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1126)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:628)
+	at java.base/java.lang.Thread.run(Thread.java:829)
+Caused by: org.h2.jdbc.JdbcSQLNonTransientConnectionException: Error opening database: "Sleep interrupted" [8000-214]
+	at org.h2.message.DbException.getJdbcSQLException(DbException.java:504)
+	at org.h2.message.DbException.getJdbcSQLException(DbException.java:477)
+	... 20 more
+Caused by: java.lang.InterruptedException: sleep interrupted
+	at java.base/java.lang.Thread.sleep(Native Method)
+	at org.h2.store.FileLock.sleep(FileLock.java:422)
+	... 17 more
+2024-01-10 12:50:38 database: CREATE CACHED TABLE "PUBLIC"."USER_FEDERATION_PROVIDER"(
+    "ID" CHARACTER VARYING(36) NOT NULL,
+    "CHANGED_SYNC_PERIOD" INTEGER,
+    "DISPLAY_NAME" CHARACTER VARYING(255),
+    "FULL_SYNC_PERIOD" INTEGER,
+    "LAST_SYNC" INTEGER,
+    "PRIORITY" INTEGER,
+    "PROVIDER_NAME" CHARACTER VARYING(255),
+    "REALM_ID" CHARACTER VARYING(36)
+)
+org.h2.jdbc.JdbcSQLNonTransientException: IO Exception: "/opt/keycloak/data/h2/keycloakdb.mv.db"; SQL statement:
+CREATE CACHED TABLE "PUBLIC"."USER_FEDERATION_PROVIDER"(
+    "ID" CHARACTER VARYING(36) NOT NULL,
+    "CHANGED_SYNC_PERIOD" INTEGER,
+    "DISPLAY_NAME" CHARACTER VARYING(255),
+    "FULL_SYNC_PERIOD" INTEGER,
+    "LAST_SYNC" INTEGER,
+    "PRIORITY" INTEGER,
+    "PROVIDER_NAME" CHARACTER VARYING(255),
+    "REALM_ID" CHARACTER VARYING(36)
+) [90028-214]
+	at org.h2.message.DbException.getJdbcSQLException(DbException.java:554)
+	at org.h2.message.DbException.getJdbcSQLException(DbException.java:477)
+	at org.h2.message.DbException.get(DbException.java:212)
+	at org.h2.mvstore.db.Store.convertMVStoreException(Store.java:171)
+	at org.h2.mvstore.db.Store.createTable(Store.java:223)
+	at org.h2.schema.Schema.createTable(Schema.java:776)
+	at org.h2.command.ddl.CreateTable.update(CreateTable.java:112)
+	at org.h2.engine.MetaRecord.prepareAndExecute(MetaRecord.java:77)
+	at org.h2.engine.Database.executeMeta(Database.java:660)
+	at org.h2.engine.Database.executeMeta(Database.java:634)
+	at org.h2.engine.Database.<init>(Database.java:357)
+	at org.h2.engine.Engine.openSession(Engine.java:92)
+	at org.h2.engine.Engine.openSession(Engine.java:222)
+	at org.h2.engine.Engine.createSession(Engine.java:201)
+	at org.h2.engine.SessionRemote.connectEmbeddedOrServer(SessionRemote.java:338)
+	at org.h2.jdbc.JdbcConnection.<init>(JdbcConnection.java:122)
+	at org.h2.jdbcx.JdbcDataSource.getXAConnection(JdbcDataSource.java:322)
+	at io.agroal.pool.ConnectionFactory.createConnection(ConnectionFactory.java:232)
+	at io.agroal.pool.ConnectionPool$CreateConnectionTask.call(ConnectionPool.java:535)
+	at io.agroal.pool.ConnectionPool$CreateConnectionTask.call(ConnectionPool.java:516)
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:264)
+	at io.agroal.pool.util.PriorityScheduledExecutor.beforeExecute(PriorityScheduledExecutor.java:75)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1126)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:628)
+	at java.base/java.lang.Thread.run(Thread.java:829)
+Caused by: org.h2.mvstore.MVStoreException: Reading from file sun.nio.ch.FileChannelImpl@412aa958 failed at 599331 (length -1), read 0, remaining 3072 [2.1.214/1]
+	at org.h2.mvstore.DataUtils.newMVStoreException(DataUtils.java:1004)
+	at org.h2.mvstore.DataUtils.readFully(DataUtils.java:470)
+	at org.h2.mvstore.FileStore.readFully(FileStore.java:98)
+	at org.h2.mvstore.Chunk.readBufferForPage(Chunk.java:422)
+	at org.h2.mvstore.MVStore.readPage(MVStore.java:2569)
+	at org.h2.mvstore.MVMap.readPage(MVMap.java:633)
+	at org.h2.mvstore.Page$NonLeaf.getChildPage(Page.java:1125)
+	at org.h2.mvstore.CursorPos.traverseDown(CursorPos.java:61)
+	at org.h2.mvstore.MVMap.operate(MVMap.java:1770)
+	at org.h2.mvstore.MVMap.putIfAbsent(MVMap.java:530)
+	at org.h2.mvstore.tx.TransactionStore$TxMapBuilder.registerDataType(TransactionStore.java:859)
+	at org.h2.mvstore.tx.TransactionStore$TxMapBuilder.create(TransactionStore.java:899)
+	at org.h2.mvstore.MVStore.openMap(MVStore.java:699)
+	at org.h2.mvstore.MVStore.openMap(MVStore.java:648)
+	at org.h2.mvstore.tx.TransactionStore.openMap(TransactionStore.java:564)
+	at org.h2.mvstore.tx.TransactionStore.openVersionedMap(TransactionStore.java:550)
+	at org.h2.mvstore.tx.Transaction.openMap(Transaction.java:456)
+	at org.h2.mvstore.db.MVPrimaryIndex.<init>(MVPrimaryIndex.java:53)
+	at org.h2.mvstore.db.MVTable.<init>(MVTable.java:156)
+	at org.h2.mvstore.db.Store.createTable(Store.java:219)
+	... 20 more
+Caused by: java.nio.channels.ClosedByInterruptException
+	at java.base/java.nio.channels.spi.AbstractInterruptibleChannel.end(AbstractInterruptibleChannel.java:199)
+	at java.base/sun.nio.ch.FileChannelImpl.endBlocking(FileChannelImpl.java:162)
+	at java.base/sun.nio.ch.FileChannelImpl.readInternal(FileChannelImpl.java:816)
+	at java.base/sun.nio.ch.FileChannelImpl.read(FileChannelImpl.java:796)
+	at org.h2.mvstore.DataUtils.readFully(DataUtils.java:456)
+	... 38 more
+2024-01-10 12:50:38 database: opening /opt/keycloak/data/h2/keycloakdb
+org.h2.message.DbException: IO Exception: "/opt/keycloak/data/h2/keycloakdb.mv.db" [90028-214]
+	at org.h2.message.DbException.get(DbException.java:212)
+	at org.h2.mvstore.db.Store.convertMVStoreException(Store.java:171)
+	at org.h2.mvstore.db.Store.createTable(Store.java:223)
+	at org.h2.schema.Schema.createTable(Schema.java:776)
+	at org.h2.command.ddl.CreateTable.update(CreateTable.java:112)
+	at org.h2.engine.MetaRecord.prepareAndExecute(MetaRecord.java:77)
+	at org.h2.engine.Database.executeMeta(Database.java:660)
+	at org.h2.engine.Database.executeMeta(Database.java:634)
+	at org.h2.engine.Database.<init>(Database.java:357)
+	at org.h2.engine.Engine.openSession(Engine.java:92)
+	at org.h2.engine.Engine.openSession(Engine.java:222)
+	at org.h2.engine.Engine.createSession(Engine.java:201)
+	at org.h2.engine.SessionRemote.connectEmbeddedOrServer(SessionRemote.java:338)
+	at org.h2.jdbc.JdbcConnection.<init>(JdbcConnection.java:122)
+	at org.h2.jdbcx.JdbcDataSource.getXAConnection(JdbcDataSource.java:322)
+	at io.agroal.pool.ConnectionFactory.createConnection(ConnectionFactory.java:232)
+	at io.agroal.pool.ConnectionPool$CreateConnectionTask.call(ConnectionPool.java:535)
+	at io.agroal.pool.ConnectionPool$CreateConnectionTask.call(ConnectionPool.java:516)
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:264)
+	at io.agroal.pool.util.PriorityScheduledExecutor.beforeExecute(PriorityScheduledExecutor.java:75)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1126)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:628)
+	at java.base/java.lang.Thread.run(Thread.java:829)
+Caused by: org.h2.jdbc.JdbcSQLNonTransientException: IO Exception: "/opt/keycloak/data/h2/keycloakdb.mv.db"; SQL statement:
+CREATE CACHED TABLE "PUBLIC"."USER_FEDERATION_PROVIDER"(
+    "ID" CHARACTER VARYING(36) NOT NULL,
+    "CHANGED_SYNC_PERIOD" INTEGER,
+    "DISPLAY_NAME" CHARACTER VARYING(255),
+    "FULL_SYNC_PERIOD" INTEGER,
+    "LAST_SYNC" INTEGER,
+    "PRIORITY" INTEGER,
+    "PROVIDER_NAME" CHARACTER VARYING(255),
+    "REALM_ID" CHARACTER VARYING(36)
+) [90028-214]
+	at org.h2.message.DbException.getJdbcSQLException(DbException.java:554)
+	at org.h2.message.DbException.getJdbcSQLException(DbException.java:477)
+	... 23 more
+Caused by: org.h2.mvstore.MVStoreException: Reading from file sun.nio.ch.FileChannelImpl@412aa958 failed at 599331 (length -1), read 0, remaining 3072 [2.1.214/1]
+	at org.h2.mvstore.DataUtils.newMVStoreException(DataUtils.java:1004)
+	at org.h2.mvstore.DataUtils.readFully(DataUtils.java:470)
+	at org.h2.mvstore.FileStore.readFully(FileStore.java:98)
+	at org.h2.mvstore.Chunk.readBufferForPage(Chunk.java:422)
+	at org.h2.mvstore.MVStore.readPage(MVStore.java:2569)
+	at org.h2.mvstore.MVMap.readPage(MVMap.java:633)
+	at org.h2.mvstore.Page$NonLeaf.getChildPage(Page.java:1125)
+	at org.h2.mvstore.CursorPos.traverseDown(CursorPos.java:61)
+	at org.h2.mvstore.MVMap.operate(MVMap.java:1770)
+	at org.h2.mvstore.MVMap.putIfAbsent(MVMap.java:530)
+	at org.h2.mvstore.tx.TransactionStore$TxMapBuilder.registerDataType(TransactionStore.java:859)
+	at org.h2.mvstore.tx.TransactionStore$TxMapBuilder.create(TransactionStore.java:899)
+	at org.h2.mvstore.MVStore.openMap(MVStore.java:699)
+	at org.h2.mvstore.MVStore.openMap(MVStore.java:648)
+	at org.h2.mvstore.tx.TransactionStore.openMap(TransactionStore.java:564)
+	at org.h2.mvstore.tx.TransactionStore.openVersionedMap(TransactionStore.java:550)
+	at org.h2.mvstore.tx.Transaction.openMap(Transaction.java:456)
+	at org.h2.mvstore.db.MVPrimaryIndex.<init>(MVPrimaryIndex.java:53)
+	at org.h2.mvstore.db.MVTable.<init>(MVTable.java:156)
+	at org.h2.mvstore.db.Store.createTable(Store.java:219)
+	... 20 more
+Caused by: java.nio.channels.ClosedByInterruptException
+	at java.base/java.nio.channels.spi.AbstractInterruptibleChannel.end(AbstractInterruptibleChannel.java:199)
+	at java.base/sun.nio.ch.FileChannelImpl.endBlocking(FileChannelImpl.java:162)
+	at java.base/sun.nio.ch.FileChannelImpl.readInternal(FileChannelImpl.java:816)
+	at java.base/sun.nio.ch.FileChannelImpl.read(FileChannelImpl.java:796)
+	at org.h2.mvstore.DataUtils.readFully(DataUtils.java:456)
+	... 38 more
+2024-01-12 11:38:02 database: opening /opt/keycloak/data/h2/keycloakdb
+org.h2.message.DbException: Error opening database: "Sleep interrupted" [8000-214]
+	at org.h2.message.DbException.get(DbException.java:212)
+	at org.h2.store.FileLock.getExceptionFatal(FileLock.java:429)
+	at org.h2.store.FileLock.sleep(FileLock.java:424)
+	at org.h2.store.FileLock.lockFile(FileLock.java:334)
+	at org.h2.store.FileLock.lock(FileLock.java:110)
+	at org.h2.engine.Database.<init>(Database.java:315)
+	at org.h2.engine.Engine.openSession(Engine.java:92)
+	at org.h2.engine.Engine.openSession(Engine.java:222)
+	at org.h2.engine.Engine.createSession(Engine.java:201)
+	at org.h2.engine.SessionRemote.connectEmbeddedOrServer(SessionRemote.java:338)
+	at org.h2.jdbc.JdbcConnection.<init>(JdbcConnection.java:122)
+	at org.h2.jdbcx.JdbcDataSource.getXAConnection(JdbcDataSource.java:322)
+	at io.agroal.pool.ConnectionFactory.createConnection(ConnectionFactory.java:232)
+	at io.agroal.pool.ConnectionPool$CreateConnectionTask.call(ConnectionPool.java:535)
+	at io.agroal.pool.ConnectionPool$CreateConnectionTask.call(ConnectionPool.java:516)
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:264)
+	at io.agroal.pool.util.PriorityScheduledExecutor.beforeExecute(PriorityScheduledExecutor.java:75)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1126)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:628)
+	at java.base/java.lang.Thread.run(Thread.java:829)
+Caused by: org.h2.jdbc.JdbcSQLNonTransientConnectionException: Error opening database: "Sleep interrupted" [8000-214]
+	at org.h2.message.DbException.getJdbcSQLException(DbException.java:504)
+	at org.h2.message.DbException.getJdbcSQLException(DbException.java:477)
+	... 20 more
+Caused by: java.lang.InterruptedException: sleep interrupted
+	at java.base/java.lang.Thread.sleep(Native Method)
+	at org.h2.store.FileLock.sleep(FileLock.java:422)
+	... 17 more
+2024-01-12 11:38:03 database: opening /opt/keycloak/data/h2/keycloakdb
+org.h2.message.DbException: Error opening database: "Sleep interrupted" [8000-214]
+	at org.h2.message.DbException.get(DbException.java:212)
+	at org.h2.store.FileLock.getExceptionFatal(FileLock.java:429)
+	at org.h2.store.FileLock.sleep(FileLock.java:424)
+	at org.h2.store.FileLock.lockFile(FileLock.java:324)
+	at org.h2.store.FileLock.lock(FileLock.java:110)
+	at org.h2.engine.Database.<init>(Database.java:315)
+	at org.h2.engine.Engine.openSession(Engine.java:92)
+	at org.h2.engine.Engine.openSession(Engine.java:222)
+	at org.h2.engine.Engine.createSession(Engine.java:201)
+	at org.h2.engine.SessionRemote.connectEmbeddedOrServer(SessionRemote.java:338)
+	at org.h2.jdbc.JdbcConnection.<init>(JdbcConnection.java:122)
+	at org.h2.jdbcx.JdbcDataSource.getXAConnection(JdbcDataSource.java:322)
+	at io.agroal.pool.ConnectionFactory.createConnection(ConnectionFactory.java:232)
+	at io.agroal.pool.ConnectionPool$CreateConnectionTask.call(ConnectionPool.java:535)
+	at io.agroal.pool.ConnectionPool$CreateConnectionTask.call(ConnectionPool.java:516)
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:264)
+	at io.agroal.pool.util.PriorityScheduledExecutor.beforeExecute(PriorityScheduledExecutor.java:75)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1126)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:628)
+	at java.base/java.lang.Thread.run(Thread.java:829)
+Caused by: org.h2.jdbc.JdbcSQLNonTransientConnectionException: Error opening database: "Sleep interrupted" [8000-214]
+	at org.h2.message.DbException.getJdbcSQLException(DbException.java:504)
+	at org.h2.message.DbException.getJdbcSQLException(DbException.java:477)
+	... 20 more
+Caused by: java.lang.InterruptedException: sleep interrupted
+	at java.base/java.lang.Thread.sleep(Native Method)
+	at org.h2.store.FileLock.sleep(FileLock.java:422)
+	... 17 more
+2024-01-22 08:34:53 database: opening /opt/keycloak/data/h2/keycloakdb
+org.h2.message.DbException: Error opening database: "Sleep interrupted" [8000-214]
+	at org.h2.message.DbException.get(DbException.java:212)
+	at org.h2.store.FileLock.getExceptionFatal(FileLock.java:429)
+	at org.h2.store.FileLock.sleep(FileLock.java:424)
+	at org.h2.store.FileLock.lockFile(FileLock.java:334)
+	at org.h2.store.FileLock.lock(FileLock.java:110)
+	at org.h2.engine.Database.<init>(Database.java:315)
+	at org.h2.engine.Engine.openSession(Engine.java:92)
+	at org.h2.engine.Engine.openSession(Engine.java:222)
+	at org.h2.engine.Engine.createSession(Engine.java:201)
+	at org.h2.engine.SessionRemote.connectEmbeddedOrServer(SessionRemote.java:338)
+	at org.h2.jdbc.JdbcConnection.<init>(JdbcConnection.java:122)
+	at org.h2.jdbcx.JdbcDataSource.getXAConnection(JdbcDataSource.java:322)
+	at io.agroal.pool.ConnectionFactory.createConnection(ConnectionFactory.java:232)
+	at io.agroal.pool.ConnectionPool$CreateConnectionTask.call(ConnectionPool.java:535)
+	at io.agroal.pool.ConnectionPool$CreateConnectionTask.call(ConnectionPool.java:516)
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:264)
+	at io.agroal.pool.util.PriorityScheduledExecutor.beforeExecute(PriorityScheduledExecutor.java:75)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1126)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:628)
+	at java.base/java.lang.Thread.run(Thread.java:829)
+Caused by: org.h2.jdbc.JdbcSQLNonTransientConnectionException: Error opening database: "Sleep interrupted" [8000-214]
+	at org.h2.message.DbException.getJdbcSQLException(DbException.java:504)
+	at org.h2.message.DbException.getJdbcSQLException(DbException.java:477)
+	... 20 more
+Caused by: java.lang.InterruptedException: sleep interrupted
+	at java.base/java.lang.Thread.sleep(Native Method)
+	at org.h2.store.FileLock.sleep(FileLock.java:422)
+	... 17 more
+2024-01-22 08:34:57 database: opening /opt/keycloak/data/h2/keycloakdb
+org.h2.message.DbException: IO Exception: "/opt/keycloak/data/h2/keycloakdb.mv.db" [90028-214]
+	at org.h2.message.DbException.get(DbException.java:212)
+	at org.h2.mvstore.db.Store.convertMVStoreException(Store.java:171)
+	at org.h2.mvstore.db.Store.<init>(Store.java:145)
+	at org.h2.engine.Database.<init>(Database.java:324)
+	at org.h2.engine.Engine.openSession(Engine.java:92)
+	at org.h2.engine.Engine.openSession(Engine.java:222)
+	at org.h2.engine.Engine.createSession(Engine.java:201)
+	at org.h2.engine.SessionRemote.connectEmbeddedOrServer(SessionRemote.java:338)
+	at org.h2.jdbc.JdbcConnection.<init>(JdbcConnection.java:122)
+	at org.h2.jdbcx.JdbcDataSource.getXAConnection(JdbcDataSource.java:322)
+	at io.agroal.pool.ConnectionFactory.createConnection(ConnectionFactory.java:232)
+	at io.agroal.pool.ConnectionPool$CreateConnectionTask.call(ConnectionPool.java:535)
+	at io.agroal.pool.ConnectionPool$CreateConnectionTask.call(ConnectionPool.java:516)
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:264)
+	at io.agroal.pool.util.PriorityScheduledExecutor.beforeExecute(PriorityScheduledExecutor.java:75)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1126)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:628)
+	at java.base/java.lang.Thread.run(Thread.java:829)
+Caused by: org.h2.jdbc.JdbcSQLNonTransientException: IO Exception: "/opt/keycloak/data/h2/keycloakdb.mv.db" [90028-214]
+	at org.h2.message.DbException.getJdbcSQLException(DbException.java:554)
+	at org.h2.message.DbException.getJdbcSQLException(DbException.java:477)
+	... 18 more
+Caused by: org.h2.mvstore.MVStoreException: Reading from file sun.nio.ch.FileChannelImpl@ada33ab failed at 1065409 (length -1), read 512, remaining 0 [2.1.214/1]
+	at org.h2.mvstore.DataUtils.newMVStoreException(DataUtils.java:1004)
+	at org.h2.mvstore.DataUtils.readFully(DataUtils.java:470)
+	at org.h2.mvstore.FileStore.readFully(FileStore.java:98)
+	at org.h2.mvstore.Chunk.readBufferForPage(Chunk.java:422)
+	at org.h2.mvstore.MVStore.readPage(MVStore.java:2569)
+	at org.h2.mvstore.MVMap.readPage(MVMap.java:633)
+	at org.h2.mvstore.Page$NonLeaf.getChildPage(Page.java:1125)
+	at org.h2.mvstore.Page.get(Page.java:243)
+	at org.h2.mvstore.MVMap.get(MVMap.java:436)
+	at org.h2.mvstore.MVMap.get(MVMap.java:424)
+	at org.h2.mvstore.MVMap.containsKey(MVMap.java:441)
+	at org.h2.mvstore.MVStore.scrubLayoutMap(MVStore.java:531)
+	at org.h2.mvstore.MVStore.<init>(MVStore.java:479)
+	at org.h2.mvstore.MVStore$Builder.open(MVStore.java:4082)
+	at org.h2.mvstore.db.Store.<init>(Store.java:136)
+	... 15 more
+Caused by: java.nio.channels.ClosedByInterruptException
+	at java.base/java.nio.channels.spi.AbstractInterruptibleChannel.end(AbstractInterruptibleChannel.java:199)
+	at java.base/sun.nio.ch.FileChannelImpl.endBlocking(FileChannelImpl.java:162)
+	at java.base/sun.nio.ch.FileChannelImpl.readInternal(FileChannelImpl.java:816)
+	at java.base/sun.nio.ch.FileChannelImpl.read(FileChannelImpl.java:796)
+	at org.h2.mvstore.DataUtils.readFully(DataUtils.java:456)
+	... 28 more
+2024-01-22 08:34:58 database: opening /opt/keycloak/data/h2/keycloakdb
+org.h2.message.DbException: Error opening database: "Sleep interrupted" [8000-214]
+	at org.h2.message.DbException.get(DbException.java:212)
+	at org.h2.store.FileLock.getExceptionFatal(FileLock.java:429)
+	at org.h2.store.FileLock.sleep(FileLock.java:424)
+	at org.h2.store.FileLock.lockFile(FileLock.java:334)
+	at org.h2.store.FileLock.lock(FileLock.java:110)
+	at org.h2.engine.Database.<init>(Database.java:315)
+	at org.h2.engine.Engine.openSession(Engine.java:92)
+	at org.h2.engine.Engine.openSession(Engine.java:222)
+	at org.h2.engine.Engine.createSession(Engine.java:201)
+	at org.h2.engine.SessionRemote.connectEmbeddedOrServer(SessionRemote.java:338)
+	at org.h2.jdbc.JdbcConnection.<init>(JdbcConnection.java:122)
+	at org.h2.jdbcx.JdbcDataSource.getXAConnection(JdbcDataSource.java:322)
+	at io.agroal.pool.ConnectionFactory.createConnection(ConnectionFactory.java:232)
+	at io.agroal.pool.ConnectionPool$CreateConnectionTask.call(ConnectionPool.java:535)
+	at io.agroal.pool.ConnectionPool$CreateConnectionTask.call(ConnectionPool.java:516)
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:264)
+	at io.agroal.pool.util.PriorityScheduledExecutor.beforeExecute(PriorityScheduledExecutor.java:75)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1126)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:628)
+	at java.base/java.lang.Thread.run(Thread.java:829)
+Caused by: org.h2.jdbc.JdbcSQLNonTransientConnectionException: Error opening database: "Sleep interrupted" [8000-214]
+	at org.h2.message.DbException.getJdbcSQLException(DbException.java:504)
+	at org.h2.message.DbException.getJdbcSQLException(DbException.java:477)
+	... 20 more
+Caused by: java.lang.InterruptedException: sleep interrupted
+	at java.base/java.lang.Thread.sleep(Native Method)
+	at org.h2.store.FileLock.sleep(FileLock.java:422)
+	... 17 more
+2024-01-22 08:35:10 database: opening /opt/keycloak/data/h2/keycloakdb
+org.h2.message.DbException: Error opening database: "Sleep interrupted" [8000-214]
+	at org.h2.message.DbException.get(DbException.java:212)
+	at org.h2.store.FileLock.getExceptionFatal(FileLock.java:429)
+	at org.h2.store.FileLock.sleep(FileLock.java:424)
+	at org.h2.store.FileLock.lockFile(FileLock.java:324)
+	at org.h2.store.FileLock.lock(FileLock.java:110)
+	at org.h2.engine.Database.<init>(Database.java:315)
+	at org.h2.engine.Engine.openSession(Engine.java:92)
+	at org.h2.engine.Engine.openSession(Engine.java:222)
+	at org.h2.engine.Engine.createSession(Engine.java:201)
+	at org.h2.engine.SessionRemote.connectEmbeddedOrServer(SessionRemote.java:338)
+	at org.h2.jdbc.JdbcConnection.<init>(JdbcConnection.java:122)
+	at org.h2.jdbcx.JdbcDataSource.getXAConnection(JdbcDataSource.java:322)
+	at io.agroal.pool.ConnectionFactory.createConnection(ConnectionFactory.java:232)
+	at io.agroal.pool.ConnectionPool$CreateConnectionTask.call(ConnectionPool.java:535)
+	at io.agroal.pool.ConnectionPool$CreateConnectionTask.call(ConnectionPool.java:516)
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:264)
+	at io.agroal.pool.util.PriorityScheduledExecutor.beforeExecute(PriorityScheduledExecutor.java:75)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1126)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:628)
+	at java.base/java.lang.Thread.run(Thread.java:829)
+Caused by: org.h2.jdbc.JdbcSQLNonTransientConnectionException: Error opening database: "Sleep interrupted" [8000-214]
+	at org.h2.message.DbException.getJdbcSQLException(DbException.java:504)
+	at org.h2.message.DbException.getJdbcSQLException(DbException.java:477)
+	... 20 more
+Caused by: java.lang.InterruptedException: sleep interrupted
+	at java.base/java.lang.Thread.sleep(Native Method)
+	at org.h2.store.FileLock.sleep(FileLock.java:422)
+	... 17 more
+2024-01-22 13:16:50 database: opening /opt/keycloak/data/h2/keycloakdb
+org.h2.message.DbException: Error opening database: "Sleep interrupted" [8000-214]
+	at org.h2.message.DbException.get(DbException.java:212)
+	at org.h2.store.FileLock.getExceptionFatal(FileLock.java:429)
+	at org.h2.store.FileLock.sleep(FileLock.java:424)
+	at org.h2.store.FileLock.lockFile(FileLock.java:334)
+	at org.h2.store.FileLock.lock(FileLock.java:110)
+	at org.h2.engine.Database.<init>(Database.java:315)
+	at org.h2.engine.Engine.openSession(Engine.java:92)
+	at org.h2.engine.Engine.openSession(Engine.java:222)
+	at org.h2.engine.Engine.createSession(Engine.java:201)
+	at org.h2.engine.SessionRemote.connectEmbeddedOrServer(SessionRemote.java:338)
+	at org.h2.jdbc.JdbcConnection.<init>(JdbcConnection.java:122)
+	at org.h2.jdbcx.JdbcDataSource.getXAConnection(JdbcDataSource.java:322)
+	at io.agroal.pool.ConnectionFactory.createConnection(ConnectionFactory.java:232)
+	at io.agroal.pool.ConnectionPool$CreateConnectionTask.call(ConnectionPool.java:535)
+	at io.agroal.pool.ConnectionPool$CreateConnectionTask.call(ConnectionPool.java:516)
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:264)
+	at io.agroal.pool.util.PriorityScheduledExecutor.beforeExecute(PriorityScheduledExecutor.java:75)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1126)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:628)
+	at java.base/java.lang.Thread.run(Thread.java:829)
+Caused by: org.h2.jdbc.JdbcSQLNonTransientConnectionException: Error opening database: "Sleep interrupted" [8000-214]
+	at org.h2.message.DbException.getJdbcSQLException(DbException.java:504)
+	at org.h2.message.DbException.getJdbcSQLException(DbException.java:477)
+	... 20 more
+Caused by: java.lang.InterruptedException: sleep interrupted
+	at java.base/java.lang.Thread.sleep(Native Method)
+	at org.h2.store.FileLock.sleep(FileLock.java:422)
+	... 17 more
+2024-01-22 13:33:49 database: opening /opt/keycloak/data/h2/keycloakdb
+org.h2.message.DbException: Error opening database: "Sleep interrupted" [8000-214]
+	at org.h2.message.DbException.get(DbException.java:212)
+	at org.h2.store.FileLock.getExceptionFatal(FileLock.java:429)
+	at org.h2.store.FileLock.sleep(FileLock.java:424)
+	at org.h2.store.FileLock.lockFile(FileLock.java:334)
+	at org.h2.store.FileLock.lock(FileLock.java:110)
+	at org.h2.engine.Database.<init>(Database.java:315)
+	at org.h2.engine.Engine.openSession(Engine.java:92)
+	at org.h2.engine.Engine.openSession(Engine.java:222)
+	at org.h2.engine.Engine.createSession(Engine.java:201)
+	at org.h2.engine.SessionRemote.connectEmbeddedOrServer(SessionRemote.java:338)
+	at org.h2.jdbc.JdbcConnection.<init>(JdbcConnection.java:122)
+	at org.h2.jdbcx.JdbcDataSource.getXAConnection(JdbcDataSource.java:322)
+	at io.agroal.pool.ConnectionFactory.createConnection(ConnectionFactory.java:232)
+	at io.agroal.pool.ConnectionPool$CreateConnectionTask.call(ConnectionPool.java:535)
+	at io.agroal.pool.ConnectionPool$CreateConnectionTask.call(ConnectionPool.java:516)
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:264)
+	at io.agroal.pool.util.PriorityScheduledExecutor.beforeExecute(PriorityScheduledExecutor.java:75)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1126)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:628)
+	at java.base/java.lang.Thread.run(Thread.java:829)
+Caused by: org.h2.jdbc.JdbcSQLNonTransientConnectionException: Error opening database: "Sleep interrupted" [8000-214]
+	at org.h2.message.DbException.getJdbcSQLException(DbException.java:504)
+	at org.h2.message.DbException.getJdbcSQLException(DbException.java:477)
+	... 20 more
+Caused by: java.lang.InterruptedException: sleep interrupted
+	at java.base/java.lang.Thread.sleep(Native Method)
+	at org.h2.store.FileLock.sleep(FileLock.java:422)
+	... 17 more
+2024-01-22 13:33:52 database: flush
+org.h2.message.DbException: General error: "org.h2.mvstore.MVStoreException: Could not open file /opt/keycloak/data/h2/keycloakdb.mv.db [2.1.214/1]" [50000-214]
+	at org.h2.message.DbException.get(DbException.java:212)
+	at org.h2.message.DbException.convert(DbException.java:395)
+	at org.h2.mvstore.db.Store.lambda$new$0(Store.java:125)
+	at org.h2.mvstore.MVStore.handleException(MVStore.java:3318)
+	at org.h2.mvstore.MVStore.panic(MVStore.java:593)
+	at org.h2.mvstore.MVStore.<init>(MVStore.java:469)
+	at org.h2.mvstore.MVStore$Builder.open(MVStore.java:4082)
+	at org.h2.mvstore.db.Store.<init>(Store.java:136)
+	at org.h2.engine.Database.<init>(Database.java:324)
+	at org.h2.engine.Engine.openSession(Engine.java:92)
+	at org.h2.engine.Engine.openSession(Engine.java:222)
+	at org.h2.engine.Engine.createSession(Engine.java:201)
+	at org.h2.engine.SessionRemote.connectEmbeddedOrServer(SessionRemote.java:338)
+	at org.h2.jdbc.JdbcConnection.<init>(JdbcConnection.java:122)
+	at org.h2.jdbcx.JdbcDataSource.getXAConnection(JdbcDataSource.java:322)
+	at io.agroal.pool.ConnectionFactory.createConnection(ConnectionFactory.java:232)
+	at io.agroal.pool.ConnectionPool$CreateConnectionTask.call(ConnectionPool.java:535)
+	at io.agroal.pool.ConnectionPool$CreateConnectionTask.call(ConnectionPool.java:516)
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:264)
+	at io.agroal.pool.util.PriorityScheduledExecutor.beforeExecute(PriorityScheduledExecutor.java:75)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1126)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:628)
+	at java.base/java.lang.Thread.run(Thread.java:829)
+Caused by: org.h2.jdbc.JdbcSQLNonTransientException: General error: "org.h2.mvstore.MVStoreException: Could not open file /opt/keycloak/data/h2/keycloakdb.mv.db [2.1.214/1]" [50000-214]
+	at org.h2.message.DbException.getJdbcSQLException(DbException.java:554)
+	at org.h2.message.DbException.getJdbcSQLException(DbException.java:477)
+	... 23 more
+Caused by: org.h2.mvstore.MVStoreException: Could not open file /opt/keycloak/data/h2/keycloakdb.mv.db [2.1.214/1]
+	at org.h2.mvstore.DataUtils.newMVStoreException(DataUtils.java:1004)
+	at org.h2.mvstore.FileStore.open(FileStore.java:185)
+	at org.h2.mvstore.FileStore.open(FileStore.java:128)
+	at org.h2.mvstore.MVStore.<init>(MVStore.java:452)
+	... 17 more
+Caused by: java.nio.channels.ClosedByInterruptException
+	at java.base/java.nio.channels.spi.AbstractInterruptibleChannel.end(AbstractInterruptibleChannel.java:199)
+	at java.base/sun.nio.ch.FileChannelImpl.endBlocking(FileChannelImpl.java:162)
+	at java.base/sun.nio.ch.FileChannelImpl.size(FileChannelImpl.java:388)
+	at org.h2.mvstore.FileStore.open(FileStore.java:182)
+	... 19 more
+2024-01-22 13:33:52 database: opening /opt/keycloak/data/h2/keycloakdb
+org.h2.message.DbException: IO Exception: "/opt/keycloak/data/h2/keycloakdb.mv.db" [90028-214]
+	at org.h2.message.DbException.get(DbException.java:212)
+	at org.h2.mvstore.db.Store.convertMVStoreException(Store.java:171)
+	at org.h2.mvstore.db.Store.<init>(Store.java:145)
+	at org.h2.engine.Database.<init>(Database.java:324)
+	at org.h2.engine.Engine.openSession(Engine.java:92)
+	at org.h2.engine.Engine.openSession(Engine.java:222)
+	at org.h2.engine.Engine.createSession(Engine.java:201)
+	at org.h2.engine.SessionRemote.connectEmbeddedOrServer(SessionRemote.java:338)
+	at org.h2.jdbc.JdbcConnection.<init>(JdbcConnection.java:122)
+	at org.h2.jdbcx.JdbcDataSource.getXAConnection(JdbcDataSource.java:322)
+	at io.agroal.pool.ConnectionFactory.createConnection(ConnectionFactory.java:232)
+	at io.agroal.pool.ConnectionPool$CreateConnectionTask.call(ConnectionPool.java:535)
+	at io.agroal.pool.ConnectionPool$CreateConnectionTask.call(ConnectionPool.java:516)
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:264)
+	at io.agroal.pool.util.PriorityScheduledExecutor.beforeExecute(PriorityScheduledExecutor.java:75)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1126)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:628)
+	at java.base/java.lang.Thread.run(Thread.java:829)
+Caused by: org.h2.jdbc.JdbcSQLNonTransientException: IO Exception: "/opt/keycloak/data/h2/keycloakdb.mv.db" [90028-214]
+	at org.h2.message.DbException.getJdbcSQLException(DbException.java:554)
+	at org.h2.message.DbException.getJdbcSQLException(DbException.java:477)
+	... 18 more
+Caused by: org.h2.mvstore.MVStoreException: Could not open file /opt/keycloak/data/h2/keycloakdb.mv.db [2.1.214/1]
+	at org.h2.mvstore.DataUtils.newMVStoreException(DataUtils.java:1004)
+	at org.h2.mvstore.FileStore.open(FileStore.java:185)
+	at org.h2.mvstore.FileStore.open(FileStore.java:128)
+	at org.h2.mvstore.MVStore.<init>(MVStore.java:452)
+	at org.h2.mvstore.MVStore$Builder.open(MVStore.java:4082)
+	at org.h2.mvstore.db.Store.<init>(Store.java:136)
+	... 15 more
+Caused by: java.nio.channels.ClosedByInterruptException
+	at java.base/java.nio.channels.spi.AbstractInterruptibleChannel.end(AbstractInterruptibleChannel.java:199)
+	at java.base/sun.nio.ch.FileChannelImpl.endBlocking(FileChannelImpl.java:162)
+	at java.base/sun.nio.ch.FileChannelImpl.size(FileChannelImpl.java:388)
+	at org.h2.mvstore.FileStore.open(FileStore.java:182)
+	... 19 more
+2024-01-22 13:33:52 database: opening /opt/keycloak/data/h2/keycloakdb
+org.h2.message.DbException: Error opening database: "Sleep interrupted" [8000-214]
+	at org.h2.message.DbException.get(DbException.java:212)
+	at org.h2.store.FileLock.getExceptionFatal(FileLock.java:429)
+	at org.h2.store.FileLock.sleep(FileLock.java:424)
+	at org.h2.store.FileLock.lockFile(FileLock.java:334)
+	at org.h2.store.FileLock.lock(FileLock.java:110)
+	at org.h2.engine.Database.<init>(Database.java:315)
+	at org.h2.engine.Engine.openSession(Engine.java:92)
+	at org.h2.engine.Engine.openSession(Engine.java:222)
+	at org.h2.engine.Engine.createSession(Engine.java:201)
+	at org.h2.engine.SessionRemote.connectEmbeddedOrServer(SessionRemote.java:338)
+	at org.h2.jdbc.JdbcConnection.<init>(JdbcConnection.java:122)
+	at org.h2.jdbcx.JdbcDataSource.getXAConnection(JdbcDataSource.java:322)
+	at io.agroal.pool.ConnectionFactory.createConnection(ConnectionFactory.java:232)
+	at io.agroal.pool.ConnectionPool$CreateConnectionTask.call(ConnectionPool.java:535)
+	at io.agroal.pool.ConnectionPool$CreateConnectionTask.call(ConnectionPool.java:516)
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:264)
+	at io.agroal.pool.util.PriorityScheduledExecutor.beforeExecute(PriorityScheduledExecutor.java:75)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1126)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:628)
+	at java.base/java.lang.Thread.run(Thread.java:829)
+Caused by: org.h2.jdbc.JdbcSQLNonTransientConnectionException: Error opening database: "Sleep interrupted" [8000-214]
+	at org.h2.message.DbException.getJdbcSQLException(DbException.java:504)
+	at org.h2.message.DbException.getJdbcSQLException(DbException.java:477)
+	... 20 more
+Caused by: java.lang.InterruptedException: sleep interrupted
+	at java.base/java.lang.Thread.sleep(Native Method)
+	at org.h2.store.FileLock.sleep(FileLock.java:422)
+	... 17 more
+2024-01-26 13:47:20 database: opening /opt/keycloak/data/h2/keycloakdb
+org.h2.message.DbException: Error opening database: "Sleep interrupted" [8000-214]
+	at org.h2.message.DbException.get(DbException.java:212)
+	at org.h2.store.FileLock.getExceptionFatal(FileLock.java:429)
+	at org.h2.store.FileLock.sleep(FileLock.java:424)
+	at org.h2.store.FileLock.lockFile(FileLock.java:334)
+	at org.h2.store.FileLock.lock(FileLock.java:110)
+	at org.h2.engine.Database.<init>(Database.java:315)
+	at org.h2.engine.Engine.openSession(Engine.java:92)
+	at org.h2.engine.Engine.openSession(Engine.java:222)
+	at org.h2.engine.Engine.createSession(Engine.java:201)
+	at org.h2.engine.SessionRemote.connectEmbeddedOrServer(SessionRemote.java:338)
+	at org.h2.jdbc.JdbcConnection.<init>(JdbcConnection.java:122)
+	at org.h2.jdbcx.JdbcDataSource.getXAConnection(JdbcDataSource.java:322)
+	at io.agroal.pool.ConnectionFactory.createConnection(ConnectionFactory.java:232)
+	at io.agroal.pool.ConnectionPool$CreateConnectionTask.call(ConnectionPool.java:535)
+	at io.agroal.pool.ConnectionPool$CreateConnectionTask.call(ConnectionPool.java:516)
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:264)
+	at io.agroal.pool.util.PriorityScheduledExecutor.beforeExecute(PriorityScheduledExecutor.java:75)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1126)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:628)
+	at java.base/java.lang.Thread.run(Thread.java:829)
+Caused by: org.h2.jdbc.JdbcSQLNonTransientConnectionException: Error opening database: "Sleep interrupted" [8000-214]
+	at org.h2.message.DbException.getJdbcSQLException(DbException.java:504)
+	at org.h2.message.DbException.getJdbcSQLException(DbException.java:477)
+	... 20 more
+Caused by: java.lang.InterruptedException: sleep interrupted
+	at java.base/java.lang.Thread.sleep(Native Method)
+	at org.h2.store.FileLock.sleep(FileLock.java:422)
+	... 17 more
+2024-01-26 13:47:25 database: opening /opt/keycloak/data/h2/keycloakdb
+org.h2.message.DbException: Error opening database: "Sleep interrupted" [8000-214]
+	at org.h2.message.DbException.get(DbException.java:212)
+	at org.h2.store.FileLock.getExceptionFatal(FileLock.java:429)
+	at org.h2.store.FileLock.sleep(FileLock.java:424)
+	at org.h2.store.FileLock.lockFile(FileLock.java:324)
+	at org.h2.store.FileLock.lock(FileLock.java:110)
+	at org.h2.engine.Database.<init>(Database.java:315)
+	at org.h2.engine.Engine.openSession(Engine.java:92)
+	at org.h2.engine.Engine.openSession(Engine.java:222)
+	at org.h2.engine.Engine.createSession(Engine.java:201)
+	at org.h2.engine.SessionRemote.connectEmbeddedOrServer(SessionRemote.java:338)
+	at org.h2.jdbc.JdbcConnection.<init>(JdbcConnection.java:122)
+	at org.h2.jdbcx.JdbcDataSource.getXAConnection(JdbcDataSource.java:322)
+	at io.agroal.pool.ConnectionFactory.createConnection(ConnectionFactory.java:232)
+	at io.agroal.pool.ConnectionPool$CreateConnectionTask.call(ConnectionPool.java:535)
+	at io.agroal.pool.ConnectionPool$CreateConnectionTask.call(ConnectionPool.java:516)
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:264)
+	at io.agroal.pool.util.PriorityScheduledExecutor.beforeExecute(PriorityScheduledExecutor.java:75)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1126)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:628)
+	at java.base/java.lang.Thread.run(Thread.java:829)
+Caused by: org.h2.jdbc.JdbcSQLNonTransientConnectionException: Error opening database: "Sleep interrupted" [8000-214]
+	at org.h2.message.DbException.getJdbcSQLException(DbException.java:504)
+	at org.h2.message.DbException.getJdbcSQLException(DbException.java:477)
+	... 20 more
+Caused by: java.lang.InterruptedException: sleep interrupted
+	at java.base/java.lang.Thread.sleep(Native Method)
+	at org.h2.store.FileLock.sleep(FileLock.java:422)
+	... 17 more
+2024-02-12 10:26:47 database: flush
+org.h2.message.DbException: General error: "org.h2.mvstore.MVStoreException: Could not open file /opt/keycloak/data/h2/keycloakdb.mv.db [2.1.214/1]" [50000-214]
+	at org.h2.message.DbException.get(DbException.java:212)
+	at org.h2.message.DbException.convert(DbException.java:395)
+	at org.h2.mvstore.db.Store.lambda$new$0(Store.java:125)
+	at org.h2.mvstore.MVStore.handleException(MVStore.java:3318)
+	at org.h2.mvstore.MVStore.panic(MVStore.java:593)
+	at org.h2.mvstore.MVStore.<init>(MVStore.java:469)
+	at org.h2.mvstore.MVStore$Builder.open(MVStore.java:4082)
+	at org.h2.mvstore.db.Store.<init>(Store.java:136)
+	at org.h2.engine.Database.<init>(Database.java:324)
+	at org.h2.engine.Engine.openSession(Engine.java:92)
+	at org.h2.engine.Engine.openSession(Engine.java:222)
+	at org.h2.engine.Engine.createSession(Engine.java:201)
+	at org.h2.engine.SessionRemote.connectEmbeddedOrServer(SessionRemote.java:338)
+	at org.h2.jdbc.JdbcConnection.<init>(JdbcConnection.java:122)
+	at org.h2.jdbcx.JdbcDataSource.getXAConnection(JdbcDataSource.java:322)
+	at io.agroal.pool.ConnectionFactory.createConnection(ConnectionFactory.java:232)
+	at io.agroal.pool.ConnectionPool$CreateConnectionTask.call(ConnectionPool.java:535)
+	at io.agroal.pool.ConnectionPool$CreateConnectionTask.call(ConnectionPool.java:516)
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:264)
+	at io.agroal.pool.util.PriorityScheduledExecutor.beforeExecute(PriorityScheduledExecutor.java:75)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1126)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:628)
+	at java.base/java.lang.Thread.run(Thread.java:829)
+Caused by: org.h2.jdbc.JdbcSQLNonTransientException: General error: "org.h2.mvstore.MVStoreException: Could not open file /opt/keycloak/data/h2/keycloakdb.mv.db [2.1.214/1]" [50000-214]
+	at org.h2.message.DbException.getJdbcSQLException(DbException.java:554)
+	at org.h2.message.DbException.getJdbcSQLException(DbException.java:477)
+	... 23 more
+Caused by: org.h2.mvstore.MVStoreException: Could not open file /opt/keycloak/data/h2/keycloakdb.mv.db [2.1.214/1]
+	at org.h2.mvstore.DataUtils.newMVStoreException(DataUtils.java:1004)
+	at org.h2.mvstore.FileStore.open(FileStore.java:185)
+	at org.h2.mvstore.FileStore.open(FileStore.java:128)
+	at org.h2.mvstore.MVStore.<init>(MVStore.java:452)
+	... 17 more
+Caused by: java.nio.channels.ClosedByInterruptException
+	at java.base/java.nio.channels.spi.AbstractInterruptibleChannel.end(AbstractInterruptibleChannel.java:199)
+	at java.base/sun.nio.ch.FileChannelImpl.endBlocking(FileChannelImpl.java:162)
+	at java.base/sun.nio.ch.FileChannelImpl.size(FileChannelImpl.java:388)
+	at org.h2.mvstore.FileStore.open(FileStore.java:182)
+	... 19 more
+2024-02-12 10:26:47 database: opening /opt/keycloak/data/h2/keycloakdb
+org.h2.message.DbException: IO Exception: "/opt/keycloak/data/h2/keycloakdb.mv.db" [90028-214]
+	at org.h2.message.DbException.get(DbException.java:212)
+	at org.h2.mvstore.db.Store.convertMVStoreException(Store.java:171)
+	at org.h2.mvstore.db.Store.<init>(Store.java:145)
+	at org.h2.engine.Database.<init>(Database.java:324)
+	at org.h2.engine.Engine.openSession(Engine.java:92)
+	at org.h2.engine.Engine.openSession(Engine.java:222)
+	at org.h2.engine.Engine.createSession(Engine.java:201)
+	at org.h2.engine.SessionRemote.connectEmbeddedOrServer(SessionRemote.java:338)
+	at org.h2.jdbc.JdbcConnection.<init>(JdbcConnection.java:122)
+	at org.h2.jdbcx.JdbcDataSource.getXAConnection(JdbcDataSource.java:322)
+	at io.agroal.pool.ConnectionFactory.createConnection(ConnectionFactory.java:232)
+	at io.agroal.pool.ConnectionPool$CreateConnectionTask.call(ConnectionPool.java:535)
+	at io.agroal.pool.ConnectionPool$CreateConnectionTask.call(ConnectionPool.java:516)
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:264)
+	at io.agroal.pool.util.PriorityScheduledExecutor.beforeExecute(PriorityScheduledExecutor.java:75)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1126)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:628)
+	at java.base/java.lang.Thread.run(Thread.java:829)
+Caused by: org.h2.jdbc.JdbcSQLNonTransientException: IO Exception: "/opt/keycloak/data/h2/keycloakdb.mv.db" [90028-214]
+	at org.h2.message.DbException.getJdbcSQLException(DbException.java:554)
+	at org.h2.message.DbException.getJdbcSQLException(DbException.java:477)
+	... 18 more
+Caused by: org.h2.mvstore.MVStoreException: Could not open file /opt/keycloak/data/h2/keycloakdb.mv.db [2.1.214/1]
+	at org.h2.mvstore.DataUtils.newMVStoreException(DataUtils.java:1004)
+	at org.h2.mvstore.FileStore.open(FileStore.java:185)
+	at org.h2.mvstore.FileStore.open(FileStore.java:128)
+	at org.h2.mvstore.MVStore.<init>(MVStore.java:452)
+	at org.h2.mvstore.MVStore$Builder.open(MVStore.java:4082)
+	at org.h2.mvstore.db.Store.<init>(Store.java:136)
+	... 15 more
+Caused by: java.nio.channels.ClosedByInterruptException
+	at java.base/java.nio.channels.spi.AbstractInterruptibleChannel.end(AbstractInterruptibleChannel.java:199)
+	at java.base/sun.nio.ch.FileChannelImpl.endBlocking(FileChannelImpl.java:162)
+	at java.base/sun.nio.ch.FileChannelImpl.size(FileChannelImpl.java:388)
+	at org.h2.mvstore.FileStore.open(FileStore.java:182)
+	... 19 more
+2024-02-12 10:27:28 database: opening /opt/keycloak/data/h2/keycloakdb
+org.h2.message.DbException: Error opening database: "Sleep interrupted" [8000-214]
+	at org.h2.message.DbException.get(DbException.java:212)
+	at org.h2.store.FileLock.getExceptionFatal(FileLock.java:429)
+	at org.h2.store.FileLock.sleep(FileLock.java:424)
+	at org.h2.store.FileLock.lockFile(FileLock.java:334)
+	at org.h2.store.FileLock.lock(FileLock.java:110)
+	at org.h2.engine.Database.<init>(Database.java:315)
+	at org.h2.engine.Engine.openSession(Engine.java:92)
+	at org.h2.engine.Engine.openSession(Engine.java:222)
+	at org.h2.engine.Engine.createSession(Engine.java:201)
+	at org.h2.engine.SessionRemote.connectEmbeddedOrServer(SessionRemote.java:338)
+	at org.h2.jdbc.JdbcConnection.<init>(JdbcConnection.java:122)
+	at org.h2.jdbcx.JdbcDataSource.getXAConnection(JdbcDataSource.java:322)
+	at io.agroal.pool.ConnectionFactory.createConnection(ConnectionFactory.java:232)
+	at io.agroal.pool.ConnectionPool$CreateConnectionTask.call(ConnectionPool.java:535)
+	at io.agroal.pool.ConnectionPool$CreateConnectionTask.call(ConnectionPool.java:516)
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:264)
+	at io.agroal.pool.util.PriorityScheduledExecutor.beforeExecute(PriorityScheduledExecutor.java:75)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1126)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:628)
+	at java.base/java.lang.Thread.run(Thread.java:829)
+Caused by: org.h2.jdbc.JdbcSQLNonTransientConnectionException: Error opening database: "Sleep interrupted" [8000-214]
+	at org.h2.message.DbException.getJdbcSQLException(DbException.java:504)
+	at org.h2.message.DbException.getJdbcSQLException(DbException.java:477)
+	... 20 more
+Caused by: java.lang.InterruptedException: sleep interrupted
+	at java.base/java.lang.Thread.sleep(Native Method)
+	at org.h2.store.FileLock.sleep(FileLock.java:422)
+	... 17 more
+2024-02-22 08:01:18 database: flush
+org.h2.message.DbException: General error: "org.h2.mvstore.MVStoreException: Could not open file /opt/keycloak/data/h2/keycloakdb.mv.db [2.1.214/1]" [50000-214]
+	at org.h2.message.DbException.get(DbException.java:212)
+	at org.h2.message.DbException.convert(DbException.java:395)
+	at org.h2.mvstore.db.Store.lambda$new$0(Store.java:125)
+	at org.h2.mvstore.MVStore.handleException(MVStore.java:3318)
+	at org.h2.mvstore.MVStore.panic(MVStore.java:593)
+	at org.h2.mvstore.MVStore.<init>(MVStore.java:469)
+	at org.h2.mvstore.MVStore$Builder.open(MVStore.java:4082)
+	at org.h2.mvstore.db.Store.<init>(Store.java:136)
+	at org.h2.engine.Database.<init>(Database.java:324)
+	at org.h2.engine.Engine.openSession(Engine.java:92)
+	at org.h2.engine.Engine.openSession(Engine.java:222)
+	at org.h2.engine.Engine.createSession(Engine.java:201)
+	at org.h2.engine.SessionRemote.connectEmbeddedOrServer(SessionRemote.java:338)
+	at org.h2.jdbc.JdbcConnection.<init>(JdbcConnection.java:122)
+	at org.h2.jdbcx.JdbcDataSource.getXAConnection(JdbcDataSource.java:322)
+	at io.agroal.pool.ConnectionFactory.createConnection(ConnectionFactory.java:232)
+	at io.agroal.pool.ConnectionPool$CreateConnectionTask.call(ConnectionPool.java:535)
+	at io.agroal.pool.ConnectionPool$CreateConnectionTask.call(ConnectionPool.java:516)
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:264)
+	at io.agroal.pool.util.PriorityScheduledExecutor.beforeExecute(PriorityScheduledExecutor.java:75)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1126)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:628)
+	at java.base/java.lang.Thread.run(Thread.java:829)
+Caused by: org.h2.jdbc.JdbcSQLNonTransientException: General error: "org.h2.mvstore.MVStoreException: Could not open file /opt/keycloak/data/h2/keycloakdb.mv.db [2.1.214/1]" [50000-214]
+	at org.h2.message.DbException.getJdbcSQLException(DbException.java:554)
+	at org.h2.message.DbException.getJdbcSQLException(DbException.java:477)
+	... 23 more
+Caused by: org.h2.mvstore.MVStoreException: Could not open file /opt/keycloak/data/h2/keycloakdb.mv.db [2.1.214/1]
+	at org.h2.mvstore.DataUtils.newMVStoreException(DataUtils.java:1004)
+	at org.h2.mvstore.FileStore.open(FileStore.java:185)
+	at org.h2.mvstore.FileStore.open(FileStore.java:128)
+	at org.h2.mvstore.MVStore.<init>(MVStore.java:452)
+	... 17 more
+Caused by: java.nio.channels.ClosedByInterruptException
+	at java.base/java.nio.channels.spi.AbstractInterruptibleChannel.end(AbstractInterruptibleChannel.java:199)
+	at java.base/sun.nio.ch.FileChannelImpl.endBlocking(FileChannelImpl.java:162)
+	at java.base/sun.nio.ch.FileChannelImpl.size(FileChannelImpl.java:388)
+	at org.h2.mvstore.FileStore.open(FileStore.java:182)
+	... 19 more
+2024-02-22 08:01:19 database: opening /opt/keycloak/data/h2/keycloakdb
+org.h2.message.DbException: IO Exception: "/opt/keycloak/data/h2/keycloakdb.mv.db" [90028-214]
+	at org.h2.message.DbException.get(DbException.java:212)
+	at org.h2.mvstore.db.Store.convertMVStoreException(Store.java:171)
+	at org.h2.mvstore.db.Store.<init>(Store.java:145)
+	at org.h2.engine.Database.<init>(Database.java:324)
+	at org.h2.engine.Engine.openSession(Engine.java:92)
+	at org.h2.engine.Engine.openSession(Engine.java:222)
+	at org.h2.engine.Engine.createSession(Engine.java:201)
+	at org.h2.engine.SessionRemote.connectEmbeddedOrServer(SessionRemote.java:338)
+	at org.h2.jdbc.JdbcConnection.<init>(JdbcConnection.java:122)
+	at org.h2.jdbcx.JdbcDataSource.getXAConnection(JdbcDataSource.java:322)
+	at io.agroal.pool.ConnectionFactory.createConnection(ConnectionFactory.java:232)
+	at io.agroal.pool.ConnectionPool$CreateConnectionTask.call(ConnectionPool.java:535)
+	at io.agroal.pool.ConnectionPool$CreateConnectionTask.call(ConnectionPool.java:516)
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:264)
+	at io.agroal.pool.util.PriorityScheduledExecutor.beforeExecute(PriorityScheduledExecutor.java:75)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1126)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:628)
+	at java.base/java.lang.Thread.run(Thread.java:829)
+Caused by: org.h2.jdbc.JdbcSQLNonTransientException: IO Exception: "/opt/keycloak/data/h2/keycloakdb.mv.db" [90028-214]
+	at org.h2.message.DbException.getJdbcSQLException(DbException.java:554)
+	at org.h2.message.DbException.getJdbcSQLException(DbException.java:477)
+	... 18 more
+Caused by: org.h2.mvstore.MVStoreException: Could not open file /opt/keycloak/data/h2/keycloakdb.mv.db [2.1.214/1]
+	at org.h2.mvstore.DataUtils.newMVStoreException(DataUtils.java:1004)
+	at org.h2.mvstore.FileStore.open(FileStore.java:185)
+	at org.h2.mvstore.FileStore.open(FileStore.java:128)
+	at org.h2.mvstore.MVStore.<init>(MVStore.java:452)
+	at org.h2.mvstore.MVStore$Builder.open(MVStore.java:4082)
+	at org.h2.mvstore.db.Store.<init>(Store.java:136)
+	... 15 more
+Caused by: java.nio.channels.ClosedByInterruptException
+	at java.base/java.nio.channels.spi.AbstractInterruptibleChannel.end(AbstractInterruptibleChannel.java:199)
+	at java.base/sun.nio.ch.FileChannelImpl.endBlocking(FileChannelImpl.java:162)
+	at java.base/sun.nio.ch.FileChannelImpl.size(FileChannelImpl.java:388)
+	at org.h2.mvstore.FileStore.open(FileStore.java:182)
+	... 19 more
+2024-02-22 08:01:20 database: opening /opt/keycloak/data/h2/keycloakdb
+org.h2.message.DbException: Error opening database: "Sleep interrupted" [8000-214]
+	at org.h2.message.DbException.get(DbException.java:212)
+	at org.h2.store.FileLock.getExceptionFatal(FileLock.java:429)
+	at org.h2.store.FileLock.sleep(FileLock.java:424)
+	at org.h2.store.FileLock.lockFile(FileLock.java:334)
+	at org.h2.store.FileLock.lock(FileLock.java:110)
+	at org.h2.engine.Database.<init>(Database.java:315)
+	at org.h2.engine.Engine.openSession(Engine.java:92)
+	at org.h2.engine.Engine.openSession(Engine.java:222)
+	at org.h2.engine.Engine.createSession(Engine.java:201)
+	at org.h2.engine.SessionRemote.connectEmbeddedOrServer(SessionRemote.java:338)
+	at org.h2.jdbc.JdbcConnection.<init>(JdbcConnection.java:122)
+	at org.h2.jdbcx.JdbcDataSource.getXAConnection(JdbcDataSource.java:322)
+	at io.agroal.pool.ConnectionFactory.createConnection(ConnectionFactory.java:232)
+	at io.agroal.pool.ConnectionPool$CreateConnectionTask.call(ConnectionPool.java:535)
+	at io.agroal.pool.ConnectionPool$CreateConnectionTask.call(ConnectionPool.java:516)
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:264)
+	at io.agroal.pool.util.PriorityScheduledExecutor.beforeExecute(PriorityScheduledExecutor.java:75)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1126)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:628)
+	at java.base/java.lang.Thread.run(Thread.java:829)
+Caused by: org.h2.jdbc.JdbcSQLNonTransientConnectionException: Error opening database: "Sleep interrupted" [8000-214]
+	at org.h2.message.DbException.getJdbcSQLException(DbException.java:504)
+	at org.h2.message.DbException.getJdbcSQLException(DbException.java:477)
+	... 20 more
+Caused by: java.lang.InterruptedException: sleep interrupted
+	at java.base/java.lang.Thread.sleep(Native Method)
+	at org.h2.store.FileLock.sleep(FileLock.java:422)
+	... 17 more
+2024-02-22 08:01:28 database: opening /opt/keycloak/data/h2/keycloakdb
+org.h2.message.DbException: Error opening database: "Sleep interrupted" [8000-214]
+	at org.h2.message.DbException.get(DbException.java:212)
+	at org.h2.store.FileLock.getExceptionFatal(FileLock.java:429)
+	at org.h2.store.FileLock.sleep(FileLock.java:424)
+	at org.h2.store.FileLock.lockFile(FileLock.java:324)
+	at org.h2.store.FileLock.lock(FileLock.java:110)
+	at org.h2.engine.Database.<init>(Database.java:315)
+	at org.h2.engine.Engine.openSession(Engine.java:92)
+	at org.h2.engine.Engine.openSession(Engine.java:222)
+	at org.h2.engine.Engine.createSession(Engine.java:201)
+	at org.h2.engine.SessionRemote.connectEmbeddedOrServer(SessionRemote.java:338)
+	at org.h2.jdbc.JdbcConnection.<init>(JdbcConnection.java:122)
+	at org.h2.jdbcx.JdbcDataSource.getXAConnection(JdbcDataSource.java:322)
+	at io.agroal.pool.ConnectionFactory.createConnection(ConnectionFactory.java:232)
+	at io.agroal.pool.ConnectionPool$CreateConnectionTask.call(ConnectionPool.java:535)
+	at io.agroal.pool.ConnectionPool$CreateConnectionTask.call(ConnectionPool.java:516)
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:264)
+	at io.agroal.pool.util.PriorityScheduledExecutor.beforeExecute(PriorityScheduledExecutor.java:75)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1126)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:628)
+	at java.base/java.lang.Thread.run(Thread.java:829)
+Caused by: org.h2.jdbc.JdbcSQLNonTransientConnectionException: Error opening database: "Sleep interrupted" [8000-214]
+	at org.h2.message.DbException.getJdbcSQLException(DbException.java:504)
+	at org.h2.message.DbException.getJdbcSQLException(DbException.java:477)
+	... 20 more
+Caused by: java.lang.InterruptedException: sleep interrupted
+	at java.base/java.lang.Thread.sleep(Native Method)
+	at org.h2.store.FileLock.sleep(FileLock.java:422)
+	... 17 more
+2024-02-22 08:01:33 database: opening /opt/keycloak/data/h2/keycloakdb
+org.h2.message.DbException: Error opening database: "Sleep interrupted" [8000-214]
+	at org.h2.message.DbException.get(DbException.java:212)
+	at org.h2.store.FileLock.getExceptionFatal(FileLock.java:429)
+	at org.h2.store.FileLock.sleep(FileLock.java:424)
+	at org.h2.store.FileLock.lockFile(FileLock.java:324)
+	at org.h2.store.FileLock.lock(FileLock.java:110)
+	at org.h2.engine.Database.<init>(Database.java:315)
+	at org.h2.engine.Engine.openSession(Engine.java:92)
+	at org.h2.engine.Engine.openSession(Engine.java:222)
+	at org.h2.engine.Engine.createSession(Engine.java:201)
+	at org.h2.engine.SessionRemote.connectEmbeddedOrServer(SessionRemote.java:338)
+	at org.h2.jdbc.JdbcConnection.<init>(JdbcConnection.java:122)
+	at org.h2.jdbcx.JdbcDataSource.getXAConnection(JdbcDataSource.java:322)
+	at io.agroal.pool.ConnectionFactory.createConnection(ConnectionFactory.java:232)
+	at io.agroal.pool.ConnectionPool$CreateConnectionTask.call(ConnectionPool.java:535)
+	at io.agroal.pool.ConnectionPool$CreateConnectionTask.call(ConnectionPool.java:516)
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:264)
+	at io.agroal.pool.util.PriorityScheduledExecutor.beforeExecute(PriorityScheduledExecutor.java:75)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1126)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:628)
+	at java.base/java.lang.Thread.run(Thread.java:829)
+Caused by: org.h2.jdbc.JdbcSQLNonTransientConnectionException: Error opening database: "Sleep interrupted" [8000-214]
+	at org.h2.message.DbException.getJdbcSQLException(DbException.java:504)
+	at org.h2.message.DbException.getJdbcSQLException(DbException.java:477)
+	... 20 more
+Caused by: java.lang.InterruptedException: sleep interrupted
+	at java.base/java.lang.Thread.sleep(Native Method)
+	at org.h2.store.FileLock.sleep(FileLock.java:422)
+	... 17 more
+2024-02-22 11:15:51 database: CREATE CACHED TABLE "PUBLIC"."PROTOCOL_MAPPER"(
+    "ID" CHARACTER VARYING(36) NOT NULL,
+    "NAME" CHARACTER VARYING(255) NOT NULL,
+    "PROTOCOL" CHARACTER VARYING(255) NOT NULL,
+    "PROTOCOL_MAPPER_NAME" CHARACTER VARYING(255) NOT NULL,
+    "CLIENT_ID" CHARACTER VARYING(36),
+    "CLIENT_SCOPE_ID" CHARACTER VARYING(36)
+)
+org.h2.jdbc.JdbcSQLNonTransientException: IO Exception: "/opt/keycloak/data/h2/keycloakdb.mv.db"; SQL statement:
+CREATE CACHED TABLE "PUBLIC"."PROTOCOL_MAPPER"(
+    "ID" CHARACTER VARYING(36) NOT NULL,
+    "NAME" CHARACTER VARYING(255) NOT NULL,
+    "PROTOCOL" CHARACTER VARYING(255) NOT NULL,
+    "PROTOCOL_MAPPER_NAME" CHARACTER VARYING(255) NOT NULL,
+    "CLIENT_ID" CHARACTER VARYING(36),
+    "CLIENT_SCOPE_ID" CHARACTER VARYING(36)
+) [90028-214]
+	at org.h2.message.DbException.getJdbcSQLException(DbException.java:554)
+	at org.h2.message.DbException.getJdbcSQLException(DbException.java:477)
+	at org.h2.message.DbException.get(DbException.java:212)
+	at org.h2.mvstore.db.Store.convertMVStoreException(Store.java:171)
+	at org.h2.mvstore.db.Store.createTable(Store.java:223)
+	at org.h2.schema.Schema.createTable(Schema.java:776)
+	at org.h2.command.ddl.CreateTable.update(CreateTable.java:112)
+	at org.h2.engine.MetaRecord.prepareAndExecute(MetaRecord.java:77)
+	at org.h2.engine.Database.executeMeta(Database.java:660)
+	at org.h2.engine.Database.executeMeta(Database.java:634)
+	at org.h2.engine.Database.<init>(Database.java:357)
+	at org.h2.engine.Engine.openSession(Engine.java:92)
+	at org.h2.engine.Engine.openSession(Engine.java:222)
+	at org.h2.engine.Engine.createSession(Engine.java:201)
+	at org.h2.engine.SessionRemote.connectEmbeddedOrServer(SessionRemote.java:338)
+	at org.h2.jdbc.JdbcConnection.<init>(JdbcConnection.java:122)
+	at org.h2.jdbcx.JdbcDataSource.getXAConnection(JdbcDataSource.java:322)
+	at io.agroal.pool.ConnectionFactory.createConnection(ConnectionFactory.java:232)
+	at io.agroal.pool.ConnectionPool$CreateConnectionTask.call(ConnectionPool.java:535)
+	at io.agroal.pool.ConnectionPool$CreateConnectionTask.call(ConnectionPool.java:516)
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:264)
+	at io.agroal.pool.util.PriorityScheduledExecutor.beforeExecute(PriorityScheduledExecutor.java:75)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1126)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:628)
+	at java.base/java.lang.Thread.run(Thread.java:829)
+Caused by: org.h2.mvstore.MVStoreException: Reading from file sun.nio.ch.FileChannelImpl@7a10a440 failed at 1244913 (length -1), read 32, remaining 0 [2.1.214/1]
+	at org.h2.mvstore.DataUtils.newMVStoreException(DataUtils.java:1004)
+	at org.h2.mvstore.DataUtils.readFully(DataUtils.java:470)
+	at org.h2.mvstore.FileStore.readFully(FileStore.java:98)
+	at org.h2.mvstore.Chunk.readBufferForPage(Chunk.java:422)
+	at org.h2.mvstore.MVStore.readPage(MVStore.java:2569)
+	at org.h2.mvstore.MVMap.readPage(MVMap.java:633)
+	at org.h2.mvstore.MVMap.readOrCreateRootPage(MVMap.java:658)
+	at org.h2.mvstore.MVMap.setRootPos(MVMap.java:643)
+	at org.h2.mvstore.MVStore.openMap(MVStore.java:702)
+	at org.h2.mvstore.MVStore.openMap(MVStore.java:648)
+	at org.h2.mvstore.tx.TransactionStore.openMap(TransactionStore.java:564)
+	at org.h2.mvstore.tx.TransactionStore.openVersionedMap(TransactionStore.java:550)
+	at org.h2.mvstore.tx.Transaction.openMap(Transaction.java:456)
+	at org.h2.mvstore.db.MVPrimaryIndex.<init>(MVPrimaryIndex.java:53)
+	at org.h2.mvstore.db.MVTable.<init>(MVTable.java:156)
+	at org.h2.mvstore.db.Store.createTable(Store.java:219)
+	... 20 more
+Caused by: java.nio.channels.ClosedByInterruptException
+	at java.base/java.nio.channels.spi.AbstractInterruptibleChannel.end(AbstractInterruptibleChannel.java:199)
+	at java.base/sun.nio.ch.FileChannelImpl.endBlocking(FileChannelImpl.java:162)
+	at java.base/sun.nio.ch.FileChannelImpl.readInternal(FileChannelImpl.java:816)
+	at java.base/sun.nio.ch.FileChannelImpl.read(FileChannelImpl.java:796)
+	at org.h2.mvstore.DataUtils.readFully(DataUtils.java:456)
+	... 34 more
+2024-02-22 11:15:53 database: opening /opt/keycloak/data/h2/keycloakdb
+org.h2.message.DbException: IO Exception: "/opt/keycloak/data/h2/keycloakdb.mv.db" [90028-214]
+	at org.h2.message.DbException.get(DbException.java:212)
+	at org.h2.mvstore.db.Store.convertMVStoreException(Store.java:171)
+	at org.h2.mvstore.db.Store.createTable(Store.java:223)
+	at org.h2.schema.Schema.createTable(Schema.java:776)
+	at org.h2.command.ddl.CreateTable.update(CreateTable.java:112)
+	at org.h2.engine.MetaRecord.prepareAndExecute(MetaRecord.java:77)
+	at org.h2.engine.Database.executeMeta(Database.java:660)
+	at org.h2.engine.Database.executeMeta(Database.java:634)
+	at org.h2.engine.Database.<init>(Database.java:357)
+	at org.h2.engine.Engine.openSession(Engine.java:92)
+	at org.h2.engine.Engine.openSession(Engine.java:222)
+	at org.h2.engine.Engine.createSession(Engine.java:201)
+	at org.h2.engine.SessionRemote.connectEmbeddedOrServer(SessionRemote.java:338)
+	at org.h2.jdbc.JdbcConnection.<init>(JdbcConnection.java:122)
+	at org.h2.jdbcx.JdbcDataSource.getXAConnection(JdbcDataSource.java:322)
+	at io.agroal.pool.ConnectionFactory.createConnection(ConnectionFactory.java:232)
+	at io.agroal.pool.ConnectionPool$CreateConnectionTask.call(ConnectionPool.java:535)
+	at io.agroal.pool.ConnectionPool$CreateConnectionTask.call(ConnectionPool.java:516)
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:264)
+	at io.agroal.pool.util.PriorityScheduledExecutor.beforeExecute(PriorityScheduledExecutor.java:75)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1126)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:628)
+	at java.base/java.lang.Thread.run(Thread.java:829)
+Caused by: org.h2.jdbc.JdbcSQLNonTransientException: IO Exception: "/opt/keycloak/data/h2/keycloakdb.mv.db"; SQL statement:
+CREATE CACHED TABLE "PUBLIC"."PROTOCOL_MAPPER"(
+    "ID" CHARACTER VARYING(36) NOT NULL,
+    "NAME" CHARACTER VARYING(255) NOT NULL,
+    "PROTOCOL" CHARACTER VARYING(255) NOT NULL,
+    "PROTOCOL_MAPPER_NAME" CHARACTER VARYING(255) NOT NULL,
+    "CLIENT_ID" CHARACTER VARYING(36),
+    "CLIENT_SCOPE_ID" CHARACTER VARYING(36)
+) [90028-214]
+	at org.h2.message.DbException.getJdbcSQLException(DbException.java:554)
+	at org.h2.message.DbException.getJdbcSQLException(DbException.java:477)
+	... 23 more
+Caused by: org.h2.mvstore.MVStoreException: Reading from file sun.nio.ch.FileChannelImpl@7a10a440 failed at 1244913 (length -1), read 32, remaining 0 [2.1.214/1]
+	at org.h2.mvstore.DataUtils.newMVStoreException(DataUtils.java:1004)
+	at org.h2.mvstore.DataUtils.readFully(DataUtils.java:470)
+	at org.h2.mvstore.FileStore.readFully(FileStore.java:98)
+	at org.h2.mvstore.Chunk.readBufferForPage(Chunk.java:422)
+	at org.h2.mvstore.MVStore.readPage(MVStore.java:2569)
+	at org.h2.mvstore.MVMap.readPage(MVMap.java:633)
+	at org.h2.mvstore.MVMap.readOrCreateRootPage(MVMap.java:658)
+	at org.h2.mvstore.MVMap.setRootPos(MVMap.java:643)
+	at org.h2.mvstore.MVStore.openMap(MVStore.java:702)
+	at org.h2.mvstore.MVStore.openMap(MVStore.java:648)
+	at org.h2.mvstore.tx.TransactionStore.openMap(TransactionStore.java:564)
+	at org.h2.mvstore.tx.TransactionStore.openVersionedMap(TransactionStore.java:550)
+	at org.h2.mvstore.tx.Transaction.openMap(Transaction.java:456)
+	at org.h2.mvstore.db.MVPrimaryIndex.<init>(MVPrimaryIndex.java:53)
+	at org.h2.mvstore.db.MVTable.<init>(MVTable.java:156)
+	at org.h2.mvstore.db.Store.createTable(Store.java:219)
+	... 20 more
+Caused by: java.nio.channels.ClosedByInterruptException
+	at java.base/java.nio.channels.spi.AbstractInterruptibleChannel.end(AbstractInterruptibleChannel.java:199)
+	at java.base/sun.nio.ch.FileChannelImpl.endBlocking(FileChannelImpl.java:162)
+	at java.base/sun.nio.ch.FileChannelImpl.readInternal(FileChannelImpl.java:816)
+	at java.base/sun.nio.ch.FileChannelImpl.read(FileChannelImpl.java:796)
+	at org.h2.mvstore.DataUtils.readFully(DataUtils.java:456)
+	... 34 more
+2024-02-22 11:15:58 database: opening /opt/keycloak/data/h2/keycloakdb
+org.h2.message.DbException: Error opening database: "Sleep interrupted" [8000-214]
+	at org.h2.message.DbException.get(DbException.java:212)
+	at org.h2.store.FileLock.getExceptionFatal(FileLock.java:429)
+	at org.h2.store.FileLock.sleep(FileLock.java:424)
+	at org.h2.store.FileLock.lockFile(FileLock.java:334)
+	at org.h2.store.FileLock.lock(FileLock.java:110)
+	at org.h2.engine.Database.<init>(Database.java:315)
+	at org.h2.engine.Engine.openSession(Engine.java:92)
+	at org.h2.engine.Engine.openSession(Engine.java:222)
+	at org.h2.engine.Engine.createSession(Engine.java:201)
+	at org.h2.engine.SessionRemote.connectEmbeddedOrServer(SessionRemote.java:338)
+	at org.h2.jdbc.JdbcConnection.<init>(JdbcConnection.java:122)
+	at org.h2.jdbcx.JdbcDataSource.getXAConnection(JdbcDataSource.java:322)
+	at io.agroal.pool.ConnectionFactory.createConnection(ConnectionFactory.java:232)
+	at io.agroal.pool.ConnectionPool$CreateConnectionTask.call(ConnectionPool.java:535)
+	at io.agroal.pool.ConnectionPool$CreateConnectionTask.call(ConnectionPool.java:516)
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:264)
+	at io.agroal.pool.util.PriorityScheduledExecutor.beforeExecute(PriorityScheduledExecutor.java:75)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1126)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:628)
+	at java.base/java.lang.Thread.run(Thread.java:829)
+Caused by: org.h2.jdbc.JdbcSQLNonTransientConnectionException: Error opening database: "Sleep interrupted" [8000-214]
+	at org.h2.message.DbException.getJdbcSQLException(DbException.java:504)
+	at org.h2.message.DbException.getJdbcSQLException(DbException.java:477)
+	... 20 more
+Caused by: java.lang.InterruptedException: sleep interrupted
+	at java.base/java.lang.Thread.sleep(Native Method)
+	at org.h2.store.FileLock.sleep(FileLock.java:422)
+	... 17 more
+2024-02-22 14:54:34 database: opening /opt/keycloak/data/h2/keycloakdb
+org.h2.message.DbException: Error opening database: "Sleep interrupted" [8000-214]
+	at org.h2.message.DbException.get(DbException.java:212)
+	at org.h2.store.FileLock.getExceptionFatal(FileLock.java:429)
+	at org.h2.store.FileLock.sleep(FileLock.java:424)
+	at org.h2.store.FileLock.lockFile(FileLock.java:334)
+	at org.h2.store.FileLock.lock(FileLock.java:110)
+	at org.h2.engine.Database.<init>(Database.java:315)
+	at org.h2.engine.Engine.openSession(Engine.java:92)
+	at org.h2.engine.Engine.openSession(Engine.java:222)
+	at org.h2.engine.Engine.createSession(Engine.java:201)
+	at org.h2.engine.SessionRemote.connectEmbeddedOrServer(SessionRemote.java:338)
+	at org.h2.jdbc.JdbcConnection.<init>(JdbcConnection.java:122)
+	at org.h2.jdbcx.JdbcDataSource.getXAConnection(JdbcDataSource.java:322)
+	at io.agroal.pool.ConnectionFactory.createConnection(ConnectionFactory.java:232)
+	at io.agroal.pool.ConnectionPool$CreateConnectionTask.call(ConnectionPool.java:535)
+	at io.agroal.pool.ConnectionPool$CreateConnectionTask.call(ConnectionPool.java:516)
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:264)
+	at io.agroal.pool.util.PriorityScheduledExecutor.beforeExecute(PriorityScheduledExecutor.java:75)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1126)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:628)
+	at java.base/java.lang.Thread.run(Thread.java:829)
+Caused by: org.h2.jdbc.JdbcSQLNonTransientConnectionException: Error opening database: "Sleep interrupted" [8000-214]
+	at org.h2.message.DbException.getJdbcSQLException(DbException.java:504)
+	at org.h2.message.DbException.getJdbcSQLException(DbException.java:477)
+	... 20 more
+Caused by: java.lang.InterruptedException: sleep interrupted
+	at java.base/java.lang.Thread.sleep(Native Method)
+	at org.h2.store.FileLock.sleep(FileLock.java:422)
+	... 17 more
+2024-02-22 14:54:47 database: opening /opt/keycloak/data/h2/keycloakdb
+org.h2.message.DbException: Error opening database: "Sleep interrupted" [8000-214]
+	at org.h2.message.DbException.get(DbException.java:212)
+	at org.h2.store.FileLock.getExceptionFatal(FileLock.java:429)
+	at org.h2.store.FileLock.sleep(FileLock.java:424)
+	at org.h2.store.FileLock.lockFile(FileLock.java:324)
+	at org.h2.store.FileLock.lock(FileLock.java:110)
+	at org.h2.engine.Database.<init>(Database.java:315)
+	at org.h2.engine.Engine.openSession(Engine.java:92)
+	at org.h2.engine.Engine.openSession(Engine.java:222)
+	at org.h2.engine.Engine.createSession(Engine.java:201)
+	at org.h2.engine.SessionRemote.connectEmbeddedOrServer(SessionRemote.java:338)
+	at org.h2.jdbc.JdbcConnection.<init>(JdbcConnection.java:122)
+	at org.h2.jdbcx.JdbcDataSource.getXAConnection(JdbcDataSource.java:322)
+	at io.agroal.pool.ConnectionFactory.createConnection(ConnectionFactory.java:232)
+	at io.agroal.pool.ConnectionPool$CreateConnectionTask.call(ConnectionPool.java:535)
+	at io.agroal.pool.ConnectionPool$CreateConnectionTask.call(ConnectionPool.java:516)
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:264)
+	at io.agroal.pool.util.PriorityScheduledExecutor.beforeExecute(PriorityScheduledExecutor.java:75)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1126)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:628)
+	at java.base/java.lang.Thread.run(Thread.java:829)
+Caused by: org.h2.jdbc.JdbcSQLNonTransientConnectionException: Error opening database: "Sleep interrupted" [8000-214]
+	at org.h2.message.DbException.getJdbcSQLException(DbException.java:504)
+	at org.h2.message.DbException.getJdbcSQLException(DbException.java:477)
+	... 20 more
+Caused by: java.lang.InterruptedException: sleep interrupted
+	at java.base/java.lang.Thread.sleep(Native Method)
+	at org.h2.store.FileLock.sleep(FileLock.java:422)
+	... 17 more
+2024-02-23 09:30:16 database: opening /opt/keycloak/data/h2/keycloakdb
+org.h2.message.DbException: Error opening database: "Sleep interrupted" [8000-214]
+	at org.h2.message.DbException.get(DbException.java:212)
+	at org.h2.store.FileLock.getExceptionFatal(FileLock.java:429)
+	at org.h2.store.FileLock.sleep(FileLock.java:424)
+	at org.h2.store.FileLock.lockFile(FileLock.java:334)
+	at org.h2.store.FileLock.lock(FileLock.java:110)
+	at org.h2.engine.Database.<init>(Database.java:315)
+	at org.h2.engine.Engine.openSession(Engine.java:92)
+	at org.h2.engine.Engine.openSession(Engine.java:222)
+	at org.h2.engine.Engine.createSession(Engine.java:201)
+	at org.h2.engine.SessionRemote.connectEmbeddedOrServer(SessionRemote.java:338)
+	at org.h2.jdbc.JdbcConnection.<init>(JdbcConnection.java:122)
+	at org.h2.jdbcx.JdbcDataSource.getXAConnection(JdbcDataSource.java:322)
+	at io.agroal.pool.ConnectionFactory.createConnection(ConnectionFactory.java:232)
+	at io.agroal.pool.ConnectionPool$CreateConnectionTask.call(ConnectionPool.java:535)
+	at io.agroal.pool.ConnectionPool$CreateConnectionTask.call(ConnectionPool.java:516)
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:264)
+	at io.agroal.pool.util.PriorityScheduledExecutor.beforeExecute(PriorityScheduledExecutor.java:75)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1126)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:628)
+	at java.base/java.lang.Thread.run(Thread.java:829)
+Caused by: org.h2.jdbc.JdbcSQLNonTransientConnectionException: Error opening database: "Sleep interrupted" [8000-214]
+	at org.h2.message.DbException.getJdbcSQLException(DbException.java:504)
+	at org.h2.message.DbException.getJdbcSQLException(DbException.java:477)
+	... 20 more
+Caused by: java.lang.InterruptedException: sleep interrupted
+	at java.base/java.lang.Thread.sleep(Native Method)
+	at org.h2.store.FileLock.sleep(FileLock.java:422)
+	... 17 more
+2024-02-29 08:14:22 database: opening /opt/keycloak/data/h2/keycloakdb
+org.h2.message.DbException: Error opening database: "Sleep interrupted" [8000-214]
+	at org.h2.message.DbException.get(DbException.java:212)
+	at org.h2.store.FileLock.getExceptionFatal(FileLock.java:429)
+	at org.h2.store.FileLock.sleep(FileLock.java:424)
+	at org.h2.store.FileLock.lockFile(FileLock.java:334)
+	at org.h2.store.FileLock.lock(FileLock.java:110)
+	at org.h2.engine.Database.<init>(Database.java:315)
+	at org.h2.engine.Engine.openSession(Engine.java:92)
+	at org.h2.engine.Engine.openSession(Engine.java:222)
+	at org.h2.engine.Engine.createSession(Engine.java:201)
+	at org.h2.engine.SessionRemote.connectEmbeddedOrServer(SessionRemote.java:338)
+	at org.h2.jdbc.JdbcConnection.<init>(JdbcConnection.java:122)
+	at org.h2.jdbcx.JdbcDataSource.getXAConnection(JdbcDataSource.java:322)
+	at io.agroal.pool.ConnectionFactory.createConnection(ConnectionFactory.java:232)
+	at io.agroal.pool.ConnectionPool$CreateConnectionTask.call(ConnectionPool.java:535)
+	at io.agroal.pool.ConnectionPool$CreateConnectionTask.call(ConnectionPool.java:516)
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:264)
+	at io.agroal.pool.util.PriorityScheduledExecutor.beforeExecute(PriorityScheduledExecutor.java:75)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1126)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:628)
+	at java.base/java.lang.Thread.run(Thread.java:829)
+Caused by: org.h2.jdbc.JdbcSQLNonTransientConnectionException: Error opening database: "Sleep interrupted" [8000-214]
+	at org.h2.message.DbException.getJdbcSQLException(DbException.java:504)
+	at org.h2.message.DbException.getJdbcSQLException(DbException.java:477)
+	... 20 more
+Caused by: java.lang.InterruptedException: sleep interrupted
+	at java.base/java.lang.Thread.sleep(Native Method)
+	at org.h2.store.FileLock.sleep(FileLock.java:422)
+	... 17 more
+2024-02-29 08:14:28 database: flush
+org.h2.message.DbException: General error: "org.h2.mvstore.MVStoreException: Could not open file /opt/keycloak/data/h2/keycloakdb.mv.db [2.1.214/1]" [50000-214]
+	at org.h2.message.DbException.get(DbException.java:212)
+	at org.h2.message.DbException.convert(DbException.java:395)
+	at org.h2.mvstore.db.Store.lambda$new$0(Store.java:125)
+	at org.h2.mvstore.MVStore.handleException(MVStore.java:3318)
+	at org.h2.mvstore.MVStore.panic(MVStore.java:593)
+	at org.h2.mvstore.MVStore.<init>(MVStore.java:469)
+	at org.h2.mvstore.MVStore$Builder.open(MVStore.java:4082)
+	at org.h2.mvstore.db.Store.<init>(Store.java:136)
+	at org.h2.engine.Database.<init>(Database.java:324)
+	at org.h2.engine.Engine.openSession(Engine.java:92)
+	at org.h2.engine.Engine.openSession(Engine.java:222)
+	at org.h2.engine.Engine.createSession(Engine.java:201)
+	at org.h2.engine.SessionRemote.connectEmbeddedOrServer(SessionRemote.java:338)
+	at org.h2.jdbc.JdbcConnection.<init>(JdbcConnection.java:122)
+	at org.h2.jdbcx.JdbcDataSource.getXAConnection(JdbcDataSource.java:322)
+	at io.agroal.pool.ConnectionFactory.createConnection(ConnectionFactory.java:232)
+	at io.agroal.pool.ConnectionPool$CreateConnectionTask.call(ConnectionPool.java:535)
+	at io.agroal.pool.ConnectionPool$CreateConnectionTask.call(ConnectionPool.java:516)
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:264)
+	at io.agroal.pool.util.PriorityScheduledExecutor.beforeExecute(PriorityScheduledExecutor.java:75)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1126)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:628)
+	at java.base/java.lang.Thread.run(Thread.java:829)
+Caused by: org.h2.jdbc.JdbcSQLNonTransientException: General error: "org.h2.mvstore.MVStoreException: Could not open file /opt/keycloak/data/h2/keycloakdb.mv.db [2.1.214/1]" [50000-214]
+	at org.h2.message.DbException.getJdbcSQLException(DbException.java:554)
+	at org.h2.message.DbException.getJdbcSQLException(DbException.java:477)
+	... 23 more
+Caused by: org.h2.mvstore.MVStoreException: Could not open file /opt/keycloak/data/h2/keycloakdb.mv.db [2.1.214/1]
+	at org.h2.mvstore.DataUtils.newMVStoreException(DataUtils.java:1004)
+	at org.h2.mvstore.FileStore.open(FileStore.java:185)
+	at org.h2.mvstore.FileStore.open(FileStore.java:128)
+	at org.h2.mvstore.MVStore.<init>(MVStore.java:452)
+	... 17 more
+Caused by: java.nio.channels.ClosedByInterruptException
+	at java.base/java.nio.channels.spi.AbstractInterruptibleChannel.end(AbstractInterruptibleChannel.java:199)
+	at java.base/sun.nio.ch.FileChannelImpl.endBlocking(FileChannelImpl.java:162)
+	at java.base/sun.nio.ch.FileChannelImpl.size(FileChannelImpl.java:388)
+	at org.h2.mvstore.FileStore.open(FileStore.java:182)
+	... 19 more
+2024-02-29 08:14:29 database: opening /opt/keycloak/data/h2/keycloakdb
+org.h2.message.DbException: IO Exception: "/opt/keycloak/data/h2/keycloakdb.mv.db" [90028-214]
+	at org.h2.message.DbException.get(DbException.java:212)
+	at org.h2.mvstore.db.Store.convertMVStoreException(Store.java:171)
+	at org.h2.mvstore.db.Store.<init>(Store.java:145)
+	at org.h2.engine.Database.<init>(Database.java:324)
+	at org.h2.engine.Engine.openSession(Engine.java:92)
+	at org.h2.engine.Engine.openSession(Engine.java:222)
+	at org.h2.engine.Engine.createSession(Engine.java:201)
+	at org.h2.engine.SessionRemote.connectEmbeddedOrServer(SessionRemote.java:338)
+	at org.h2.jdbc.JdbcConnection.<init>(JdbcConnection.java:122)
+	at org.h2.jdbcx.JdbcDataSource.getXAConnection(JdbcDataSource.java:322)
+	at io.agroal.pool.ConnectionFactory.createConnection(ConnectionFactory.java:232)
+	at io.agroal.pool.ConnectionPool$CreateConnectionTask.call(ConnectionPool.java:535)
+	at io.agroal.pool.ConnectionPool$CreateConnectionTask.call(ConnectionPool.java:516)
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:264)
+	at io.agroal.pool.util.PriorityScheduledExecutor.beforeExecute(PriorityScheduledExecutor.java:75)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1126)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:628)
+	at java.base/java.lang.Thread.run(Thread.java:829)
+Caused by: org.h2.jdbc.JdbcSQLNonTransientException: IO Exception: "/opt/keycloak/data/h2/keycloakdb.mv.db" [90028-214]
+	at org.h2.message.DbException.getJdbcSQLException(DbException.java:554)
+	at org.h2.message.DbException.getJdbcSQLException(DbException.java:477)
+	... 18 more
+Caused by: org.h2.mvstore.MVStoreException: Could not open file /opt/keycloak/data/h2/keycloakdb.mv.db [2.1.214/1]
+	at org.h2.mvstore.DataUtils.newMVStoreException(DataUtils.java:1004)
+	at org.h2.mvstore.FileStore.open(FileStore.java:185)
+	at org.h2.mvstore.FileStore.open(FileStore.java:128)
+	at org.h2.mvstore.MVStore.<init>(MVStore.java:452)
+	at org.h2.mvstore.MVStore$Builder.open(MVStore.java:4082)
+	at org.h2.mvstore.db.Store.<init>(Store.java:136)
+	... 15 more
+Caused by: java.nio.channels.ClosedByInterruptException
+	at java.base/java.nio.channels.spi.AbstractInterruptibleChannel.end(AbstractInterruptibleChannel.java:199)
+	at java.base/sun.nio.ch.FileChannelImpl.endBlocking(FileChannelImpl.java:162)
+	at java.base/sun.nio.ch.FileChannelImpl.size(FileChannelImpl.java:388)
+	at org.h2.mvstore.FileStore.open(FileStore.java:182)
+	... 19 more
+2024-02-29 10:02:38 database: flush
+org.h2.message.DbException: General error: "org.h2.mvstore.MVStoreException: Could not open file /opt/keycloak/data/h2/keycloakdb.mv.db [2.1.214/1]" [50000-214]
+	at org.h2.message.DbException.get(DbException.java:212)
+	at org.h2.message.DbException.convert(DbException.java:395)
+	at org.h2.mvstore.db.Store.lambda$new$0(Store.java:125)
+	at org.h2.mvstore.MVStore.handleException(MVStore.java:3318)
+	at org.h2.mvstore.MVStore.panic(MVStore.java:593)
+	at org.h2.mvstore.MVStore.<init>(MVStore.java:469)
+	at org.h2.mvstore.MVStore$Builder.open(MVStore.java:4082)
+	at org.h2.mvstore.db.Store.<init>(Store.java:136)
+	at org.h2.engine.Database.<init>(Database.java:324)
+	at org.h2.engine.Engine.openSession(Engine.java:92)
+	at org.h2.engine.Engine.openSession(Engine.java:222)
+	at org.h2.engine.Engine.createSession(Engine.java:201)
+	at org.h2.engine.SessionRemote.connectEmbeddedOrServer(SessionRemote.java:338)
+	at org.h2.jdbc.JdbcConnection.<init>(JdbcConnection.java:122)
+	at org.h2.jdbcx.JdbcDataSource.getXAConnection(JdbcDataSource.java:322)
+	at io.agroal.pool.ConnectionFactory.createConnection(ConnectionFactory.java:232)
+	at io.agroal.pool.ConnectionPool$CreateConnectionTask.call(ConnectionPool.java:535)
+	at io.agroal.pool.ConnectionPool$CreateConnectionTask.call(ConnectionPool.java:516)
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:264)
+	at io.agroal.pool.util.PriorityScheduledExecutor.beforeExecute(PriorityScheduledExecutor.java:75)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1126)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:628)
+	at java.base/java.lang.Thread.run(Thread.java:829)
+Caused by: org.h2.jdbc.JdbcSQLNonTransientException: General error: "org.h2.mvstore.MVStoreException: Could not open file /opt/keycloak/data/h2/keycloakdb.mv.db [2.1.214/1]" [50000-214]
+	at org.h2.message.DbException.getJdbcSQLException(DbException.java:554)
+	at org.h2.message.DbException.getJdbcSQLException(DbException.java:477)
+	... 23 more
+Caused by: org.h2.mvstore.MVStoreException: Could not open file /opt/keycloak/data/h2/keycloakdb.mv.db [2.1.214/1]
+	at org.h2.mvstore.DataUtils.newMVStoreException(DataUtils.java:1004)
+	at org.h2.mvstore.FileStore.open(FileStore.java:185)
+	at org.h2.mvstore.FileStore.open(FileStore.java:128)
+	at org.h2.mvstore.MVStore.<init>(MVStore.java:452)
+	... 17 more
+Caused by: java.nio.channels.ClosedByInterruptException
+	at java.base/java.nio.channels.spi.AbstractInterruptibleChannel.end(AbstractInterruptibleChannel.java:199)
+	at java.base/sun.nio.ch.FileChannelImpl.endBlocking(FileChannelImpl.java:162)
+	at java.base/sun.nio.ch.FileChannelImpl.size(FileChannelImpl.java:388)
+	at org.h2.mvstore.FileStore.open(FileStore.java:182)
+	... 19 more
+2024-02-29 10:02:38 database: opening /opt/keycloak/data/h2/keycloakdb
+org.h2.message.DbException: IO Exception: "/opt/keycloak/data/h2/keycloakdb.mv.db" [90028-214]
+	at org.h2.message.DbException.get(DbException.java:212)
+	at org.h2.mvstore.db.Store.convertMVStoreException(Store.java:171)
+	at org.h2.mvstore.db.Store.<init>(Store.java:145)
+	at org.h2.engine.Database.<init>(Database.java:324)
+	at org.h2.engine.Engine.openSession(Engine.java:92)
+	at org.h2.engine.Engine.openSession(Engine.java:222)
+	at org.h2.engine.Engine.createSession(Engine.java:201)
+	at org.h2.engine.SessionRemote.connectEmbeddedOrServer(SessionRemote.java:338)
+	at org.h2.jdbc.JdbcConnection.<init>(JdbcConnection.java:122)
+	at org.h2.jdbcx.JdbcDataSource.getXAConnection(JdbcDataSource.java:322)
+	at io.agroal.pool.ConnectionFactory.createConnection(ConnectionFactory.java:232)
+	at io.agroal.pool.ConnectionPool$CreateConnectionTask.call(ConnectionPool.java:535)
+	at io.agroal.pool.ConnectionPool$CreateConnectionTask.call(ConnectionPool.java:516)
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:264)
+	at io.agroal.pool.util.PriorityScheduledExecutor.beforeExecute(PriorityScheduledExecutor.java:75)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1126)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:628)
+	at java.base/java.lang.Thread.run(Thread.java:829)
+Caused by: org.h2.jdbc.JdbcSQLNonTransientException: IO Exception: "/opt/keycloak/data/h2/keycloakdb.mv.db" [90028-214]
+	at org.h2.message.DbException.getJdbcSQLException(DbException.java:554)
+	at org.h2.message.DbException.getJdbcSQLException(DbException.java:477)
+	... 18 more
+Caused by: org.h2.mvstore.MVStoreException: Could not open file /opt/keycloak/data/h2/keycloakdb.mv.db [2.1.214/1]
+	at org.h2.mvstore.DataUtils.newMVStoreException(DataUtils.java:1004)
+	at org.h2.mvstore.FileStore.open(FileStore.java:185)
+	at org.h2.mvstore.FileStore.open(FileStore.java:128)
+	at org.h2.mvstore.MVStore.<init>(MVStore.java:452)
+	at org.h2.mvstore.MVStore$Builder.open(MVStore.java:4082)
+	at org.h2.mvstore.db.Store.<init>(Store.java:136)
+	... 15 more
+Caused by: java.nio.channels.ClosedByInterruptException
+	at java.base/java.nio.channels.spi.AbstractInterruptibleChannel.end(AbstractInterruptibleChannel.java:199)
+	at java.base/sun.nio.ch.FileChannelImpl.endBlocking(FileChannelImpl.java:162)
+	at java.base/sun.nio.ch.FileChannelImpl.size(FileChannelImpl.java:388)
+	at org.h2.mvstore.FileStore.open(FileStore.java:182)
+	... 19 more
+2024-02-29 10:02:41 database: opening /opt/keycloak/data/h2/keycloakdb
+org.h2.message.DbException: Error opening database: "Sleep interrupted" [8000-214]
+	at org.h2.message.DbException.get(DbException.java:212)
+	at org.h2.store.FileLock.getExceptionFatal(FileLock.java:429)
+	at org.h2.store.FileLock.sleep(FileLock.java:424)
+	at org.h2.store.FileLock.lockFile(FileLock.java:334)
+	at org.h2.store.FileLock.lock(FileLock.java:110)
+	at org.h2.engine.Database.<init>(Database.java:315)
+	at org.h2.engine.Engine.openSession(Engine.java:92)
+	at org.h2.engine.Engine.openSession(Engine.java:222)
+	at org.h2.engine.Engine.createSession(Engine.java:201)
+	at org.h2.engine.SessionRemote.connectEmbeddedOrServer(SessionRemote.java:338)
+	at org.h2.jdbc.JdbcConnection.<init>(JdbcConnection.java:122)
+	at org.h2.jdbcx.JdbcDataSource.getXAConnection(JdbcDataSource.java:322)
+	at io.agroal.pool.ConnectionFactory.createConnection(ConnectionFactory.java:232)
+	at io.agroal.pool.ConnectionPool$CreateConnectionTask.call(ConnectionPool.java:535)
+	at io.agroal.pool.ConnectionPool$CreateConnectionTask.call(ConnectionPool.java:516)
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:264)
+	at io.agroal.pool.util.PriorityScheduledExecutor.beforeExecute(PriorityScheduledExecutor.java:75)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1126)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:628)
+	at java.base/java.lang.Thread.run(Thread.java:829)
+Caused by: org.h2.jdbc.JdbcSQLNonTransientConnectionException: Error opening database: "Sleep interrupted" [8000-214]
+	at org.h2.message.DbException.getJdbcSQLException(DbException.java:504)
+	at org.h2.message.DbException.getJdbcSQLException(DbException.java:477)
+	... 20 more
+Caused by: java.lang.InterruptedException: sleep interrupted
+	at java.base/java.lang.Thread.sleep(Native Method)
+	at org.h2.store.FileLock.sleep(FileLock.java:422)
+	... 17 more
+2024-02-29 10:02:47 database: opening /opt/keycloak/data/h2/keycloakdb
+org.h2.message.DbException: IO Exception: "/opt/keycloak/data/h2/keycloakdb.mv.db" [90028-214]
+	at org.h2.message.DbException.get(DbException.java:212)
+	at org.h2.mvstore.db.Store.convertMVStoreException(Store.java:171)
+	at org.h2.mvstore.db.Store.createTable(Store.java:223)
+	at org.h2.schema.Schema.createTable(Schema.java:776)
+	at org.h2.engine.Database.<init>(Database.java:351)
+	at org.h2.engine.Engine.openSession(Engine.java:92)
+	at org.h2.engine.Engine.openSession(Engine.java:222)
+	at org.h2.engine.Engine.createSession(Engine.java:201)
+	at org.h2.engine.SessionRemote.connectEmbeddedOrServer(SessionRemote.java:338)
+	at org.h2.jdbc.JdbcConnection.<init>(JdbcConnection.java:122)
+	at org.h2.jdbcx.JdbcDataSource.getXAConnection(JdbcDataSource.java:322)
+	at io.agroal.pool.ConnectionFactory.createConnection(ConnectionFactory.java:232)
+	at io.agroal.pool.ConnectionPool$CreateConnectionTask.call(ConnectionPool.java:535)
+	at io.agroal.pool.ConnectionPool$CreateConnectionTask.call(ConnectionPool.java:516)
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:264)
+	at io.agroal.pool.util.PriorityScheduledExecutor.beforeExecute(PriorityScheduledExecutor.java:75)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1126)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:628)
+	at java.base/java.lang.Thread.run(Thread.java:829)
+Caused by: org.h2.jdbc.JdbcSQLNonTransientException: IO Exception: "/opt/keycloak/data/h2/keycloakdb.mv.db" [90028-214]
+	at org.h2.message.DbException.getJdbcSQLException(DbException.java:554)
+	at org.h2.message.DbException.getJdbcSQLException(DbException.java:477)
+	... 19 more
+Caused by: org.h2.mvstore.MVStoreException: Reading from file sun.nio.ch.FileChannelImpl@163ef149 failed at 627499 (length -1), read 0, remaining 2048 [2.1.214/1]
+	at org.h2.mvstore.DataUtils.newMVStoreException(DataUtils.java:1004)
+	at org.h2.mvstore.DataUtils.readFully(DataUtils.java:470)
+	at org.h2.mvstore.FileStore.readFully(FileStore.java:98)
+	at org.h2.mvstore.Chunk.readBufferForPage(Chunk.java:422)
+	at org.h2.mvstore.MVStore.readPage(MVStore.java:2569)
+	at org.h2.mvstore.MVMap.readPage(MVMap.java:633)
+	at org.h2.mvstore.Page$NonLeaf.getChildPage(Page.java:1125)
+	at org.h2.mvstore.CursorPos.traverseDown(CursorPos.java:61)
+	at org.h2.mvstore.MVMap.operate(MVMap.java:1770)
+	at org.h2.mvstore.MVMap.putIfAbsent(MVMap.java:530)
+	at org.h2.mvstore.tx.TransactionStore$TxMapBuilder.registerDataType(TransactionStore.java:859)
+	at org.h2.mvstore.tx.TransactionStore$TxMapBuilder.create(TransactionStore.java:899)
+	at org.h2.mvstore.MVStore.openMap(MVStore.java:699)
+	at org.h2.mvstore.MVStore.openMap(MVStore.java:648)
+	at org.h2.mvstore.tx.TransactionStore.openMap(TransactionStore.java:564)
+	at org.h2.mvstore.tx.TransactionStore.openVersionedMap(TransactionStore.java:550)
+	at org.h2.mvstore.tx.Transaction.openMap(Transaction.java:456)
+	at org.h2.mvstore.db.MVPrimaryIndex.<init>(MVPrimaryIndex.java:53)
+	at org.h2.mvstore.db.MVTable.<init>(MVTable.java:156)
+	at org.h2.mvstore.db.Store.createTable(Store.java:219)
+	... 16 more
+Caused by: java.nio.channels.ClosedByInterruptException
+	at java.base/java.nio.channels.spi.AbstractInterruptibleChannel.end(AbstractInterruptibleChannel.java:199)
+	at java.base/sun.nio.ch.FileChannelImpl.endBlocking(FileChannelImpl.java:162)
+	at java.base/sun.nio.ch.FileChannelImpl.readInternal(FileChannelImpl.java:816)
+	at java.base/sun.nio.ch.FileChannelImpl.read(FileChannelImpl.java:796)
+	at org.h2.mvstore.DataUtils.readFully(DataUtils.java:456)
+	... 34 more
+2024-02-29 10:02:47 database: opening /opt/keycloak/data/h2/keycloakdb
+org.h2.message.DbException: Error opening database: "Sleep interrupted" [8000-214]
+	at org.h2.message.DbException.get(DbException.java:212)
+	at org.h2.store.FileLock.getExceptionFatal(FileLock.java:429)
+	at org.h2.store.FileLock.sleep(FileLock.java:424)
+	at org.h2.store.FileLock.lockFile(FileLock.java:334)
+	at org.h2.store.FileLock.lock(FileLock.java:110)
+	at org.h2.engine.Database.<init>(Database.java:315)
+	at org.h2.engine.Engine.openSession(Engine.java:92)
+	at org.h2.engine.Engine.openSession(Engine.java:222)
+	at org.h2.engine.Engine.createSession(Engine.java:201)
+	at org.h2.engine.SessionRemote.connectEmbeddedOrServer(SessionRemote.java:338)
+	at org.h2.jdbc.JdbcConnection.<init>(JdbcConnection.java:122)
+	at org.h2.jdbcx.JdbcDataSource.getXAConnection(JdbcDataSource.java:322)
+	at io.agroal.pool.ConnectionFactory.createConnection(ConnectionFactory.java:232)
+	at io.agroal.pool.ConnectionPool$CreateConnectionTask.call(ConnectionPool.java:535)
+	at io.agroal.pool.ConnectionPool$CreateConnectionTask.call(ConnectionPool.java:516)
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:264)
+	at io.agroal.pool.util.PriorityScheduledExecutor.beforeExecute(PriorityScheduledExecutor.java:75)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1126)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:628)
+	at java.base/java.lang.Thread.run(Thread.java:829)
+Caused by: org.h2.jdbc.JdbcSQLNonTransientConnectionException: Error opening database: "Sleep interrupted" [8000-214]
+	at org.h2.message.DbException.getJdbcSQLException(DbException.java:504)
+	at org.h2.message.DbException.getJdbcSQLException(DbException.java:477)
+	... 20 more
+Caused by: java.lang.InterruptedException: sleep interrupted
+	at java.base/java.lang.Thread.sleep(Native Method)
+	at org.h2.store.FileLock.sleep(FileLock.java:422)
+	... 17 more
+2024-02-29 11:38:06 database: opening /opt/keycloak/data/h2/keycloakdb
+org.h2.message.DbException: Error opening database: "Sleep interrupted" [8000-214]
+	at org.h2.message.DbException.get(DbException.java:212)
+	at org.h2.store.FileLock.getExceptionFatal(FileLock.java:429)
+	at org.h2.store.FileLock.sleep(FileLock.java:424)
+	at org.h2.store.FileLock.lockFile(FileLock.java:334)
+	at org.h2.store.FileLock.lock(FileLock.java:110)
+	at org.h2.engine.Database.<init>(Database.java:315)
+	at org.h2.engine.Engine.openSession(Engine.java:92)
+	at org.h2.engine.Engine.openSession(Engine.java:222)
+	at org.h2.engine.Engine.createSession(Engine.java:201)
+	at org.h2.engine.SessionRemote.connectEmbeddedOrServer(SessionRemote.java:338)
+	at org.h2.jdbc.JdbcConnection.<init>(JdbcConnection.java:122)
+	at org.h2.jdbcx.JdbcDataSource.getXAConnection(JdbcDataSource.java:322)
+	at io.agroal.pool.ConnectionFactory.createConnection(ConnectionFactory.java:232)
+	at io.agroal.pool.ConnectionPool$CreateConnectionTask.call(ConnectionPool.java:535)
+	at io.agroal.pool.ConnectionPool$CreateConnectionTask.call(ConnectionPool.java:516)
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:264)
+	at io.agroal.pool.util.PriorityScheduledExecutor.beforeExecute(PriorityScheduledExecutor.java:75)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1126)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:628)
+	at java.base/java.lang.Thread.run(Thread.java:829)
+Caused by: org.h2.jdbc.JdbcSQLNonTransientConnectionException: Error opening database: "Sleep interrupted" [8000-214]
+	at org.h2.message.DbException.getJdbcSQLException(DbException.java:504)
+	at org.h2.message.DbException.getJdbcSQLException(DbException.java:477)
+	... 20 more
+Caused by: java.lang.InterruptedException: sleep interrupted
+	at java.base/java.lang.Thread.sleep(Native Method)
+	at org.h2.store.FileLock.sleep(FileLock.java:422)
+	... 17 more
+2024-02-29 11:38:11 database: opening /opt/keycloak/data/h2/keycloakdb
+org.h2.message.DbException: Error opening database: "Sleep interrupted" [8000-214]
+	at org.h2.message.DbException.get(DbException.java:212)
+	at org.h2.store.FileLock.getExceptionFatal(FileLock.java:429)
+	at org.h2.store.FileLock.sleep(FileLock.java:424)
+	at org.h2.store.FileLock.lockFile(FileLock.java:334)
+	at org.h2.store.FileLock.lock(FileLock.java:110)
+	at org.h2.engine.Database.<init>(Database.java:315)
+	at org.h2.engine.Engine.openSession(Engine.java:92)
+	at org.h2.engine.Engine.openSession(Engine.java:222)
+	at org.h2.engine.Engine.createSession(Engine.java:201)
+	at org.h2.engine.SessionRemote.connectEmbeddedOrServer(SessionRemote.java:338)
+	at org.h2.jdbc.JdbcConnection.<init>(JdbcConnection.java:122)
+	at org.h2.jdbcx.JdbcDataSource.getXAConnection(JdbcDataSource.java:322)
+	at io.agroal.pool.ConnectionFactory.createConnection(ConnectionFactory.java:232)
+	at io.agroal.pool.ConnectionPool$CreateConnectionTask.call(ConnectionPool.java:535)
+	at io.agroal.pool.ConnectionPool$CreateConnectionTask.call(ConnectionPool.java:516)
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:264)
+	at io.agroal.pool.util.PriorityScheduledExecutor.beforeExecute(PriorityScheduledExecutor.java:75)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1126)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:628)
+	at java.base/java.lang.Thread.run(Thread.java:829)
+Caused by: org.h2.jdbc.JdbcSQLNonTransientConnectionException: Error opening database: "Sleep interrupted" [8000-214]
+	at org.h2.message.DbException.getJdbcSQLException(DbException.java:504)
+	at org.h2.message.DbException.getJdbcSQLException(DbException.java:477)
+	... 20 more
+Caused by: java.lang.InterruptedException: sleep interrupted
+	at java.base/java.lang.Thread.sleep(Native Method)
+	at org.h2.store.FileLock.sleep(FileLock.java:422)
+	... 17 more
+2024-02-29 11:38:19 database: opening /opt/keycloak/data/h2/keycloakdb
+org.h2.message.DbException: Error opening database: "Sleep interrupted" [8000-214]
+	at org.h2.message.DbException.get(DbException.java:212)
+	at org.h2.store.FileLock.getExceptionFatal(FileLock.java:429)
+	at org.h2.store.FileLock.sleep(FileLock.java:424)
+	at org.h2.store.FileLock.lockFile(FileLock.java:334)
+	at org.h2.store.FileLock.lock(FileLock.java:110)
+	at org.h2.engine.Database.<init>(Database.java:315)
+	at org.h2.engine.Engine.openSession(Engine.java:92)
+	at org.h2.engine.Engine.openSession(Engine.java:222)
+	at org.h2.engine.Engine.createSession(Engine.java:201)
+	at org.h2.engine.SessionRemote.connectEmbeddedOrServer(SessionRemote.java:338)
+	at org.h2.jdbc.JdbcConnection.<init>(JdbcConnection.java:122)
+	at org.h2.jdbcx.JdbcDataSource.getXAConnection(JdbcDataSource.java:322)
+	at io.agroal.pool.ConnectionFactory.createConnection(ConnectionFactory.java:232)
+	at io.agroal.pool.ConnectionPool$CreateConnectionTask.call(ConnectionPool.java:535)
+	at io.agroal.pool.ConnectionPool$CreateConnectionTask.call(ConnectionPool.java:516)
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:264)
+	at io.agroal.pool.util.PriorityScheduledExecutor.beforeExecute(PriorityScheduledExecutor.java:75)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1126)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:628)
+	at java.base/java.lang.Thread.run(Thread.java:829)
+Caused by: org.h2.jdbc.JdbcSQLNonTransientConnectionException: Error opening database: "Sleep interrupted" [8000-214]
+	at org.h2.message.DbException.getJdbcSQLException(DbException.java:504)
+	at org.h2.message.DbException.getJdbcSQLException(DbException.java:477)
+	... 20 more
+Caused by: java.lang.InterruptedException: sleep interrupted
+	at java.base/java.lang.Thread.sleep(Native Method)
+	at org.h2.store.FileLock.sleep(FileLock.java:422)
+	... 17 more
+2024-02-29 11:53:06 database: CREATE CACHED TABLE "PUBLIC"."CLIENT_SCOPE_ATTRIBUTES"(
+    "SCOPE_ID" CHARACTER VARYING(36) NOT NULL,
+    "VALUE" CHARACTER VARYING(2048),
+    "NAME" CHARACTER VARYING(255) NOT NULL
+)
+org.h2.jdbc.JdbcSQLNonTransientException: IO Exception: "/opt/keycloak/data/h2/keycloakdb.mv.db"; SQL statement:
+CREATE CACHED TABLE "PUBLIC"."CLIENT_SCOPE_ATTRIBUTES"(
+    "SCOPE_ID" CHARACTER VARYING(36) NOT NULL,
+    "VALUE" CHARACTER VARYING(2048),
+    "NAME" CHARACTER VARYING(255) NOT NULL
+) [90028-214]
+	at org.h2.message.DbException.getJdbcSQLException(DbException.java:554)
+	at org.h2.message.DbException.getJdbcSQLException(DbException.java:477)
+	at org.h2.message.DbException.get(DbException.java:212)
+	at org.h2.mvstore.db.Store.convertMVStoreException(Store.java:171)
+	at org.h2.mvstore.db.Store.createTable(Store.java:223)
+	at org.h2.schema.Schema.createTable(Schema.java:776)
+	at org.h2.command.ddl.CreateTable.update(CreateTable.java:112)
+	at org.h2.engine.MetaRecord.prepareAndExecute(MetaRecord.java:77)
+	at org.h2.engine.Database.executeMeta(Database.java:660)
+	at org.h2.engine.Database.executeMeta(Database.java:634)
+	at org.h2.engine.Database.<init>(Database.java:357)
+	at org.h2.engine.Engine.openSession(Engine.java:92)
+	at org.h2.engine.Engine.openSession(Engine.java:222)
+	at org.h2.engine.Engine.createSession(Engine.java:201)
+	at org.h2.engine.SessionRemote.connectEmbeddedOrServer(SessionRemote.java:338)
+	at org.h2.jdbc.JdbcConnection.<init>(JdbcConnection.java:122)
+	at org.h2.jdbcx.JdbcDataSource.getXAConnection(JdbcDataSource.java:322)
+	at io.agroal.pool.ConnectionFactory.createConnection(ConnectionFactory.java:232)
+	at io.agroal.pool.ConnectionPool$CreateConnectionTask.call(ConnectionPool.java:535)
+	at io.agroal.pool.ConnectionPool$CreateConnectionTask.call(ConnectionPool.java:516)
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:264)
+	at io.agroal.pool.util.PriorityScheduledExecutor.beforeExecute(PriorityScheduledExecutor.java:75)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1126)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:628)
+	at java.base/java.lang.Thread.run(Thread.java:829)
+Caused by: org.h2.mvstore.MVStoreException: Reading from file sun.nio.ch.FileChannelImpl@1c339f74 failed at 825431 (length -1), read 0, remaining 32 [2.1.214/1]
+	at org.h2.mvstore.DataUtils.newMVStoreException(DataUtils.java:1004)
+	at org.h2.mvstore.DataUtils.readFully(DataUtils.java:470)
+	at org.h2.mvstore.FileStore.readFully(FileStore.java:98)
+	at org.h2.mvstore.Chunk.readBufferForPage(Chunk.java:422)
+	at org.h2.mvstore.MVStore.readPage(MVStore.java:2569)
+	at org.h2.mvstore.MVMap.readPage(MVMap.java:633)
+	at org.h2.mvstore.MVMap.readOrCreateRootPage(MVMap.java:658)
+	at org.h2.mvstore.MVMap.setRootPos(MVMap.java:643)
+	at org.h2.mvstore.MVStore.openMap(MVStore.java:702)
+	at org.h2.mvstore.MVStore.openMap(MVStore.java:648)
+	at org.h2.mvstore.tx.TransactionStore.openMap(TransactionStore.java:564)
+	at org.h2.mvstore.tx.TransactionStore.openVersionedMap(TransactionStore.java:550)
+	at org.h2.mvstore.tx.Transaction.openMap(Transaction.java:456)
+	at org.h2.mvstore.db.MVPrimaryIndex.<init>(MVPrimaryIndex.java:53)
+	at org.h2.mvstore.db.MVTable.<init>(MVTable.java:156)
+	at org.h2.mvstore.db.Store.createTable(Store.java:219)
+	... 20 more
+Caused by: java.nio.channels.ClosedByInterruptException
+	at java.base/java.nio.channels.spi.AbstractInterruptibleChannel.end(AbstractInterruptibleChannel.java:199)
+	at java.base/sun.nio.ch.FileChannelImpl.endBlocking(FileChannelImpl.java:162)
+	at java.base/sun.nio.ch.FileChannelImpl.readInternal(FileChannelImpl.java:816)
+	at java.base/sun.nio.ch.FileChannelImpl.read(FileChannelImpl.java:796)
+	at org.h2.mvstore.DataUtils.readFully(DataUtils.java:456)
+	... 34 more
+2024-02-29 11:53:06 database: opening /opt/keycloak/data/h2/keycloakdb
+org.h2.message.DbException: IO Exception: "/opt/keycloak/data/h2/keycloakdb.mv.db" [90028-214]
+	at org.h2.message.DbException.get(DbException.java:212)
+	at org.h2.mvstore.db.Store.convertMVStoreException(Store.java:171)
+	at org.h2.mvstore.db.Store.createTable(Store.java:223)
+	at org.h2.schema.Schema.createTable(Schema.java:776)
+	at org.h2.command.ddl.CreateTable.update(CreateTable.java:112)
+	at org.h2.engine.MetaRecord.prepareAndExecute(MetaRecord.java:77)
+	at org.h2.engine.Database.executeMeta(Database.java:660)
+	at org.h2.engine.Database.executeMeta(Database.java:634)
+	at org.h2.engine.Database.<init>(Database.java:357)
+	at org.h2.engine.Engine.openSession(Engine.java:92)
+	at org.h2.engine.Engine.openSession(Engine.java:222)
+	at org.h2.engine.Engine.createSession(Engine.java:201)
+	at org.h2.engine.SessionRemote.connectEmbeddedOrServer(SessionRemote.java:338)
+	at org.h2.jdbc.JdbcConnection.<init>(JdbcConnection.java:122)
+	at org.h2.jdbcx.JdbcDataSource.getXAConnection(JdbcDataSource.java:322)
+	at io.agroal.pool.ConnectionFactory.createConnection(ConnectionFactory.java:232)
+	at io.agroal.pool.ConnectionPool$CreateConnectionTask.call(ConnectionPool.java:535)
+	at io.agroal.pool.ConnectionPool$CreateConnectionTask.call(ConnectionPool.java:516)
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:264)
+	at io.agroal.pool.util.PriorityScheduledExecutor.beforeExecute(PriorityScheduledExecutor.java:75)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1126)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:628)
+	at java.base/java.lang.Thread.run(Thread.java:829)
+Caused by: org.h2.jdbc.JdbcSQLNonTransientException: IO Exception: "/opt/keycloak/data/h2/keycloakdb.mv.db"; SQL statement:
+CREATE CACHED TABLE "PUBLIC"."CLIENT_SCOPE_ATTRIBUTES"(
+    "SCOPE_ID" CHARACTER VARYING(36) NOT NULL,
+    "VALUE" CHARACTER VARYING(2048),
+    "NAME" CHARACTER VARYING(255) NOT NULL
+) [90028-214]
+	at org.h2.message.DbException.getJdbcSQLException(DbException.java:554)
+	at org.h2.message.DbException.getJdbcSQLException(DbException.java:477)
+	... 23 more
+Caused by: org.h2.mvstore.MVStoreException: Reading from file sun.nio.ch.FileChannelImpl@1c339f74 failed at 825431 (length -1), read 0, remaining 32 [2.1.214/1]
+	at org.h2.mvstore.DataUtils.newMVStoreException(DataUtils.java:1004)
+	at org.h2.mvstore.DataUtils.readFully(DataUtils.java:470)
+	at org.h2.mvstore.FileStore.readFully(FileStore.java:98)
+	at org.h2.mvstore.Chunk.readBufferForPage(Chunk.java:422)
+	at org.h2.mvstore.MVStore.readPage(MVStore.java:2569)
+	at org.h2.mvstore.MVMap.readPage(MVMap.java:633)
+	at org.h2.mvstore.MVMap.readOrCreateRootPage(MVMap.java:658)
+	at org.h2.mvstore.MVMap.setRootPos(MVMap.java:643)
+	at org.h2.mvstore.MVStore.openMap(MVStore.java:702)
+	at org.h2.mvstore.MVStore.openMap(MVStore.java:648)
+	at org.h2.mvstore.tx.TransactionStore.openMap(TransactionStore.java:564)
+	at org.h2.mvstore.tx.TransactionStore.openVersionedMap(TransactionStore.java:550)
+	at org.h2.mvstore.tx.Transaction.openMap(Transaction.java:456)
+	at org.h2.mvstore.db.MVPrimaryIndex.<init>(MVPrimaryIndex.java:53)
+	at org.h2.mvstore.db.MVTable.<init>(MVTable.java:156)
+	at org.h2.mvstore.db.Store.createTable(Store.java:219)
+	... 20 more
+Caused by: java.nio.channels.ClosedByInterruptException
+	at java.base/java.nio.channels.spi.AbstractInterruptibleChannel.end(AbstractInterruptibleChannel.java:199)
+	at java.base/sun.nio.ch.FileChannelImpl.endBlocking(FileChannelImpl.java:162)
+	at java.base/sun.nio.ch.FileChannelImpl.readInternal(FileChannelImpl.java:816)
+	at java.base/sun.nio.ch.FileChannelImpl.read(FileChannelImpl.java:796)
+	at org.h2.mvstore.DataUtils.readFully(DataUtils.java:456)
+	... 34 more
+2024-02-29 11:53:06 database: opening /opt/keycloak/data/h2/keycloakdb
+org.h2.message.DbException: Error opening database: "Sleep interrupted" [8000-214]
+	at org.h2.message.DbException.get(DbException.java:212)
+	at org.h2.store.FileLock.getExceptionFatal(FileLock.java:429)
+	at org.h2.store.FileLock.sleep(FileLock.java:424)
+	at org.h2.store.FileLock.lockFile(FileLock.java:334)
+	at org.h2.store.FileLock.lock(FileLock.java:110)
+	at org.h2.engine.Database.<init>(Database.java:315)
+	at org.h2.engine.Engine.openSession(Engine.java:92)
+	at org.h2.engine.Engine.openSession(Engine.java:222)
+	at org.h2.engine.Engine.createSession(Engine.java:201)
+	at org.h2.engine.SessionRemote.connectEmbeddedOrServer(SessionRemote.java:338)
+	at org.h2.jdbc.JdbcConnection.<init>(JdbcConnection.java:122)
+	at org.h2.jdbcx.JdbcDataSource.getXAConnection(JdbcDataSource.java:322)
+	at io.agroal.pool.ConnectionFactory.createConnection(ConnectionFactory.java:232)
+	at io.agroal.pool.ConnectionPool$CreateConnectionTask.call(ConnectionPool.java:535)
+	at io.agroal.pool.ConnectionPool$CreateConnectionTask.call(ConnectionPool.java:516)
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:264)
+	at io.agroal.pool.util.PriorityScheduledExecutor.beforeExecute(PriorityScheduledExecutor.java:75)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1126)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:628)
+	at java.base/java.lang.Thread.run(Thread.java:829)
+Caused by: org.h2.jdbc.JdbcSQLNonTransientConnectionException: Error opening database: "Sleep interrupted" [8000-214]
+	at org.h2.message.DbException.getJdbcSQLException(DbException.java:504)
+	at org.h2.message.DbException.getJdbcSQLException(DbException.java:477)
+	... 20 more
+Caused by: java.lang.InterruptedException: sleep interrupted
+	at java.base/java.lang.Thread.sleep(Native Method)
+	at org.h2.store.FileLock.sleep(FileLock.java:422)
+	... 17 more
+2024-03-04 08:14:02 database: flush
+org.h2.message.DbException: General error: "org.h2.mvstore.MVStoreException: Could not open file /opt/keycloak/data/h2/keycloakdb.mv.db [2.1.214/1]" [50000-214]
+	at org.h2.message.DbException.get(DbException.java:212)
+	at org.h2.message.DbException.convert(DbException.java:395)
+	at org.h2.mvstore.db.Store.lambda$new$0(Store.java:125)
+	at org.h2.mvstore.MVStore.handleException(MVStore.java:3318)
+	at org.h2.mvstore.MVStore.panic(MVStore.java:593)
+	at org.h2.mvstore.MVStore.<init>(MVStore.java:469)
+	at org.h2.mvstore.MVStore$Builder.open(MVStore.java:4082)
+	at org.h2.mvstore.db.Store.<init>(Store.java:136)
+	at org.h2.engine.Database.<init>(Database.java:324)
+	at org.h2.engine.Engine.openSession(Engine.java:92)
+	at org.h2.engine.Engine.openSession(Engine.java:222)
+	at org.h2.engine.Engine.createSession(Engine.java:201)
+	at org.h2.engine.SessionRemote.connectEmbeddedOrServer(SessionRemote.java:338)
+	at org.h2.jdbc.JdbcConnection.<init>(JdbcConnection.java:122)
+	at org.h2.jdbcx.JdbcDataSource.getXAConnection(JdbcDataSource.java:322)
+	at io.agroal.pool.ConnectionFactory.createConnection(ConnectionFactory.java:232)
+	at io.agroal.pool.ConnectionPool$CreateConnectionTask.call(ConnectionPool.java:535)
+	at io.agroal.pool.ConnectionPool$CreateConnectionTask.call(ConnectionPool.java:516)
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:264)
+	at io.agroal.pool.util.PriorityScheduledExecutor.beforeExecute(PriorityScheduledExecutor.java:75)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1126)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:628)
+	at java.base/java.lang.Thread.run(Thread.java:829)
+Caused by: org.h2.jdbc.JdbcSQLNonTransientException: General error: "org.h2.mvstore.MVStoreException: Could not open file /opt/keycloak/data/h2/keycloakdb.mv.db [2.1.214/1]" [50000-214]
+	at org.h2.message.DbException.getJdbcSQLException(DbException.java:554)
+	at org.h2.message.DbException.getJdbcSQLException(DbException.java:477)
+	... 23 more
+Caused by: org.h2.mvstore.MVStoreException: Could not open file /opt/keycloak/data/h2/keycloakdb.mv.db [2.1.214/1]
+	at org.h2.mvstore.DataUtils.newMVStoreException(DataUtils.java:1004)
+	at org.h2.mvstore.FileStore.open(FileStore.java:185)
+	at org.h2.mvstore.FileStore.open(FileStore.java:128)
+	at org.h2.mvstore.MVStore.<init>(MVStore.java:452)
+	... 17 more
+Caused by: java.nio.channels.ClosedByInterruptException
+	at java.base/java.nio.channels.spi.AbstractInterruptibleChannel.end(AbstractInterruptibleChannel.java:199)
+	at java.base/sun.nio.ch.FileChannelImpl.endBlocking(FileChannelImpl.java:162)
+	at java.base/sun.nio.ch.FileChannelImpl.size(FileChannelImpl.java:388)
+	at org.h2.mvstore.FileStore.open(FileStore.java:182)
+	... 19 more
+2024-03-04 08:14:02 database: opening /opt/keycloak/data/h2/keycloakdb
+org.h2.message.DbException: IO Exception: "/opt/keycloak/data/h2/keycloakdb.mv.db" [90028-214]
+	at org.h2.message.DbException.get(DbException.java:212)
+	at org.h2.mvstore.db.Store.convertMVStoreException(Store.java:171)
+	at org.h2.mvstore.db.Store.<init>(Store.java:145)
+	at org.h2.engine.Database.<init>(Database.java:324)
+	at org.h2.engine.Engine.openSession(Engine.java:92)
+	at org.h2.engine.Engine.openSession(Engine.java:222)
+	at org.h2.engine.Engine.createSession(Engine.java:201)
+	at org.h2.engine.SessionRemote.connectEmbeddedOrServer(SessionRemote.java:338)
+	at org.h2.jdbc.JdbcConnection.<init>(JdbcConnection.java:122)
+	at org.h2.jdbcx.JdbcDataSource.getXAConnection(JdbcDataSource.java:322)
+	at io.agroal.pool.ConnectionFactory.createConnection(ConnectionFactory.java:232)
+	at io.agroal.pool.ConnectionPool$CreateConnectionTask.call(ConnectionPool.java:535)
+	at io.agroal.pool.ConnectionPool$CreateConnectionTask.call(ConnectionPool.java:516)
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:264)
+	at io.agroal.pool.util.PriorityScheduledExecutor.beforeExecute(PriorityScheduledExecutor.java:75)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1126)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:628)
+	at java.base/java.lang.Thread.run(Thread.java:829)
+Caused by: org.h2.jdbc.JdbcSQLNonTransientException: IO Exception: "/opt/keycloak/data/h2/keycloakdb.mv.db" [90028-214]
+	at org.h2.message.DbException.getJdbcSQLException(DbException.java:554)
+	at org.h2.message.DbException.getJdbcSQLException(DbException.java:477)
+	... 18 more
+Caused by: org.h2.mvstore.MVStoreException: Could not open file /opt/keycloak/data/h2/keycloakdb.mv.db [2.1.214/1]
+	at org.h2.mvstore.DataUtils.newMVStoreException(DataUtils.java:1004)
+	at org.h2.mvstore.FileStore.open(FileStore.java:185)
+	at org.h2.mvstore.FileStore.open(FileStore.java:128)
+	at org.h2.mvstore.MVStore.<init>(MVStore.java:452)
+	at org.h2.mvstore.MVStore$Builder.open(MVStore.java:4082)
+	at org.h2.mvstore.db.Store.<init>(Store.java:136)
+	... 15 more
+Caused by: java.nio.channels.ClosedByInterruptException
+	at java.base/java.nio.channels.spi.AbstractInterruptibleChannel.end(AbstractInterruptibleChannel.java:199)
+	at java.base/sun.nio.ch.FileChannelImpl.endBlocking(FileChannelImpl.java:162)
+	at java.base/sun.nio.ch.FileChannelImpl.size(FileChannelImpl.java:388)
+	at org.h2.mvstore.FileStore.open(FileStore.java:182)
+	... 19 more
+2024-03-04 08:14:04 database: opening /opt/keycloak/data/h2/keycloakdb
+org.h2.message.DbException: Error opening database: "Sleep interrupted" [8000-214]
+	at org.h2.message.DbException.get(DbException.java:212)
+	at org.h2.store.FileLock.getExceptionFatal(FileLock.java:429)
+	at org.h2.store.FileLock.sleep(FileLock.java:424)
+	at org.h2.store.FileLock.lockFile(FileLock.java:334)
+	at org.h2.store.FileLock.lock(FileLock.java:110)
+	at org.h2.engine.Database.<init>(Database.java:315)
+	at org.h2.engine.Engine.openSession(Engine.java:92)
+	at org.h2.engine.Engine.openSession(Engine.java:222)
+	at org.h2.engine.Engine.createSession(Engine.java:201)
+	at org.h2.engine.SessionRemote.connectEmbeddedOrServer(SessionRemote.java:338)
+	at org.h2.jdbc.JdbcConnection.<init>(JdbcConnection.java:122)
+	at org.h2.jdbcx.JdbcDataSource.getXAConnection(JdbcDataSource.java:322)
+	at io.agroal.pool.ConnectionFactory.createConnection(ConnectionFactory.java:232)
+	at io.agroal.pool.ConnectionPool$CreateConnectionTask.call(ConnectionPool.java:535)
+	at io.agroal.pool.ConnectionPool$CreateConnectionTask.call(ConnectionPool.java:516)
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:264)
+	at io.agroal.pool.util.PriorityScheduledExecutor.beforeExecute(PriorityScheduledExecutor.java:75)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1126)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:628)
+	at java.base/java.lang.Thread.run(Thread.java:829)
+Caused by: org.h2.jdbc.JdbcSQLNonTransientConnectionException: Error opening database: "Sleep interrupted" [8000-214]
+	at org.h2.message.DbException.getJdbcSQLException(DbException.java:504)
+	at org.h2.message.DbException.getJdbcSQLException(DbException.java:477)
+	... 20 more
+Caused by: java.lang.InterruptedException: sleep interrupted
+	at java.base/java.lang.Thread.sleep(Native Method)
+	at org.h2.store.FileLock.sleep(FileLock.java:422)
+	... 17 more
+2024-03-04 08:14:11 database: opening /opt/keycloak/data/h2/keycloakdb
+org.h2.message.DbException: Error opening database: "Sleep interrupted" [8000-214]
+	at org.h2.message.DbException.get(DbException.java:212)
+	at org.h2.store.FileLock.getExceptionFatal(FileLock.java:429)
+	at org.h2.store.FileLock.sleep(FileLock.java:424)
+	at org.h2.store.FileLock.lockFile(FileLock.java:324)
+	at org.h2.store.FileLock.lock(FileLock.java:110)
+	at org.h2.engine.Database.<init>(Database.java:315)
+	at org.h2.engine.Engine.openSession(Engine.java:92)
+	at org.h2.engine.Engine.openSession(Engine.java:222)
+	at org.h2.engine.Engine.createSession(Engine.java:201)
+	at org.h2.engine.SessionRemote.connectEmbeddedOrServer(SessionRemote.java:338)
+	at org.h2.jdbc.JdbcConnection.<init>(JdbcConnection.java:122)
+	at org.h2.jdbcx.JdbcDataSource.getXAConnection(JdbcDataSource.java:322)
+	at io.agroal.pool.ConnectionFactory.createConnection(ConnectionFactory.java:232)
+	at io.agroal.pool.ConnectionPool$CreateConnectionTask.call(ConnectionPool.java:535)
+	at io.agroal.pool.ConnectionPool$CreateConnectionTask.call(ConnectionPool.java:516)
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:264)
+	at io.agroal.pool.util.PriorityScheduledExecutor.beforeExecute(PriorityScheduledExecutor.java:75)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1126)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:628)
+	at java.base/java.lang.Thread.run(Thread.java:829)
+Caused by: org.h2.jdbc.JdbcSQLNonTransientConnectionException: Error opening database: "Sleep interrupted" [8000-214]
+	at org.h2.message.DbException.getJdbcSQLException(DbException.java:504)
+	at org.h2.message.DbException.getJdbcSQLException(DbException.java:477)
+	... 20 more
+Caused by: java.lang.InterruptedException: sleep interrupted
+	at java.base/java.lang.Thread.sleep(Native Method)
+	at org.h2.store.FileLock.sleep(FileLock.java:422)
+	... 17 more
+2024-03-04 08:14:20 database: opening /opt/keycloak/data/h2/keycloakdb
+org.h2.message.DbException: Error opening database: "Sleep interrupted" [8000-214]
+	at org.h2.message.DbException.get(DbException.java:212)
+	at org.h2.store.FileLock.getExceptionFatal(FileLock.java:429)
+	at org.h2.store.FileLock.sleep(FileLock.java:424)
+	at org.h2.store.FileLock.lockFile(FileLock.java:324)
+	at org.h2.store.FileLock.lock(FileLock.java:110)
+	at org.h2.engine.Database.<init>(Database.java:315)
+	at org.h2.engine.Engine.openSession(Engine.java:92)
+	at org.h2.engine.Engine.openSession(Engine.java:222)
+	at org.h2.engine.Engine.createSession(Engine.java:201)
+	at org.h2.engine.SessionRemote.connectEmbeddedOrServer(SessionRemote.java:338)
+	at org.h2.jdbc.JdbcConnection.<init>(JdbcConnection.java:122)
+	at org.h2.jdbcx.JdbcDataSource.getXAConnection(JdbcDataSource.java:322)
+	at io.agroal.pool.ConnectionFactory.createConnection(ConnectionFactory.java:232)
+	at io.agroal.pool.ConnectionPool$CreateConnectionTask.call(ConnectionPool.java:535)
+	at io.agroal.pool.ConnectionPool$CreateConnectionTask.call(ConnectionPool.java:516)
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:264)
+	at io.agroal.pool.util.PriorityScheduledExecutor.beforeExecute(PriorityScheduledExecutor.java:75)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1126)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:628)
+	at java.base/java.lang.Thread.run(Thread.java:829)
+Caused by: org.h2.jdbc.JdbcSQLNonTransientConnectionException: Error opening database: "Sleep interrupted" [8000-214]
+	at org.h2.message.DbException.getJdbcSQLException(DbException.java:504)
+	at org.h2.message.DbException.getJdbcSQLException(DbException.java:477)
+	... 20 more
+Caused by: java.lang.InterruptedException: sleep interrupted
+	at java.base/java.lang.Thread.sleep(Native Method)
+	at org.h2.store.FileLock.sleep(FileLock.java:422)
+	... 17 more
+2024-03-06 10:15:30 database: opening /opt/keycloak/data/h2/keycloakdb
+org.h2.message.DbException: Error opening database: "Sleep interrupted" [8000-214]
+	at org.h2.message.DbException.get(DbException.java:212)
+	at org.h2.store.FileLock.getExceptionFatal(FileLock.java:429)
+	at org.h2.store.FileLock.sleep(FileLock.java:424)
+	at org.h2.store.FileLock.lockFile(FileLock.java:334)
+	at org.h2.store.FileLock.lock(FileLock.java:110)
+	at org.h2.engine.Database.<init>(Database.java:315)
+	at org.h2.engine.Engine.openSession(Engine.java:92)
+	at org.h2.engine.Engine.openSession(Engine.java:222)
+	at org.h2.engine.Engine.createSession(Engine.java:201)
+	at org.h2.engine.SessionRemote.connectEmbeddedOrServer(SessionRemote.java:338)
+	at org.h2.jdbc.JdbcConnection.<init>(JdbcConnection.java:122)
+	at org.h2.jdbcx.JdbcDataSource.getXAConnection(JdbcDataSource.java:322)
+	at io.agroal.pool.ConnectionFactory.createConnection(ConnectionFactory.java:232)
+	at io.agroal.pool.ConnectionPool$CreateConnectionTask.call(ConnectionPool.java:535)
+	at io.agroal.pool.ConnectionPool$CreateConnectionTask.call(ConnectionPool.java:516)
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:264)
+	at io.agroal.pool.util.PriorityScheduledExecutor.beforeExecute(PriorityScheduledExecutor.java:75)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1126)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:628)
+	at java.base/java.lang.Thread.run(Thread.java:829)
+Caused by: org.h2.jdbc.JdbcSQLNonTransientConnectionException: Error opening database: "Sleep interrupted" [8000-214]
+	at org.h2.message.DbException.getJdbcSQLException(DbException.java:504)
+	at org.h2.message.DbException.getJdbcSQLException(DbException.java:477)
+	... 20 more
+Caused by: java.lang.InterruptedException: sleep interrupted
+	at java.base/java.lang.Thread.sleep(Native Method)
+	at org.h2.store.FileLock.sleep(FileLock.java:422)
+	... 17 more
+2024-03-06 10:15:37 database: opening /opt/keycloak/data/h2/keycloakdb
+org.h2.message.DbException: Error opening database: "Sleep interrupted" [8000-214]
+	at org.h2.message.DbException.get(DbException.java:212)
+	at org.h2.store.FileLock.getExceptionFatal(FileLock.java:429)
+	at org.h2.store.FileLock.sleep(FileLock.java:424)
+	at org.h2.store.FileLock.lockFile(FileLock.java:324)
+	at org.h2.store.FileLock.lock(FileLock.java:110)
+	at org.h2.engine.Database.<init>(Database.java:315)
+	at org.h2.engine.Engine.openSession(Engine.java:92)
+	at org.h2.engine.Engine.openSession(Engine.java:222)
+	at org.h2.engine.Engine.createSession(Engine.java:201)
+	at org.h2.engine.SessionRemote.connectEmbeddedOrServer(SessionRemote.java:338)
+	at org.h2.jdbc.JdbcConnection.<init>(JdbcConnection.java:122)
+	at org.h2.jdbcx.JdbcDataSource.getXAConnection(JdbcDataSource.java:322)
+	at io.agroal.pool.ConnectionFactory.createConnection(ConnectionFactory.java:232)
+	at io.agroal.pool.ConnectionPool$CreateConnectionTask.call(ConnectionPool.java:535)
+	at io.agroal.pool.ConnectionPool$CreateConnectionTask.call(ConnectionPool.java:516)
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:264)
+	at io.agroal.pool.util.PriorityScheduledExecutor.beforeExecute(PriorityScheduledExecutor.java:75)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1126)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:628)
+	at java.base/java.lang.Thread.run(Thread.java:829)
+Caused by: org.h2.jdbc.JdbcSQLNonTransientConnectionException: Error opening database: "Sleep interrupted" [8000-214]
+	at org.h2.message.DbException.getJdbcSQLException(DbException.java:504)
+	at org.h2.message.DbException.getJdbcSQLException(DbException.java:477)
+	... 20 more
+Caused by: java.lang.InterruptedException: sleep interrupted
+	at java.base/java.lang.Thread.sleep(Native Method)
+	at org.h2.store.FileLock.sleep(FileLock.java:422)
+	... 17 more
+2024-03-06 10:15:41 database: opening /opt/keycloak/data/h2/keycloakdb
+org.h2.message.DbException: Error opening database: "Sleep interrupted" [8000-214]
+	at org.h2.message.DbException.get(DbException.java:212)
+	at org.h2.store.FileLock.getExceptionFatal(FileLock.java:429)
+	at org.h2.store.FileLock.sleep(FileLock.java:424)
+	at org.h2.store.FileLock.lockFile(FileLock.java:324)
+	at org.h2.store.FileLock.lock(FileLock.java:110)
+	at org.h2.engine.Database.<init>(Database.java:315)
+	at org.h2.engine.Engine.openSession(Engine.java:92)
+	at org.h2.engine.Engine.openSession(Engine.java:222)
+	at org.h2.engine.Engine.createSession(Engine.java:201)
+	at org.h2.engine.SessionRemote.connectEmbeddedOrServer(SessionRemote.java:338)
+	at org.h2.jdbc.JdbcConnection.<init>(JdbcConnection.java:122)
+	at org.h2.jdbcx.JdbcDataSource.getXAConnection(JdbcDataSource.java:322)
+	at io.agroal.pool.ConnectionFactory.createConnection(ConnectionFactory.java:232)
+	at io.agroal.pool.ConnectionPool$CreateConnectionTask.call(ConnectionPool.java:535)
+	at io.agroal.pool.ConnectionPool$CreateConnectionTask.call(ConnectionPool.java:516)
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:264)
+	at io.agroal.pool.util.PriorityScheduledExecutor.beforeExecute(PriorityScheduledExecutor.java:75)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1126)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:628)
+	at java.base/java.lang.Thread.run(Thread.java:829)
+Caused by: org.h2.jdbc.JdbcSQLNonTransientConnectionException: Error opening database: "Sleep interrupted" [8000-214]
+	at org.h2.message.DbException.getJdbcSQLException(DbException.java:504)
+	at org.h2.message.DbException.getJdbcSQLException(DbException.java:477)
+	... 20 more
+Caused by: java.lang.InterruptedException: sleep interrupted
+	at java.base/java.lang.Thread.sleep(Native Method)
+	at org.h2.store.FileLock.sleep(FileLock.java:422)
+	... 17 more
+2024-03-13 09:09:49 database: opening /opt/keycloak/data/h2/keycloakdb
+org.h2.message.DbException: IO Exception: "/opt/keycloak/data/h2/keycloakdb.mv.db" [90028-214]
+	at org.h2.message.DbException.get(DbException.java:212)
+	at org.h2.mvstore.db.Store.convertMVStoreException(Store.java:171)
+	at org.h2.mvstore.db.Store.<init>(Store.java:145)
+	at org.h2.engine.Database.<init>(Database.java:324)
+	at org.h2.engine.Engine.openSession(Engine.java:92)
+	at org.h2.engine.Engine.openSession(Engine.java:222)
+	at org.h2.engine.Engine.createSession(Engine.java:201)
+	at org.h2.engine.SessionRemote.connectEmbeddedOrServer(SessionRemote.java:338)
+	at org.h2.jdbc.JdbcConnection.<init>(JdbcConnection.java:122)
+	at org.h2.jdbcx.JdbcDataSource.getXAConnection(JdbcDataSource.java:322)
+	at io.agroal.pool.ConnectionFactory.createConnection(ConnectionFactory.java:232)
+	at io.agroal.pool.ConnectionPool$CreateConnectionTask.call(ConnectionPool.java:535)
+	at io.agroal.pool.ConnectionPool$CreateConnectionTask.call(ConnectionPool.java:516)
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:264)
+	at io.agroal.pool.util.PriorityScheduledExecutor.beforeExecute(PriorityScheduledExecutor.java:75)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1126)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:628)
+	at java.base/java.lang.Thread.run(Thread.java:829)
+Caused by: org.h2.jdbc.JdbcSQLNonTransientException: IO Exception: "/opt/keycloak/data/h2/keycloakdb.mv.db" [90028-214]
+	at org.h2.message.DbException.getJdbcSQLException(DbException.java:554)
+	at org.h2.message.DbException.getJdbcSQLException(DbException.java:477)
+	... 18 more
+Caused by: org.h2.mvstore.MVStoreException: Reading from file sun.nio.ch.FileChannelImpl@4eaa1f10 failed at 1228881 (length -1), read 1024, remaining 0 [2.1.214/1]
+	at org.h2.mvstore.DataUtils.newMVStoreException(DataUtils.java:1004)
+	at org.h2.mvstore.DataUtils.readFully(DataUtils.java:470)
+	at org.h2.mvstore.FileStore.readFully(FileStore.java:98)
+	at org.h2.mvstore.Chunk.readBufferForPage(Chunk.java:422)
+	at org.h2.mvstore.MVStore.readPage(MVStore.java:2569)
+	at org.h2.mvstore.MVMap.readPage(MVMap.java:633)
+	at org.h2.mvstore.Page$NonLeaf.getChildPage(Page.java:1125)
+	at org.h2.mvstore.Page.get(Page.java:243)
+	at org.h2.mvstore.MVMap.get(MVMap.java:436)
+	at org.h2.mvstore.MVMap.get(MVMap.java:424)
+	at org.h2.mvstore.MVMap.containsKey(MVMap.java:441)
+	at org.h2.mvstore.MVStore.scrubLayoutMap(MVStore.java:531)
+	at org.h2.mvstore.MVStore.<init>(MVStore.java:479)
+	at org.h2.mvstore.MVStore$Builder.open(MVStore.java:4082)
+	at org.h2.mvstore.db.Store.<init>(Store.java:136)
+	... 15 more
+Caused by: java.nio.channels.ClosedByInterruptException
+	at java.base/java.nio.channels.spi.AbstractInterruptibleChannel.end(AbstractInterruptibleChannel.java:199)
+	at java.base/sun.nio.ch.FileChannelImpl.endBlocking(FileChannelImpl.java:162)
+	at java.base/sun.nio.ch.FileChannelImpl.readInternal(FileChannelImpl.java:816)
+	at java.base/sun.nio.ch.FileChannelImpl.read(FileChannelImpl.java:796)
+	at org.h2.mvstore.DataUtils.readFully(DataUtils.java:456)
+	... 28 more
+2024-03-13 09:09:51 database: opening /opt/keycloak/data/h2/keycloakdb
+org.h2.message.DbException: Error opening database: "Sleep interrupted" [8000-214]
+	at org.h2.message.DbException.get(DbException.java:212)
+	at org.h2.store.FileLock.getExceptionFatal(FileLock.java:429)
+	at org.h2.store.FileLock.sleep(FileLock.java:424)
+	at org.h2.store.FileLock.lockFile(FileLock.java:334)
+	at org.h2.store.FileLock.lock(FileLock.java:110)
+	at org.h2.engine.Database.<init>(Database.java:315)
+	at org.h2.engine.Engine.openSession(Engine.java:92)
+	at org.h2.engine.Engine.openSession(Engine.java:222)
+	at org.h2.engine.Engine.createSession(Engine.java:201)
+	at org.h2.engine.SessionRemote.connectEmbeddedOrServer(SessionRemote.java:338)
+	at org.h2.jdbc.JdbcConnection.<init>(JdbcConnection.java:122)
+	at org.h2.jdbcx.JdbcDataSource.getXAConnection(JdbcDataSource.java:322)
+	at io.agroal.pool.ConnectionFactory.createConnection(ConnectionFactory.java:232)
+	at io.agroal.pool.ConnectionPool$CreateConnectionTask.call(ConnectionPool.java:535)
+	at io.agroal.pool.ConnectionPool$CreateConnectionTask.call(ConnectionPool.java:516)
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:264)
+	at io.agroal.pool.util.PriorityScheduledExecutor.beforeExecute(PriorityScheduledExecutor.java:75)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1126)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:628)
+	at java.base/java.lang.Thread.run(Thread.java:829)
+Caused by: org.h2.jdbc.JdbcSQLNonTransientConnectionException: Error opening database: "Sleep interrupted" [8000-214]
+	at org.h2.message.DbException.getJdbcSQLException(DbException.java:504)
+	at org.h2.message.DbException.getJdbcSQLException(DbException.java:477)
+	... 20 more
+Caused by: java.lang.InterruptedException: sleep interrupted
+	at java.base/java.lang.Thread.sleep(Native Method)
+	at org.h2.store.FileLock.sleep(FileLock.java:422)
+	... 17 more
+2024-03-13 09:09:57 database: opening /opt/keycloak/data/h2/keycloakdb
+org.h2.message.DbException: Error opening database: "Sleep interrupted" [8000-214]
+	at org.h2.message.DbException.get(DbException.java:212)
+	at org.h2.store.FileLock.getExceptionFatal(FileLock.java:429)
+	at org.h2.store.FileLock.sleep(FileLock.java:424)
+	at org.h2.store.FileLock.lockFile(FileLock.java:334)
+	at org.h2.store.FileLock.lock(FileLock.java:110)
+	at org.h2.engine.Database.<init>(Database.java:315)
+	at org.h2.engine.Engine.openSession(Engine.java:92)
+	at org.h2.engine.Engine.openSession(Engine.java:222)
+	at org.h2.engine.Engine.createSession(Engine.java:201)
+	at org.h2.engine.SessionRemote.connectEmbeddedOrServer(SessionRemote.java:338)
+	at org.h2.jdbc.JdbcConnection.<init>(JdbcConnection.java:122)
+	at org.h2.jdbcx.JdbcDataSource.getXAConnection(JdbcDataSource.java:322)
+	at io.agroal.pool.ConnectionFactory.createConnection(ConnectionFactory.java:232)
+	at io.agroal.pool.ConnectionPool$CreateConnectionTask.call(ConnectionPool.java:535)
+	at io.agroal.pool.ConnectionPool$CreateConnectionTask.call(ConnectionPool.java:516)
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:264)
+	at io.agroal.pool.util.PriorityScheduledExecutor.beforeExecute(PriorityScheduledExecutor.java:75)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1126)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:628)
+	at java.base/java.lang.Thread.run(Thread.java:829)
+Caused by: org.h2.jdbc.JdbcSQLNonTransientConnectionException: Error opening database: "Sleep interrupted" [8000-214]
+	at org.h2.message.DbException.getJdbcSQLException(DbException.java:504)
+	at org.h2.message.DbException.getJdbcSQLException(DbException.java:477)
+	... 20 more
+Caused by: java.lang.InterruptedException: sleep interrupted
+	at java.base/java.lang.Thread.sleep(Native Method)
+	at org.h2.store.FileLock.sleep(FileLock.java:422)
+	... 17 more
+2024-03-13 13:40:21 database: opening /opt/keycloak/data/h2/keycloakdb
+org.h2.message.DbException: Error opening database: "Sleep interrupted" [8000-214]
+	at org.h2.message.DbException.get(DbException.java:212)
+	at org.h2.store.FileLock.getExceptionFatal(FileLock.java:429)
+	at org.h2.store.FileLock.sleep(FileLock.java:424)
+	at org.h2.store.FileLock.lockFile(FileLock.java:334)
+	at org.h2.store.FileLock.lock(FileLock.java:110)
+	at org.h2.engine.Database.<init>(Database.java:315)
+	at org.h2.engine.Engine.openSession(Engine.java:92)
+	at org.h2.engine.Engine.openSession(Engine.java:222)
+	at org.h2.engine.Engine.createSession(Engine.java:201)
+	at org.h2.engine.SessionRemote.connectEmbeddedOrServer(SessionRemote.java:338)
+	at org.h2.jdbc.JdbcConnection.<init>(JdbcConnection.java:122)
+	at org.h2.jdbcx.JdbcDataSource.getXAConnection(JdbcDataSource.java:322)
+	at io.agroal.pool.ConnectionFactory.createConnection(ConnectionFactory.java:232)
+	at io.agroal.pool.ConnectionPool$CreateConnectionTask.call(ConnectionPool.java:535)
+	at io.agroal.pool.ConnectionPool$CreateConnectionTask.call(ConnectionPool.java:516)
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:264)
+	at io.agroal.pool.util.PriorityScheduledExecutor.beforeExecute(PriorityScheduledExecutor.java:75)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1126)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:628)
+	at java.base/java.lang.Thread.run(Thread.java:829)
+Caused by: org.h2.jdbc.JdbcSQLNonTransientConnectionException: Error opening database: "Sleep interrupted" [8000-214]
+	at org.h2.message.DbException.getJdbcSQLException(DbException.java:504)
+	at org.h2.message.DbException.getJdbcSQLException(DbException.java:477)
+	... 20 more
+Caused by: java.lang.InterruptedException: sleep interrupted
+	at java.base/java.lang.Thread.sleep(Native Method)
+	at org.h2.store.FileLock.sleep(FileLock.java:422)
+	... 17 more
