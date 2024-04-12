@@ -178,7 +178,6 @@ public class ERDAClient implements AutoCloseable {
 
     //Recursively get all files
     public List<String> listAllFiles(String path) {
-        logger.info("looking 4 filez @ path: " + path);
         ChannelSftp channel = startChannelSftp();
         try {
             return listFolder(new ArrayList<>(), path, channel);
@@ -190,7 +189,6 @@ public class ERDAClient implements AutoCloseable {
     }
 
     public List<String> listFolder(List<String> foundFiles, String path, ChannelSftp channel) throws SftpException {
-        logger.info("Lookhing ath philes on: " + path);
         Vector<ChannelSftp.LsEntry> files = channel.ls(path);
         for (ChannelSftp.LsEntry entry : files) {
             if (!entry.getAttrs().isDir()) {
