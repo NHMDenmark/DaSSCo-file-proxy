@@ -1,0 +1,713 @@
+{
+  "openapi" : "3.0.1",
+  "info" : {
+    "title" : "DaSSCo",
+    "description" : "DaSSCO File Proxy API Documentation\n",
+    "version" : "1.0"
+  },
+  "servers" : [ {
+    "url" : "${apiServerUrl}",
+    "variables" : { }
+  } ],
+  "paths" : {
+    "/assets/{assetGuid}/files" : {
+      "get" : {
+        "operationId" : "listFiles",
+        "parameters" : [ {
+          "name" : "assetGuid",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/DasscoFile"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security" : [ {
+          "dassco-idp" : [ ]
+        } ]
+      }
+    },
+    "/assetfiles/{institutionName}/{collectionName}/{assetGuid}" : {
+      "get" : {
+        "operationId" : "listFiles_1",
+        "parameters" : [ {
+          "name" : "institutionName",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "collectionName",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "assetGuid",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "type" : "string"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete" : {
+        "operationId" : "deleteAsset",
+        "parameters" : [ {
+          "name" : "institutionName",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "collectionName",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "assetGuid",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        }
+      }
+    },
+    "/assetfiles/{institutionName}/{collectionName}/{assetGuid}/{path}" : {
+      "get" : {
+        "operationId" : "getFile",
+        "parameters" : [ {
+          "name" : "institutionName",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "collectionName",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "assetGuid",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "*/*" : { }
+            }
+          }
+        }
+      },
+      "put" : {
+        "operationId" : "putFile",
+        "parameters" : [ {
+          "name" : "institutionName",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "collectionName",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "assetGuid",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "crc",
+          "in" : "query",
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        }, {
+          "name" : "file_size_mb",
+          "in" : "query",
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/octet-stream" : {
+              "schema" : {
+                "type" : "object"
+              }
+            }
+          }
+        },
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        }
+      },
+      "delete" : {
+        "operationId" : "deletefile",
+        "parameters" : [ {
+          "name" : "institutionName",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "collectionName",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "assetGuid",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "*/*" : { }
+            }
+          }
+        }
+      }
+    },
+    "/v1/ftps/{params}" : {
+      "get" : {
+        "operationId" : "get",
+        "parameters" : [ {
+          "name" : "params",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/octet-stream" : { }
+            }
+          }
+        }
+      }
+    },
+    "/v1/ftps/listfiles/{path}" : {
+      "get" : {
+        "operationId" : "test",
+        "parameters" : [ {
+          "name" : "path",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "type" : "string"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/ftps/upload/{path}" : {
+      "put" : {
+        "operationId" : "update",
+        "parameters" : [ {
+          "name" : "path",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "cleanup",
+          "in" : "query",
+          "schema" : {
+            "type" : "boolean"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "*/*" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/Asset"
+              }
+            }
+          }
+        },
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "type" : "boolean"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/shares/assets/{assetGuid}/deleteShare" : {
+      "delete" : {
+        "operationId" : "close",
+        "parameters" : [ {
+          "name" : "assetGuid",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        }
+      }
+    },
+    "/shares/assets/{assetGuid}/createShare" : {
+      "post" : {
+        "operationId" : "createSambaServer",
+        "parameters" : [ {
+          "name" : "assetGuid",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/CreationObj"
+              }
+            }
+          }
+        },
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/HttpInfo"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/shares/assets/{assetGuid}/createShareInternal" : {
+      "post" : {
+        "operationId" : "createSambaServerInternal",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/CreationObj"
+              }
+            }
+          }
+        },
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/HttpInfo"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/shares/assets/{assetGuid}/synchronize" : {
+      "post" : {
+        "operationId" : "synchronize",
+        "parameters" : [ {
+          "name" : "assetGuid",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "workstation",
+          "in" : "query",
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "pipeline",
+          "in" : "query",
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        }
+      }
+    },
+    "/shares/assets/{assetGuid}/changeAllocation" : {
+      "post" : {
+        "operationId" : "updateStorageAllocation",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/AssetStorageAllocation"
+              }
+            }
+          }
+        },
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/HttpInfo"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/sftp/assets/{guid}/files/{file}" : {
+      "get" : {
+        "operationId" : "get_1",
+        "parameters" : [ {
+          "name" : "guid",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "file",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/octet-stream" : { }
+            }
+          }
+        }
+      }
+    },
+    "/v1/sftp/hello" : {
+      "get" : {
+        "operationId" : "hello",
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "type" : "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/sftp/institutions/{institution}/collections/{collection}/assets/{guid}" : {
+      "get" : {
+        "operationId" : "listItems",
+        "parameters" : [ {
+          "name" : "institution",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "collection",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "guid",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "type" : "string"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components" : {
+    "schemas" : {
+      "DasscoFile" : {
+        "type" : "object",
+        "properties" : {
+          "fileId" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "assetGuid" : {
+            "type" : "string"
+          },
+          "path" : {
+            "type" : "string"
+          },
+          "sizeBytes" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "crc" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "deleteAfterSync" : {
+            "type" : "boolean"
+          },
+          "syncStatus" : {
+            "type" : "string",
+            "enum" : [ "NEW_FILE", "SYNCHRONIZED" ]
+          }
+        }
+      },
+      "Asset" : {
+        "type" : "object",
+        "properties" : {
+          "institution" : {
+            "type" : "string"
+          },
+          "collection" : {
+            "type" : "string"
+          },
+          "assetGuid" : {
+            "type" : "string"
+          }
+        }
+      },
+      "HttpInfo" : {
+        "type" : "object",
+        "properties" : {
+          "path" : {
+            "type" : "string"
+          },
+          "hostname" : {
+            "type" : "string"
+          },
+          "total_storage_mb" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "cache_storage_mb" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "all_allocated_storage_mb" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "remaining_storage_mb" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "allocated_storage_mb" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "proxy_allocation_status_text" : {
+            "type" : "string"
+          },
+          "http_allocation_status" : {
+            "type" : "string",
+            "enum" : [ "DISK_FULL", "SUCCESS", "BAD_REQUEST", "UNKNOWN_ERROR", "UPSTREAM_ERROR", "SHARE_NOT_FOUND", "INTERNAL_ERROR" ]
+          },
+          "parent_size_mb" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        }
+      },
+      "CreationObj" : {
+        "type" : "object",
+        "properties" : {
+          "assets" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/MinimalAsset"
+            }
+          },
+          "users" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "allocation_mb" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        }
+      },
+      "MinimalAsset" : {
+        "type" : "object",
+        "properties" : {
+          "asset_guid" : {
+            "type" : "string"
+          },
+          "parent_guid" : {
+            "type" : "string"
+          },
+          "institution" : {
+            "type" : "string"
+          },
+          "collection" : {
+            "type" : "string"
+          }
+        }
+      },
+      "AssetStorageAllocation" : {
+        "type" : "object",
+        "properties" : {
+          "asset_guid" : {
+            "type" : "string"
+          },
+          "new_allocation_mb" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        }
+      }
+    },
+    "securitySchemes" : {
+      "dassco-idp" : {
+        "type" : "oauth2",
+        "flows" : {
+          "authorizationCode" : {
+            "authorizationUrl" : "${authServerUrl}/protocol/openid-connect/auth",
+            "tokenUrl" : "${authServerUrl}/protocol/openid-connect/token"
+          }
+        },
+        "x-client-id" : "${authClientId}",
+        "x-receive-token-in" : "request-body"
+      }
+    }
+  }
+}

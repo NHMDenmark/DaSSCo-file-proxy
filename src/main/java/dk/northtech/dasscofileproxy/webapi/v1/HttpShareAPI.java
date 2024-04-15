@@ -4,6 +4,7 @@ import dk.northtech.dasscofileproxy.domain.*;
 import dk.northtech.dasscofileproxy.service.*;
 import dk.northtech.dasscofileproxy.webapi.UserMapper;
 import dk.northtech.dasscofileproxy.webapi.model.AssetStorageAllocation;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import jakarta.annotation.security.RolesAllowed;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.*;
@@ -17,6 +18,7 @@ import org.slf4j.LoggerFactory;
 import static jakarta.ws.rs.core.MediaType.APPLICATION_JSON;
 
 @Path("/shares")
+@SecurityRequirement(name = "dassco-idp")
 public class HttpShareAPI {
     public static final Logger logger = LoggerFactory.getLogger(HttpShareAPI.class);
     HttpShareService httpShareService;
