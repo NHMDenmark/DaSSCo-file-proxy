@@ -5,6 +5,7 @@ import dk.northtech.dasscofileproxy.service.FileService;
 import dk.northtech.dasscofileproxy.webapi.UserMapper;
 import dk.northtech.dasscofileproxy.webapi.model.FileUploadData;
 import dk.northtech.dasscofileproxy.webapi.model.FileUploadResult;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.*;
@@ -17,6 +18,7 @@ import java.util.Optional;
 import static jakarta.ws.rs.core.MediaType.APPLICATION_JSON;
 
 @Path("/assetfiles")
+@SecurityRequirement(name = "dassco-idp")
 public class Files {
     private FileService fileService;
 

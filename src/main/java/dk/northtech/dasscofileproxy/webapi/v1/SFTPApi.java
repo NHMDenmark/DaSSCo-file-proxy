@@ -9,6 +9,7 @@ import dk.northtech.dasscofileproxy.domain.AssetFull;
 import dk.northtech.dasscofileproxy.service.AssetService;
 import dk.northtech.dasscofileproxy.service.ERDAClient;
 import dk.northtech.dasscofileproxy.service.SFTPService;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.Context;
@@ -27,6 +28,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 @Component
 @Path("/v1/sftp")
+@SecurityRequirement(name = "dassco-idp")
 public class SFTPApi {
 
     private final SFTPService sftpService;
