@@ -3,13 +3,22 @@ package dk.northtech.dasscofileproxy.webapi.v1;
 import dk.northtech.dasscofileproxy.domain.User;
 import dk.northtech.dasscofileproxy.service.FileService;
 import dk.northtech.dasscofileproxy.webapi.UserMapper;
+import dk.northtech.dasscofileproxy.webapi.exceptionmappers.DaSSCoError;
 import dk.northtech.dasscofileproxy.webapi.model.FileUploadData;
 import dk.northtech.dasscofileproxy.webapi.model.FileUploadResult;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.ExampleObject;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.*;
 import org.apache.tika.Tika;
+import org.checkerframework.checker.units.qual.A;
+import org.checkerframework.checker.units.qual.C;
 
 import java.io.InputStream;
 import java.util.List;
@@ -18,6 +27,7 @@ import java.util.Optional;
 import static jakarta.ws.rs.core.MediaType.APPLICATION_JSON;
 
 @Path("/assetfiles")
+@Tag(name = "Asset Files", description = "Endpoints related to assets' files.")
 @SecurityRequirement(name = "dassco-idp")
 public class Files {
     private FileService fileService;
@@ -32,8 +42,11 @@ public class Files {
 
     @PUT
     @Path("/{institutionName}/{collectionName}/{assetGuid}/{path: .+}")
+    @Operation(summary = "Upload File", description = "Uploads a file. Requires institution, collection, asset_guid, crc and file size (in mb).")
     @Produces(MediaType.APPLICATION_JSON)
     @Consumes(MediaType.APPLICATION_OCTET_STREAM)
+    @ApiResponse(responseCode = "200", content = @Content(mediaType = APPLICATION_JSON, schema = @Schema(implementation = FileUploadResult.class)))
+    @ApiResponse(responseCode = "400-599", content = @Content(mediaType = APPLICATION_JSON, schema = @Schema(implementation = DaSSCoError.class)))
     public Response putFile(
             @PathParam("institutionName") String institutionName
             , @PathParam("collectionName") String collectionName
@@ -59,8 +72,11 @@ public class Files {
 
     @GET
     @Path("/{institutionName}/{collectionName}/{assetGuid}/{path: .+}")
+    @Operation(summary = "Get Asset File by path", description = "Get an asset file based on institution, collection, asset_guid and path to the file")
 //    @Produces(MediaType.APPLICATION_OCTET_STREAM)
     @Consumes(APPLICATION_JSON)
+    @ApiResponse(responseCode = "200", description = "Returns the file.")
+    @ApiResponse(responseCode = "400-599", content = @Content(mediaType = APPLICATION_JSON, schema = @Schema(implementation = DaSSCoError.class)))
     public Response getFile(
             @PathParam("institutionName") String institutionName
             , @PathParam("collectionName") String collectionName
@@ -88,8 +104,13 @@ public class Files {
 
     @GET
     @Path("/{institutionName}/{collectionName}/{assetGuid}/")
+    @Operation(summary = "Get List of Asset Files", description = "Get a list of files based on institution, collection and asset_guid")
+    // TODO: Roles allowed?
     @Produces(APPLICATION_JSON)
     @Consumes(APPLICATION_JSON)
+    // TODO: Does it actually return a list of strings?
+    @ApiResponse(responseCode = "200", content = @Content(mediaType = APPLICATION_JSON, schema = @Schema(type = "array", implementation = String.class)))
+    @ApiResponse(responseCode = "400-599", content = @Content(mediaType = APPLICATION_JSON, schema = @Schema(implementation = DaSSCoError.class)))
     public List<String> listFiles(
             @PathParam("institutionName") String institutionName
             , @PathParam("collectionName") String collectionName
@@ -105,6 +126,9 @@ public class Files {
     @Path("/{institutionName}/{collectionName}/{assetGuid}/{path: .+}")
 //    @Produces(MediaType.APPLICATION_JSON)
 //    @Consumes(APPLICATION_JSON)
+    @Operation(summary = "Delete Asset File by path", description = "")
+    @ApiResponse(responseCode = "200", content = @Content(mediaType = APPLICATION_JSON /*, schema = @Schema(implementation = Assets.class)*/))
+    @ApiResponse(responseCode = "400-599", content = @Content(mediaType = APPLICATION_JSON, schema = @Schema(implementation = DaSSCoError.class)))
     public Response deletefile(
             @PathParam("institutionName") String institutionName
             , @PathParam("collectionName") String collectionName
@@ -120,8 +144,11 @@ public class Files {
     //Delete all files under an azzet
     @DELETE
     @Path("/{institutionName}/{collectionName}/{assetGuid}/")
+    @Operation(summary = "Delete Asset File", description = "Deletes an asset file based on institution, collection and asset_guid")
     @Produces(MediaType.APPLICATION_JSON)
     @Consumes(APPLICATION_JSON)
+    @ApiResponse(responseCode = "200", content = @Content(mediaType = APPLICATION_JSON /*, schema = @Schema(implementation = Assets.class)*/))
+    @ApiResponse(responseCode = "400-599", content = @Content(mediaType = APPLICATION_JSON, schema = @Schema(implementation = DaSSCoError.class)))
     public Response deleteAsset(
             @PathParam("institutionName") String institutionName
             , @PathParam("collectionName") String collectionName
