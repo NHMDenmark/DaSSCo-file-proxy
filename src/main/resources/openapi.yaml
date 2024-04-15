@@ -7,9 +7,20 @@ info:
 servers:
 - url: "${apiServerUrl}"
   variables: {}
+tags:
+- name: Assets
+  description: Endpoints related to assets
+- name: Asset Files
+  description: Endpoints related to assets' files.
+- name: Shares
+  description: Endpoints related to assets' allocation
 paths:
   /assets/{assetGuid}/files:
     get:
+      tags:
+      - Assets
+      summary: Get Asset Files
+      description: Get a list of file metadata associated with an asset
       operationId: listFiles
       parameters:
       - name: assetGuid
@@ -18,18 +29,24 @@ paths:
         schema:
           type: string
       responses:
-        default:
-          description: default response
+        "200":
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/DasscoFile'
+                $ref: '#/components/schemas/DasscoFile'
+        "400-599":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DaSSCoError'
       security:
       - dassco-idp: []
   /assetfiles/{institutionName}/{collectionName}/{assetGuid}:
     get:
+      tags:
+      - Asset Files
+      summary: Get List of Asset Files
+      description: "Get a list of files based on institution, collection and asset_guid"
       operationId: listFiles_1
       parameters:
       - name: institutionName
@@ -48,15 +65,23 @@ paths:
         schema:
           type: string
       responses:
-        default:
-          description: default response
+        "200":
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  type: string
+                type: string
+        "400-599":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DaSSCoError'
+      security:
+      - dassco-idp: []
     delete:
+      tags:
+      - Asset Files
+      summary: Delete Asset File
+      description: "Deletes an asset file based on institution, collection and asset_guid"
       operationId: deleteAsset
       parameters:
       - name: institutionName
@@ -75,12 +100,23 @@ paths:
         schema:
           type: string
       responses:
-        default:
-          description: default response
+        "200":
           content:
             application/json: {}
+        "400-599":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DaSSCoError'
+      security:
+      - dassco-idp: []
   /assetfiles/{institutionName}/{collectionName}/{assetGuid}/{path}:
     get:
+      tags:
+      - Asset Files
+      summary: Get Asset File by path
+      description: "Get an asset file based on institution, collection, asset_guid\
+        \ and path to the file"
       operationId: getFile
       parameters:
       - name: institutionName
@@ -99,11 +135,21 @@ paths:
         schema:
           type: string
       responses:
-        default:
-          description: default response
+        "200":
+          description: Returns the file.
+        "400-599":
           content:
-            '*/*': {}
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DaSSCoError'
+      security:
+      - dassco-idp: []
     put:
+      tags:
+      - Asset Files
+      summary: Upload File
+      description: "Uploads a file. Requires institution, collection, asset_guid,\
+        \ crc and file size (in mb)."
       operationId: putFile
       parameters:
       - name: institutionName
@@ -137,11 +183,22 @@ paths:
             schema:
               type: object
       responses:
-        default:
-          description: default response
+        "200":
           content:
-            application/json: {}
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileUploadResult'
+        "400-599":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DaSSCoError'
+      security:
+      - dassco-idp: []
     delete:
+      tags:
+      - Asset Files
+      summary: Delete Asset File by path
       operationId: deletefile
       parameters:
       - name: institutionName
@@ -160,10 +217,16 @@ paths:
         schema:
           type: string
       responses:
-        default:
-          description: default response
+        "200":
           content:
-            '*/*': {}
+            application/json: {}
+        "400-599":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DaSSCoError'
+      security:
+      - dassco-idp: []
   /v1/ftps/{params}:
     get:
       operationId: get
@@ -178,6 +241,8 @@ paths:
           description: default response
           content:
             application/octet-stream: {}
+      security:
+      - dassco-idp: []
   /v1/ftps/listfiles/{path}:
     get:
       operationId: test
@@ -196,6 +261,8 @@ paths:
                 type: array
                 items:
                   type: string
+      security:
+      - dassco-idp: []
   /v1/ftps/upload/{path}:
     put:
       operationId: update
@@ -221,8 +288,14 @@ paths:
             application/json:
               schema:
                 type: boolean
+      security:
+      - dassco-idp: []
   /shares/assets/{assetGuid}/deleteShare:
     delete:
+      tags:
+      - Shares
+      summary: Delete Share
+      description: Deletes a share from the asset.
       operationId: close
       parameters:
       - name: assetGuid
@@ -231,12 +304,24 @@ paths:
         schema:
           type: string
       responses:
-        default:
-          description: default response
+        "200":
           content:
-            application/json: {}
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HttpInfo'
+        "400-599":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HttpInfo'
+      security:
+      - dassco-idp: []
   /shares/assets/{assetGuid}/createShare:
     post:
+      tags:
+      - Shares
+      summary: Open Share
+      description: Creates a share for the asset.
       operationId: createSambaServer
       parameters:
       - name: assetGuid
@@ -250,14 +335,24 @@ paths:
             schema:
               $ref: '#/components/schemas/CreationObj'
       responses:
-        default:
-          description: default response
+        "200":
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/HttpInfo'
+        "400-599":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DaSSCoError'
+      security:
+      - dassco-idp: []
   /shares/assets/{assetGuid}/createShareInternal:
     post:
+      tags:
+      - Shares
+      summary: Create Share (Internal)
+      description: Creates a share for the asset
       operationId: createSambaServerInternal
       requestBody:
         content:
@@ -265,14 +360,24 @@ paths:
             schema:
               $ref: '#/components/schemas/CreationObj'
       responses:
-        default:
-          description: default response
+        "200":
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/HttpInfo'
+        "400-599":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DaSSCoError'
+      security:
+      - dassco-idp: []
   /shares/assets/{assetGuid}/synchronize:
     post:
+      tags:
+      - Shares
+      summary: Synchronize ERDA
+      description: Synchronizes the asset with ERDA
       operationId: synchronize
       parameters:
       - name: assetGuid
@@ -289,12 +394,21 @@ paths:
         schema:
           type: string
       responses:
-        default:
-          description: default response
+        "204":
+          description: No Content
+        "400-599":
           content:
-            application/json: {}
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DaSSCoError'
+      security:
+      - dassco-idp: []
   /shares/assets/{assetGuid}/changeAllocation:
     post:
+      tags:
+      - Shares
+      summary: Change Allocation
+      description: Changes allocation for an asset
       operationId: updateStorageAllocation
       requestBody:
         content:
@@ -302,12 +416,18 @@ paths:
             schema:
               $ref: '#/components/schemas/AssetStorageAllocation'
       responses:
-        default:
-          description: default response
+        "200":
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/HttpInfo'
+        "400-599":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HttpInfo'
+      security:
+      - dassco-idp: []
   /v1/sftp/assets/{guid}/files/{file}:
     get:
       operationId: get_1
@@ -327,6 +447,8 @@ paths:
           description: default response
           content:
             application/octet-stream: {}
+      security:
+      - dassco-idp: []
   /v1/sftp/hello:
     get:
       operationId: hello
@@ -337,6 +459,8 @@ paths:
             application/json:
               schema:
                 type: string
+      security:
+      - dassco-idp: []
   /v1/sftp/institutions/{institution}/collections/{collection}/assets/{guid}:
     get:
       operationId: listItems
@@ -365,6 +489,8 @@ paths:
                 type: array
                 items:
                   type: string
+      security:
+      - dassco-idp: []
 components:
   schemas:
     DasscoFile:
@@ -390,6 +516,34 @@ components:
           enum:
           - NEW_FILE
           - SYNCHRONIZED
+    DaSSCoError:
+      type: object
+      properties:
+        type:
+          type: string
+        protocolVersion:
+          type: string
+        errorCode:
+          type: string
+          enum:
+          - BAD_REQUEST
+          - UPSTREAM_ERROR
+          - INTERNAL_ERROR
+          - FORBIDDEN
+        errorMessage:
+          type: string
+    FileUploadResult:
+      type: object
+      properties:
+        expected_crc:
+          type: integer
+          format: int64
+        actual_crc:
+          type: integer
+          format: int64
+        responseCode:
+          type: integer
+          format: int32
     Asset:
       type: object
       properties:
@@ -455,12 +609,21 @@ components:
       properties:
         asset_guid:
           type: string
+          description: The Global Unique Identifier generated for each asset
+          example: ti-a01-202305241657
         parent_guid:
           type: string
+          description: "Name of the parent media (in most cases, the same as original_parent_name,\
+            \ it can be different if it is a derivative of a derivative)"
+          example: ti-a02-202305241657
         institution:
           type: string
+          description: The name of the institution which owns and digitised the specimen
+          example: NNAD
         collection:
           type: string
+          description: The collection name within the institution that holds the specimen
+          example: test-collection
     AssetStorageAllocation:
       type: object
       properties:

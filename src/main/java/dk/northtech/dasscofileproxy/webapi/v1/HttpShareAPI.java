@@ -3,8 +3,15 @@ package dk.northtech.dasscofileproxy.webapi.v1;
 import dk.northtech.dasscofileproxy.domain.*;
 import dk.northtech.dasscofileproxy.service.*;
 import dk.northtech.dasscofileproxy.webapi.UserMapper;
+import dk.northtech.dasscofileproxy.webapi.exceptionmappers.DaSSCoError;
 import dk.northtech.dasscofileproxy.webapi.model.AssetStorageAllocation;
+import dk.northtech.dasscofileproxy.webapi.model.FileUploadResult;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.annotation.security.RolesAllowed;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.*;
@@ -18,6 +25,7 @@ import org.slf4j.LoggerFactory;
 import static jakarta.ws.rs.core.MediaType.APPLICATION_JSON;
 
 @Path("/shares")
+@Tag(name = "Shares", description = "Endpoints related to assets' allocation")
 @SecurityRequirement(name = "dassco-idp")
 public class HttpShareAPI {
     public static final Logger logger = LoggerFactory.getLogger(HttpShareAPI.class);
@@ -30,13 +38,14 @@ public class HttpShareAPI {
         this.sftpService = sftpService;
     }
 
-
-
     @POST
     @Path("/assets/{assetGuid}/createShare")
+    @Operation(summary = "Open Share", description = "Creates a share for the asset.")
     @Produces(MediaType.APPLICATION_JSON)
     @Consumes(APPLICATION_JSON)
     @RolesAllowed({SecurityRoles.USER, SecurityRoles.ADMIN, SecurityRoles.SERVICE})
+    @ApiResponse(responseCode = "200", content = @Content(mediaType = APPLICATION_JSON, schema = @Schema(implementation = HttpInfo.class)))
+    @ApiResponse(responseCode = "400-599", content = @Content(mediaType = APPLICATION_JSON, schema = @Schema(implementation = DaSSCoError.class)))
     public HttpInfo createSambaServer(CreationObj creationObj
             , @PathParam("assetGuid") String assetGuid
             , @Context SecurityContext securityContext) {
@@ -57,9 +66,12 @@ public class HttpShareAPI {
 
     @POST
     @Path("/assets/{assetGuid}/createShareInternal")
+    @Operation(summary = "Create Share (Internal)", description = "Creates a share for the asset")
     @RolesAllowed({SecurityRoles.SERVICE, SecurityRoles.ADMIN})
     @Produces(MediaType.APPLICATION_JSON)
     @Consumes(APPLICATION_JSON)
+    @ApiResponse(responseCode = "200", content = @Content(mediaType = APPLICATION_JSON, schema = @Schema(implementation = HttpInfo.class)))
+    @ApiResponse(responseCode = "400-599", content = @Content(mediaType = APPLICATION_JSON, schema = @Schema(implementation = DaSSCoError.class)))
     public HttpInfo createSambaServerInternal(CreationObj creationObj, @Context SecurityContext securityContext) {
         User user = UserMapper.from(securityContext);
         if(creationObj.allocation_mb() == 0) {
@@ -71,9 +83,12 @@ public class HttpShareAPI {
 
     @DELETE
     @Path("/assets/{assetGuid}/deleteShare")
+    @Operation(summary = "Delete Share", description = "Deletes a share from the asset.")
     @Produces(MediaType.APPLICATION_JSON)
     @RolesAllowed({SecurityRoles.SERVICE,SecurityRoles.USER, SecurityRoles.ADMIN})
     @Consumes(APPLICATION_JSON)
+    @ApiResponse(responseCode = "200", content = @Content(mediaType = APPLICATION_JSON, schema = @Schema(implementation = HttpInfo.class)))
+    @ApiResponse(responseCode = "400-599", content = @Content(mediaType = APPLICATION_JSON, schema = @Schema(implementation = HttpInfo.class)))
     public Response close(@Context SecurityContext securityContext
     , @PathParam("assetGuid") String assetGuid) {
         User user = UserMapper.from(securityContext);
@@ -84,8 +99,11 @@ public class HttpShareAPI {
 
     @POST
     @Path("/assets/{assetGuid}/changeAllocation")
+    @Operation(summary = "Change Allocation", description = "Changes allocation for an asset")
     @Produces(APPLICATION_JSON)
     @Consumes(APPLICATION_JSON)
+    @ApiResponse(responseCode = "200", content = @Content(mediaType = APPLICATION_JSON, schema = @Schema(implementation = HttpInfo.class)))
+    @ApiResponse(responseCode = "400-599", content = @Content(mediaType = APPLICATION_JSON, schema = @Schema(implementation = HttpInfo.class)))
     @RolesAllowed({SecurityRoles.USER, SecurityRoles.ADMIN})
     public HttpInfo updateStorageAllocation(AssetStorageAllocation newAllocation) {
         return httpShareService.allocateStorage(newAllocation);
@@ -93,8 +111,11 @@ public class HttpShareAPI {
 
     @POST
     @Path("/assets/{assetGuid}/synchronize")
+    @Operation(summary = "Synchronize ERDA", description = "Synchronizes the asset with ERDA") // I think.
     @Produces(APPLICATION_JSON)
     @Consumes(APPLICATION_JSON)
+    @ApiResponse(responseCode = "204", description = "No Content")
+    @ApiResponse(responseCode = "400-599", content = @Content(mediaType = APPLICATION_JSON, schema = @Schema(implementation = DaSSCoError.class)))
     @RolesAllowed({SecurityRoles.USER, SecurityRoles.ADMIN})
     public void synchronize(
             @PathParam("assetGuid") String assetGuid
