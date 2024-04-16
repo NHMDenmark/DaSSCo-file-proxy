@@ -127,7 +127,7 @@ public class Files {
 //    @Produces(MediaType.APPLICATION_JSON)
 //    @Consumes(APPLICATION_JSON)
     @Operation(summary = "Delete Asset File by path", description = "")
-    @ApiResponse(responseCode = "200", content = @Content(mediaType = APPLICATION_JSON /*, schema = @Schema(implementation = Assets.class)*/))
+    @ApiResponse(responseCode = "204", description = "No Content. File has been deleted.")
     @ApiResponse(responseCode = "400-599", content = @Content(mediaType = APPLICATION_JSON, schema = @Schema(implementation = DaSSCoError.class)))
     public Response deletefile(
             @PathParam("institutionName") String institutionName
@@ -147,7 +147,7 @@ public class Files {
     @Operation(summary = "Delete Asset File", description = "Deletes an asset file based on institution, collection and asset_guid")
     @Produces(MediaType.APPLICATION_JSON)
     @Consumes(APPLICATION_JSON)
-    @ApiResponse(responseCode = "200", content = @Content(mediaType = APPLICATION_JSON /*, schema = @Schema(implementation = Assets.class)*/))
+    @ApiResponse(responseCode = "204", description = "No Content. File has been deleted.")
     @ApiResponse(responseCode = "400-599", content = @Content(mediaType = APPLICATION_JSON, schema = @Schema(implementation = DaSSCoError.class)))
     public Response deleteAsset(
             @PathParam("institutionName") String institutionName

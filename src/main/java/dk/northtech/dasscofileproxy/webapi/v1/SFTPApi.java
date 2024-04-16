@@ -9,7 +9,10 @@ import dk.northtech.dasscofileproxy.domain.AssetFull;
 import dk.northtech.dasscofileproxy.service.AssetService;
 import dk.northtech.dasscofileproxy.service.ERDAClient;
 import dk.northtech.dasscofileproxy.service.SFTPService;
+import io.swagger.v3.oas.annotations.Hidden;
+import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.Context;
@@ -28,6 +31,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 @Component
 @Path("/v1/sftp")
+@Tag(name = "Secure File Transfer Protocol", description = "Endpoints related to the secure file transfer")
 @SecurityRequirement(name = "dassco-idp")
 public class SFTPApi {
 
@@ -44,7 +48,7 @@ public class SFTPApi {
         this.sftpConfig = sftpConfig;
     }
 
-
+    @Hidden
     @GET
     @Path("/hello")
     @Produces(MediaType.APPLICATION_JSON)
@@ -55,6 +59,7 @@ public class SFTPApi {
 
     @GET
     @Path("/institutions/{institution}/collections/{collection}/assets/{guid}")
+    @Operation(summary = "Get File by Institution, Collection and GUID", description = "")
     @Produces(MediaType.APPLICATION_JSON)
     public Collection<String> listItems(@PathParam("institution") String institution
             , @PathParam("collection") String collection
@@ -64,6 +69,7 @@ public class SFTPApi {
 
     @GET
     @Path("/assets/{guid}/files/{file}")
+    @Operation(summary = "Get File by GUID", description = "")
     @Produces(MediaType.APPLICATION_OCTET_STREAM)
     public Response get(@PathParam("guid") String guid, @PathParam("file") String file, @Context HttpHeaders headers) throws IOException, SftpException {
         // Read the asset from the asset service to obtain restricted status and remaining path for the asset
