@@ -6,7 +6,9 @@ import dk.northtech.dasscofileproxy.domain.Asset;
 import dk.northtech.dasscofileproxy.domain.AssetFull;
 import dk.northtech.dasscofileproxy.service.AssetService;
 import dk.northtech.dasscofileproxy.service.FtpsService;
+import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.*;
@@ -22,6 +24,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 @Component
 @Path("/v1/ftps")
+@Tag(name = "File Transfer Protocol", description = "Endpoints related to the file transfer")
 @SecurityRequirement(name = "dassco-idp")
 public class FtpsClient {
 
@@ -38,6 +41,7 @@ public class FtpsClient {
 
     @GET
     @Path("listfiles/{path : .+}")
+    @Operation(summary = "List Files", description = "")
     @Produces(MediaType.APPLICATION_JSON)
     public Collection<String> test(@Encoded @PathParam("path") String path) throws IOException {
         this.ftpsService.open();
@@ -48,6 +52,7 @@ public class FtpsClient {
 
     @GET
     @Path("{params : .+}")
+    @Operation(summary = "Get File", description = "Gets a file. Path must consist of a asset asset_guid and filename using the following format \\\"{assetGUID}/{filename.extension}\\\"\"")
     @Produces(MediaType.APPLICATION_OCTET_STREAM)
     public Response get(@Encoded @PathParam("params") String params, @Context HttpHeaders headers) throws IOException {
 
@@ -120,6 +125,7 @@ public class FtpsClient {
 
     @PUT
     @Path("upload/{path}")
+    @Operation(summary = "Upload File", description = "")
     @Produces(MediaType.APPLICATION_JSON)
     public boolean update(@PathParam("path") String path, Asset asset, @QueryParam("cleanup") boolean cleanup) {
         try {

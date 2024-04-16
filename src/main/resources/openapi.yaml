@@ -12,14 +12,18 @@ tags:
   description: Endpoints related to assets
 - name: Asset Files
   description: Endpoints related to assets' files.
+- name: File Transfer Protocol
+  description: Endpoints related to the file transfer
 - name: Shares
   description: Endpoints related to assets' allocation
+- name: Secure File Transfer Protocol
+  description: Endpoints related to the secure file transfer
 paths:
   /assets/{assetGuid}/files:
     get:
       tags:
       - Assets
-      summary: Get Asset Files
+      summary: Get List of Asset Files Metadata
       description: Get a list of file metadata associated with an asset
       operationId: listFiles
       parameters:
@@ -100,9 +104,8 @@ paths:
         schema:
           type: string
       responses:
-        "200":
-          content:
-            application/json: {}
+        "204":
+          description: No Content. File has been deleted.
         "400-599":
           content:
             application/json:
@@ -217,9 +220,8 @@ paths:
         schema:
           type: string
       responses:
-        "200":
-          content:
-            application/json: {}
+        "204":
+          description: No Content. File has been deleted.
         "400-599":
           content:
             application/json:
@@ -229,6 +231,11 @@ paths:
       - dassco-idp: []
   /v1/ftps/{params}:
     get:
+      tags:
+      - File Transfer Protocol
+      summary: Get File
+      description: "Gets a file. Path must consist of a asset asset_guid and filename\
+        \ using the following format \\\"{assetGUID}/{filename.extension}\\\"\""
       operationId: get
       parameters:
       - name: params
@@ -245,6 +252,9 @@ paths:
       - dassco-idp: []
   /v1/ftps/listfiles/{path}:
     get:
+      tags:
+      - File Transfer Protocol
+      summary: List Files
       operationId: test
       parameters:
       - name: path
@@ -265,6 +275,9 @@ paths:
       - dassco-idp: []
   /v1/ftps/upload/{path}:
     put:
+      tags:
+      - File Transfer Protocol
+      summary: Upload File
       operationId: update
       parameters:
       - name: path
@@ -430,6 +443,9 @@ paths:
       - dassco-idp: []
   /v1/sftp/assets/{guid}/files/{file}:
     get:
+      tags:
+      - Secure File Transfer Protocol
+      summary: Get File by GUID
       operationId: get_1
       parameters:
       - name: guid
@@ -449,20 +465,11 @@ paths:
             application/octet-stream: {}
       security:
       - dassco-idp: []
-  /v1/sftp/hello:
-    get:
-      operationId: hello
-      responses:
-        default:
-          description: default response
-          content:
-            application/json:
-              schema:
-                type: string
-      security:
-      - dassco-idp: []
   /v1/sftp/institutions/{institution}/collections/{collection}/assets/{guid}:
     get:
+      tags:
+      - Secure File Transfer Protocol
+      summary: "Get File by Institution, Collection and GUID"
       operationId: listItems
       parameters:
       - name: institution
@@ -498,21 +505,34 @@ components:
       properties:
         fileId:
           type: integer
+          description: Id of the File
           format: int64
         assetGuid:
           type: string
+          description: The Global Unique Identifier generated for each asset
+          example: ti-a01-202305241657
         path:
           type: string
+          description: Path to the Asset
+          example: assetfiles/test-institution/test-collection/nt_asset_19/
         sizeBytes:
           type: integer
+          description: "Size, in bytes"
           format: int64
+          example: 1024
         crc:
           type: integer
+          description: Cyclic Redundancy Check
           format: int64
+          example: 123
         deleteAfterSync:
           type: boolean
+          description: Indicates if it should be deleted after Sync
+          example: false
         syncStatus:
           type: string
+          description: Sync status of the file
+          example: SYNCHRONIZED
           enum:
           - NEW_FILE
           - SYNCHRONIZED
@@ -549,10 +569,16 @@ components:
       properties:
         institution:
           type: string
+          description: The name of the institution which owns and digitised the specimen
+          example: test-institution
         collection:
           type: string
+          description: The collection name within the institution that holds the specimen
+          example: test-collection
         assetGuid:
           type: string
+          description: The Global Unique Identifier generated for each asset
+          example: ti-a01-202305241657
     HttpInfo:
       type: object
       properties:
@@ -599,11 +625,15 @@ components:
             $ref: '#/components/schemas/MinimalAsset'
         users:
           type: array
+          description: List of users
           items:
             type: string
+            description: List of users
         allocation_mb:
           type: integer
+          description: "Allocation in memory for the asset, in MB"
           format: int32
+          example: 10
     MinimalAsset:
       type: object
       properties:

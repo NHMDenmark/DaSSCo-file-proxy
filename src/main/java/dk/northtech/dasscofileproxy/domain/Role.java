@@ -1,8 +1,11 @@
 package dk.northtech.dasscofileproxy.domain;
 
+import io.swagger.v3.oas.annotations.media.Schema;
+
 import java.util.Arrays;
 import java.util.Optional;
 
+@Schema(description = "Possible roles for the User", example = "ADMIN")
 public enum Role {
     USER(SecurityRoles.USER)
     , ADMIN(SecurityRoles.ADMIN)
