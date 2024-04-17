@@ -2,7 +2,6 @@ package dk.northtech.dasscofileproxy.domain;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 
-@Schema(description = "The location on the storage where asset media can be uploaded")
 public record HttpInfo(
         @Schema(description = "Path to the asset", example = "/assetfiles/<institution>/<collection>/<asset_guid>/")
         String path,

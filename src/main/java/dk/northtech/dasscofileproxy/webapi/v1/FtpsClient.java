@@ -24,6 +24,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 @Component
 @Path("/v1/ftps")
+// TODO: These endpoints are not available in Postman nor there is any mention of them in the documentation.
 @Tag(name = "File Transfer Protocol", description = "Endpoints related to the file transfer")
 @SecurityRequirement(name = "dassco-idp")
 public class FtpsClient {
