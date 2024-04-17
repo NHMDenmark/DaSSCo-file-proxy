@@ -7,6 +7,7 @@ import dk.northtech.dasscofileproxy.webapi.exceptionmappers.DaSSCoError;
 import dk.northtech.dasscofileproxy.webapi.model.FileUploadData;
 import dk.northtech.dasscofileproxy.webapi.model.FileUploadResult;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.ArraySchema;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.ExampleObject;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -73,6 +74,7 @@ public class Files {
 
     @GET
     @Path("/{institutionName}/{collectionName}/{assetGuid}/{path: .+}")
+    // TODO: Should we add the Path as a PathParam in the Docs? At the moment it only works via Postman, because we are using uriInfo instead of just calling @PathParam
     @Operation(summary = "Get Asset File by path", description = "Get an asset file based on institution, collection, asset_guid and path to the file")
 //    @Produces(MediaType.APPLICATION_OCTET_STREAM)
     @Consumes(APPLICATION_JSON)
@@ -109,8 +111,7 @@ public class Files {
     // TODO: Roles allowed?
     @Produces(APPLICATION_JSON)
     @Consumes(APPLICATION_JSON)
-    // TODO: Does it actually return a list of strings?
-    @ApiResponse(responseCode = "200", content = @Content(mediaType = APPLICATION_JSON, schema = @Schema(type = "array", implementation = String.class)))
+    @ApiResponse(responseCode = "200", content = @Content(mediaType = APPLICATION_JSON, array = @ArraySchema(schema = @Schema(implementation = String.class)), examples = { @ExampleObject("[\"test-institution/test-collection/nt_asset_19/example.jpg\", \"test-institution/test-collection/nt_asset_19/example2.jpg\"]")}))
     @ApiResponse(responseCode = "400-599", content = @Content(mediaType = APPLICATION_JSON, schema = @Schema(implementation = DaSSCoError.class)))
     public List<String> listFiles(
             @PathParam("institutionName") String institutionName
@@ -125,6 +126,7 @@ public class Files {
 
     @DELETE
     @Path("/{institutionName}/{collectionName}/{assetGuid}/{path: .+}")
+    // TODO: Same as with the Get, should we add the path as @PathParam?
 //    @Produces(MediaType.APPLICATION_JSON)
 //    @Consumes(APPLICATION_JSON)
     @Operation(summary = "Delete Asset File by path", description = "Delete resource at the given path. If the resource is a directory, it will be deleted along its content. If the resource is the base directory for an asset the directory will not be deleted, only the content.")

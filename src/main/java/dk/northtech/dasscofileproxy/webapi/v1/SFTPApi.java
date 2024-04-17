@@ -31,6 +31,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 @Component
 @Path("/v1/sftp")
+// TODO: As with FTPS, these endpoints are not available in Postman nor there is any mention of them in the documentation.
 @Tag(name = "Secure File Transfer Protocol", description = "Endpoints related to the secure file transfer")
 @SecurityRequirement(name = "dassco-idp")
 public class SFTPApi {

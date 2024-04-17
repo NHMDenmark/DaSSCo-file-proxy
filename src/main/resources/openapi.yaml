@@ -73,7 +73,12 @@ paths:
           content:
             application/json:
               schema:
-                type: string
+                type: array
+                items:
+                  type: string
+              example:
+              - test-institution/test-collection/nt_asset_19/example.jpg
+              - test-institution/test-collection/nt_asset_19/example2.jpg
         "400-599":
           content:
             application/json:
@@ -151,8 +156,10 @@ paths:
       tags:
       - Asset Files
       summary: Upload File
-      description: "Uploads a file. Requires institution, collection, asset_guid,\
-        \ crc and file size (in mb)."
+      description: |-
+        Uploads a file. Requires institution, collection, asset_guid, crc and file size (in mb).
+
+        Can be called multiple times to upload multiple files to the same asset. If the files are called the same, the file will be overwritten.
       operationId: putFile
       parameters:
       - name: institutionName
@@ -202,6 +209,9 @@ paths:
       tags:
       - Asset Files
       summary: Delete Asset File by path
+      description: "Delete resource at the given path. If the resource is a directory,\
+        \ it will be deleted along its content. If the resource is the base directory\
+        \ for an asset the directory will not be deleted, only the content."
       operationId: deletefile
       parameters:
       - name: institutionName
@@ -308,7 +318,8 @@ paths:
       tags:
       - Shares
       summary: Delete Share
-      description: Deletes a share from the asset.
+      description: This service deletes a share and all files in the share without
+        synchronizing ERDA. Files already persisted in ERDA will not be deleted.
       operationId: close
       parameters:
       - name: assetGuid
@@ -334,7 +345,11 @@ paths:
       tags:
       - Shares
       summary: Open Share
-      description: Creates a share for the asset.
+      description: Here you can open a share of an existing asset. The post body consists
+        of a list of assets to be shared and a list of usernames of users that should
+        have access to the share. The amount of space needed to be allocated also
+        needs to be specified. The list of assets can only contain one asset when
+        using this endpoint.
       operationId: createSambaServer
       parameters:
       - name: assetGuid
@@ -390,7 +405,9 @@ paths:
       tags:
       - Shares
       summary: Synchronize ERDA
-      description: Synchronizes the asset with ERDA
+      description: "Close for further uploads to the asset, and schedules the asset\
+        \ files for ERDA. Once this has been called the asset is 'closed' for now\
+        \ and awaits upload to ERDA."
       operationId: synchronize
       parameters:
       - name: assetGuid
@@ -513,7 +530,7 @@ components:
           example: ti-a01-202305241657
         path:
           type: string
-          description: Path to the Asset
+          description: Path to the File relative from the asset folder
           example: assetfiles/test-institution/test-collection/nt_asset_19/
         sizeBytes:
           type: integer
@@ -522,7 +539,9 @@ components:
           example: 1024
         crc:
           type: integer
-          description: Cyclic Redundancy Check
+          description: "Cyclic Redundancy Check, used to verify if the file was transferred\
+            \ correctly. Returns 507 if there is a mismatch between the file checksum\
+            \ and the uploaded file checksum."
           format: int64
           example: 123
         deleteAfterSync:
@@ -557,10 +576,14 @@ components:
       properties:
         expected_crc:
           type: integer
+          description: Expected CRC for the File
           format: int64
+          example: 123
         actual_crc:
           type: integer
+          description: Actual CRC for the File
           format: int64
+          example: 123
         responseCode:
           type: integer
           format: int32
