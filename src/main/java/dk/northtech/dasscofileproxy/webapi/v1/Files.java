@@ -42,7 +42,8 @@ public class Files {
 
     @PUT
     @Path("/{institutionName}/{collectionName}/{assetGuid}/{path: .+}")
-    @Operation(summary = "Upload File", description = "Uploads a file. Requires institution, collection, asset_guid, crc and file size (in mb).")
+    @Operation(summary = "Upload File", description = "Uploads a file. Requires institution, collection, asset_guid, crc and file size (in mb).\n\n" +
+                                                        "Can be called multiple times to upload multiple files to the same asset. If the files are called the same, the file will be overwritten.")
     @Produces(MediaType.APPLICATION_JSON)
     @Consumes(MediaType.APPLICATION_OCTET_STREAM)
     @ApiResponse(responseCode = "200", content = @Content(mediaType = APPLICATION_JSON, schema = @Schema(implementation = FileUploadResult.class)))
@@ -126,7 +127,7 @@ public class Files {
     @Path("/{institutionName}/{collectionName}/{assetGuid}/{path: .+}")
 //    @Produces(MediaType.APPLICATION_JSON)
 //    @Consumes(APPLICATION_JSON)
-    @Operation(summary = "Delete Asset File by path", description = "")
+    @Operation(summary = "Delete Asset File by path", description = "Delete resource at the given path. If the resource is a directory, it will be deleted along its content. If the resource is the base directory for an asset the directory will not be deleted, only the content.")
     @ApiResponse(responseCode = "204", description = "No Content. File has been deleted.")
     @ApiResponse(responseCode = "400-599", content = @Content(mediaType = APPLICATION_JSON, schema = @Schema(implementation = DaSSCoError.class)))
     public Response deletefile(
