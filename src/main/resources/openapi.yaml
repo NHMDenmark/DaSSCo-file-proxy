@@ -584,27 +584,47 @@ components:
       properties:
         path:
           type: string
+          description: Path to the asset
+          example: /assetfiles/<institution>/<collection>/<asset_guid>/
         hostname:
           type: string
+          description: Name of the host where the asset is uploaded
+          example: https://storage.test.dassco.dk/file_proxy/api
         total_storage_mb:
           type: integer
+          description: The total storage of the server where the FileProxy is deployed
           format: int32
+          example: 90000
         cache_storage_mb:
           type: integer
+          description: The total amount of storage dedicated for “caching” files for
+            external linking and other use
           format: int32
+          example: 20000
         all_allocated_storage_mb:
           type: integer
+          description: The total amount of storage allocated
           format: int32
+          example: 20000
         remaining_storage_mb:
           type: integer
+          description: "The remaining storage on the server: total - cache - all_allocated\
+            \ = remaining"
           format: int32
+          example: 60000
         allocated_storage_mb:
           type: integer
+          description: The amount of storage allocated on the server to the new asset
           format: int32
+          example: 5000
         proxy_allocation_status_text:
           type: string
+          description: A detailed error message if an error happens
+          example: "Allocation failed, no more disk space"
         http_allocation_status:
           type: string
+          description: Possible HTTP Status responses for allocation
+          example: DISK_FULL
           enum:
           - DISK_FULL
           - SUCCESS
@@ -615,7 +635,10 @@ components:
           - INTERNAL_ERROR
         parent_size_mb:
           type: integer
+          description: Asset's parent size (in mb)
           format: int64
+          example: 20
+      description: The location on the storage where asset media can be uploaded
     CreationObj:
       type: object
       properties:

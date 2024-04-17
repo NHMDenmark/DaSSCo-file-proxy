@@ -40,7 +40,7 @@ public class HttpShareAPI {
 
     @POST
     @Path("/assets/{assetGuid}/createShare")
-    @Operation(summary = "Open Share", description = "Creates a share for the asset.")
+    @Operation(summary = "Open Share", description = "Here you can open a share of an existing asset. The post body consists of a list of assets to be shared and a list of usernames of users that should have access to the share. The amount of space needed to be allocated also needs to be specified. The list of assets can only contain one asset when using this endpoint.")
     @Produces(MediaType.APPLICATION_JSON)
     @Consumes(APPLICATION_JSON)
     @RolesAllowed({SecurityRoles.USER, SecurityRoles.ADMIN, SecurityRoles.SERVICE})
@@ -83,7 +83,7 @@ public class HttpShareAPI {
 
     @DELETE
     @Path("/assets/{assetGuid}/deleteShare")
-    @Operation(summary = "Delete Share", description = "Deletes a share from the asset.")
+    @Operation(summary = "Delete Share", description = "This service deletes a share and all files in the share without synchronizing ERDA. Files already persisted in ERDA will not be deleted.")
     @Produces(MediaType.APPLICATION_JSON)
     @RolesAllowed({SecurityRoles.SERVICE,SecurityRoles.USER, SecurityRoles.ADMIN})
     @Consumes(APPLICATION_JSON)
@@ -111,7 +111,7 @@ public class HttpShareAPI {
 
     @POST
     @Path("/assets/{assetGuid}/synchronize")
-    @Operation(summary = "Synchronize ERDA", description = "Synchronizes the asset with ERDA") // I think.
+    @Operation(summary = "Synchronize ERDA", description = "Close for further uploads to the asset, and schedules the asset files for ERDA. Once this has been called the asset is 'closed' for now and awaits upload to ERDA.") // I think.
     @Produces(APPLICATION_JSON)
     @Consumes(APPLICATION_JSON)
     @ApiResponse(responseCode = "204", description = "No Content")
