@@ -895,8 +895,7 @@
             "format" : "int64",
             "example" : 20
           }
-        },
-        "description" : "The location on the storage where asset media can be uploaded"
+        }
       },
       "CreationObj" : {
         "type" : "object",
