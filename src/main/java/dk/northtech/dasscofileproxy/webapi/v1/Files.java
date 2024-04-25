@@ -74,7 +74,7 @@ public class Files {
 
     @GET
     @Path("/{institutionName}/{collectionName}/{assetGuid}/{path: .+}")
-    // TODO: Should we add the Path as a PathParam in the Docs? At the moment it only works via Postman, because we are using uriInfo instead of just calling @PathParam
+    // TODO: Should the path remain like this? This endpoint only works in Postman in its current state, and not in the Documentation Page. •
     @Operation(summary = "Get Asset File by path", description = "Get an asset file based on institution, collection, asset_guid and path to the file")
 //    @Produces(MediaType.APPLICATION_OCTET_STREAM)
     @Consumes(APPLICATION_JSON)
@@ -126,7 +126,7 @@ public class Files {
 
     @DELETE
     @Path("/{institutionName}/{collectionName}/{assetGuid}/{path: .+}")
-    // TODO: Same as with the Get, should we add the path as @PathParam?
+    // TODO: Same as with the Get, should the path be changed to a @PathParam? Currently it only works in Postman
 //    @Produces(MediaType.APPLICATION_JSON)
 //    @Consumes(APPLICATION_JSON)
     @Operation(summary = "Delete Asset File by path", description = "Delete resource at the given path. If the resource is a directory, it will be deleted along its content. If the resource is the base directory for an asset the directory will not be deleted, only the content.")

@@ -116,7 +116,8 @@ public class HttpShareAPI {
     @Consumes(APPLICATION_JSON)
     @ApiResponse(responseCode = "204", description = "No Content")
     @ApiResponse(responseCode = "400-599", content = @Content(mediaType = APPLICATION_JSON, schema = @Schema(implementation = DaSSCoError.class)))
-    @RolesAllowed({SecurityRoles.USER, SecurityRoles.ADMIN})
+    // TODO: Ask why this endpoint does not allow SERVICE. Should I change the Testing for different roles?
+    @RolesAllowed({SecurityRoles.USER, SecurityRoles.ADMIN, /*SecurityRoles.SERVICE*/})
     public void synchronize(
             @PathParam("assetGuid") String assetGuid
             , @QueryParam("workstation") String workstation
