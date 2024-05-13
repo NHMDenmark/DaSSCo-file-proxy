@@ -6,6 +6,7 @@ import dk.northtech.dasscofileproxy.domain.Asset;
 import dk.northtech.dasscofileproxy.domain.AssetFull;
 import dk.northtech.dasscofileproxy.service.AssetService;
 import dk.northtech.dasscofileproxy.service.FtpsService;
+import io.swagger.v3.oas.annotations.Hidden;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -22,6 +23,7 @@ import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+@Hidden
 @Component
 @Path("/v1/ftps")
 // TODO: These endpoints are not available in Postman nor there is any mention of them in the documentation.

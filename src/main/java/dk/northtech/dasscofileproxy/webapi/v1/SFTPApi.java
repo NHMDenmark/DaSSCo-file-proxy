@@ -29,6 +29,7 @@ import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+@Hidden
 @Component
 @Path("/v1/sftp")
 // TODO: As with FTPS, these endpoints are not available in Postman nor there is any mention of them in the documentation.
@@ -65,7 +66,7 @@ public class SFTPApi {
     public Collection<String> listItems(@PathParam("institution") String institution
             , @PathParam("collection") String collection
             , @PathParam("guid") String guid) throws JSchException, SftpException {
-        return new ERDAClient(sftpConfig).listFiles("/DaSSCoStorage/" + institution + "/" + collection + "/" + guid);
+        return new ERDAClient(sftpConfig).listFiles("/" + institution + "/" + collection + "/" + guid);
     }
 
     @GET
