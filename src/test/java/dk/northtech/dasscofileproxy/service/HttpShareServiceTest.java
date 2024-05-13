@@ -5,6 +5,8 @@ import dk.northtech.dasscofileproxy.domain.*;
 import dk.northtech.dasscofileproxy.repository.FileRepository;
 import dk.northtech.dasscofileproxy.webapi.model.AssetStorageAllocation;
 import jakarta.inject.Inject;
+import jakarta.ws.rs.BadRequestException;
+import org.checkerframework.checker.units.qual.C;
 import org.jdbi.v3.core.Jdbi;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -17,10 +19,12 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.utility.DockerImageName;
 
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
 import static com.google.common.truth.Truth.assertThat;
+import static org.junit.Assert.assertThrows;
 
 @SpringBootTest
 @Testcontainers
@@ -61,8 +65,6 @@ class HttpShareServiceTest {
         assertThat(result.cache_storage_mb()).isEqualTo(200);
         assertThat(result.remaining_storage_mb()).isEqualTo(storageMetrics.remaining_storage_mb()-10);
     }
-
-
 
     @Test
     void alloc8Extra() {
@@ -137,6 +139,46 @@ class HttpShareServiceTest {
         assertThat(httpInfo.http_allocation_status()).isEqualTo(HttpAllocationStatus.SUCCESS);
         List<DasscoFile> deleteShare1 = fileservice.listFilesByAssetGuid("deleteShare_1");
         assertThat(deleteShare1.size()).isEqualTo(1);
+    }
 
+    @Test
+    void testCreateHttpShareInternal(){
+        MinimalAsset minimalAsset = new MinimalAsset("testCreateHttpShareInternal", null, null, null);
+        List<MinimalAsset> listMinimalAsset = new ArrayList<>();
+        listMinimalAsset.add(minimalAsset);
+        List<String> listUsers = new ArrayList<>();
+        listUsers.add("test-user");
+        User user = new User();
+        user.username = "test-user";
+        CreationObj creationObj = new CreationObj(listMinimalAsset, listUsers, 1);
+        HttpInfo httpInfo = httpShareService.createHttpShareInternal(creationObj, user);
+        assertThat(httpInfo.http_allocation_status().toString()).isEqualTo("SUCCESS");
+        // Remove folder?
+    }
+
+    @Test
+    void testCreateHttpShareInternalNoUser(){
+        User user = new User();
+        List<MinimalAsset> listMinimalAsset = new ArrayList<>();
+        List<String> listUsers = new ArrayList<>();
+        CreationObj creationObj = new CreationObj(listMinimalAsset, listUsers, 1);
+        BadRequestException badRequestException = assertThrows(BadRequestException.class, () -> httpShareService.createHttpShareInternal(creationObj, user));
+        assertThat(badRequestException).hasMessageThat().isEqualTo("You have to provide users in this call");
+    }
+
+    @Test
+    void testCreateHttpShareInternalMoreThanOneAsset(){
+        User user = new User();
+        user.username = "test-user";
+        List<MinimalAsset> minimalAssetList = new ArrayList<>();
+        List<String> userList = new ArrayList<>();
+        MinimalAsset minimalAsset1 = new MinimalAsset("test-asset-1", null, null, null);
+        MinimalAsset minimalAsset2 = new MinimalAsset("test-asset-2", null, null, null);
+        minimalAssetList.add(minimalAsset1);
+        minimalAssetList.add(minimalAsset2);
+        userList.add("test-user");
+        CreationObj creationObj = new CreationObj(minimalAssetList, userList, 1);
+        IllegalArgumentException illegalArgumentException = assertThrows(IllegalArgumentException.class, () -> httpShareService.createHttpShareInternal(creationObj, user));
+        assertThat(illegalArgumentException).hasMessageThat().isEqualTo("Number of assets must be one");
     }
 }
