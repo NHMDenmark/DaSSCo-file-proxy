@@ -12,12 +12,8 @@ tags:
   description: Endpoints related to assets
 - name: Asset Files
   description: Endpoints related to assets' files.
-- name: File Transfer Protocol
-  description: Endpoints related to the file transfer
 - name: Shares
   description: Endpoints related to assets' allocation
-- name: Secure File Transfer Protocol
-  description: Endpoints related to the secure file transfer
 paths:
   /assets/{assetGuid}/files:
     get:
@@ -89,8 +85,9 @@ paths:
     delete:
       tags:
       - Asset Files
-      summary: Delete Asset File
-      description: "Deletes an asset file based on institution, collection and asset_guid"
+      summary: Delete Asset Files
+      description: "Deletes all files for an asset based on institution, collection\
+        \ and asset_guid"
       operationId: deleteAsset
       parameters:
       - name: institutionName
@@ -239,80 +236,6 @@ paths:
                 $ref: '#/components/schemas/DaSSCoError'
       security:
       - dassco-idp: []
-  /v1/ftps/{params}:
-    get:
-      tags:
-      - File Transfer Protocol
-      summary: Get File
-      description: "Gets a file. Path must consist of a asset asset_guid and filename\
-        \ using the following format \\\"{assetGUID}/{filename.extension}\\\"\""
-      operationId: get
-      parameters:
-      - name: params
-        in: path
-        required: true
-        schema:
-          type: string
-      responses:
-        default:
-          description: default response
-          content:
-            application/octet-stream: {}
-      security:
-      - dassco-idp: []
-  /v1/ftps/listfiles/{path}:
-    get:
-      tags:
-      - File Transfer Protocol
-      summary: List Files
-      operationId: test
-      parameters:
-      - name: path
-        in: path
-        required: true
-        schema:
-          type: string
-      responses:
-        default:
-          description: default response
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  type: string
-      security:
-      - dassco-idp: []
-  /v1/ftps/upload/{path}:
-    put:
-      tags:
-      - File Transfer Protocol
-      summary: Upload File
-      operationId: update
-      parameters:
-      - name: path
-        in: path
-        required: true
-        schema:
-          type: string
-      - name: cleanup
-        in: query
-        schema:
-          type: boolean
-      requestBody:
-        content:
-          '*/*':
-            schema:
-              $ref: '#/components/schemas/Asset'
-      responses:
-        default:
-          description: default response
-          content:
-            application/json:
-              schema:
-                type: boolean
-      security:
-      - dassco-idp: []
   /shares/assets/{assetGuid}/deleteShare:
     delete:
       tags:
@@ -357,31 +280,6 @@ paths:
         required: true
         schema:
           type: string
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/CreationObj'
-      responses:
-        "200":
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HttpInfo'
-        "400-599":
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/DaSSCoError'
-      security:
-      - dassco-idp: []
-  /shares/assets/{assetGuid}/createShareInternal:
-    post:
-      tags:
-      - Shares
-      summary: Create Share (Internal)
-      description: Creates a share for the asset
-      operationId: createSambaServerInternal
       requestBody:
         content:
           application/json:
@@ -458,63 +356,6 @@ paths:
                 $ref: '#/components/schemas/HttpInfo'
       security:
       - dassco-idp: []
-  /v1/sftp/assets/{guid}/files/{file}:
-    get:
-      tags:
-      - Secure File Transfer Protocol
-      summary: Get File by GUID
-      operationId: get_1
-      parameters:
-      - name: guid
-        in: path
-        required: true
-        schema:
-          type: string
-      - name: file
-        in: path
-        required: true
-        schema:
-          type: string
-      responses:
-        default:
-          description: default response
-          content:
-            application/octet-stream: {}
-      security:
-      - dassco-idp: []
-  /v1/sftp/institutions/{institution}/collections/{collection}/assets/{guid}:
-    get:
-      tags:
-      - Secure File Transfer Protocol
-      summary: "Get File by Institution, Collection and GUID"
-      operationId: listItems
-      parameters:
-      - name: institution
-        in: path
-        required: true
-        schema:
-          type: string
-      - name: collection
-        in: path
-        required: true
-        schema:
-          type: string
-      - name: guid
-        in: path
-        required: true
-        schema:
-          type: string
-      responses:
-        default:
-          description: default response
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  type: string
-      security:
-      - dassco-idp: []
 components:
   schemas:
     DasscoFile:
@@ -587,21 +428,6 @@ components:
         responseCode:
           type: integer
           format: int32
-    Asset:
-      type: object
-      properties:
-        institution:
-          type: string
-          description: The name of the institution which owns and digitised the specimen
-          example: test-institution
-        collection:
-          type: string
-          description: The collection name within the institution that holds the specimen
-          example: test-collection
-        assetGuid:
-          type: string
-          description: The Global Unique Identifier generated for each asset
-          example: ti-a01-202305241657
     HttpInfo:
       type: object
       properties:

@@ -35,7 +35,6 @@ import static org.junit.Assert.assertThrows;
 public class FileServiceTest {
     @Inject
     FileService fileService;
-    ;
 
     @Container
     static GenericContainer postgreSQL = new GenericContainer(DockerImageName.parse("apache/age:v1.1.0"))

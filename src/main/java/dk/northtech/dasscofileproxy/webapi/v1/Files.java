@@ -147,7 +147,7 @@ public class Files {
     //Delete all files under an azzet
     @DELETE
     @Path("/{institutionName}/{collectionName}/{assetGuid}/")
-    @Operation(summary = "Delete Asset File", description = "Deletes an asset file based on institution, collection and asset_guid")
+    @Operation(summary = "Delete Asset Files", description = "Deletes all files for an asset based on institution, collection and asset_guid")
     @Produces(MediaType.APPLICATION_JSON)
     @Consumes(APPLICATION_JSON)
     @ApiResponse(responseCode = "204", description = "No Content. File has been deleted.")

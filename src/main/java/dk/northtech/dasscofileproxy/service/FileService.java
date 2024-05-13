@@ -246,7 +246,6 @@ public class FileService {
     }
 
     public List<DasscoFile> listFilesByAssetGuid(String assetGuid) {
-
         return jdbi.withHandle(h -> {
             FileRepository attach = h.attach(FileRepository.class);
             return attach.getFilesByAssetGuid(assetGuid);

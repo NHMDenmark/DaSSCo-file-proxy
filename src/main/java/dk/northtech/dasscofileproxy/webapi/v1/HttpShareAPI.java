@@ -6,6 +6,7 @@ import dk.northtech.dasscofileproxy.webapi.UserMapper;
 import dk.northtech.dasscofileproxy.webapi.exceptionmappers.DaSSCoError;
 import dk.northtech.dasscofileproxy.webapi.model.AssetStorageAllocation;
 import dk.northtech.dasscofileproxy.webapi.model.FileUploadResult;
+import io.swagger.v3.oas.annotations.Hidden;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -64,6 +65,7 @@ public class HttpShareAPI {
 
     }
 
+    @Hidden
     @POST
     @Path("/assets/{assetGuid}/createShareInternal")
     @Operation(summary = "Create Share (Internal)", description = "Creates a share for the asset")
@@ -78,14 +80,13 @@ public class HttpShareAPI {
             throw new IllegalArgumentException("Allocation cannot be 0");
         }
         return httpShareService.createHttpShareInternal(creationObj, user);
-
     }
 
     @DELETE
     @Path("/assets/{assetGuid}/deleteShare")
     @Operation(summary = "Delete Share", description = "This service deletes a share and all files in the share without synchronizing ERDA. Files already persisted in ERDA will not be deleted.")
     @Produces(MediaType.APPLICATION_JSON)
-    @RolesAllowed({SecurityRoles.SERVICE,SecurityRoles.USER, SecurityRoles.ADMIN})
+    @RolesAllowed({ SecurityRoles.SERVICE, SecurityRoles.USER, SecurityRoles.ADMIN })
     @Consumes(APPLICATION_JSON)
     @ApiResponse(responseCode = "200", content = @Content(mediaType = APPLICATION_JSON, schema = @Schema(implementation = HttpInfo.class)))
     @ApiResponse(responseCode = "400-599", content = @Content(mediaType = APPLICATION_JSON, schema = @Schema(implementation = HttpInfo.class)))
@@ -104,7 +105,7 @@ public class HttpShareAPI {
     @Consumes(APPLICATION_JSON)
     @ApiResponse(responseCode = "200", content = @Content(mediaType = APPLICATION_JSON, schema = @Schema(implementation = HttpInfo.class)))
     @ApiResponse(responseCode = "400-599", content = @Content(mediaType = APPLICATION_JSON, schema = @Schema(implementation = HttpInfo.class)))
-    @RolesAllowed({SecurityRoles.USER, SecurityRoles.ADMIN})
+    @RolesAllowed({SecurityRoles.USER, SecurityRoles.ADMIN, SecurityRoles.SERVICE})
     public HttpInfo updateStorageAllocation(AssetStorageAllocation newAllocation) {
         return httpShareService.allocateStorage(newAllocation);
     }
@@ -116,8 +117,7 @@ public class HttpShareAPI {
     @Consumes(APPLICATION_JSON)
     @ApiResponse(responseCode = "204", description = "No Content")
     @ApiResponse(responseCode = "400-599", content = @Content(mediaType = APPLICATION_JSON, schema = @Schema(implementation = DaSSCoError.class)))
-    // TODO: Ask why this endpoint does not allow SERVICE. Should I change the Testing for different roles?
-    @RolesAllowed({SecurityRoles.USER, SecurityRoles.ADMIN, /*SecurityRoles.SERVICE*/})
+    @RolesAllowed({SecurityRoles.USER, SecurityRoles.ADMIN, SecurityRoles.SERVICE})
     public void synchronize(
             @PathParam("assetGuid") String assetGuid
             , @QueryParam("workstation") String workstation
