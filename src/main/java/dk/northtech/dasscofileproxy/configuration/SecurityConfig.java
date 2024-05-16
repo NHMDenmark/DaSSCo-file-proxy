@@ -41,7 +41,6 @@ public class SecurityConfig {
                     jwt.<Map<String, List<String>>>getClaim("realm_access")
                             .getOrDefault("roles", Collections.emptyList())
                             .stream().map(role -> new SimpleGrantedAuthority("ROLE_" + role))
-                            .peek(z-> System.out.println(z))
                             .collect(Collectors.toList())
     );
 
