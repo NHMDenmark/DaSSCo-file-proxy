@@ -22,5 +22,6 @@ public class JerseyApplicationConfig extends ResourceConfig {
     register(Files.class);
     register(Assets.class);
     register(HttpShareAPI.class);
+    register(OpenAPI.class);
   }
 }

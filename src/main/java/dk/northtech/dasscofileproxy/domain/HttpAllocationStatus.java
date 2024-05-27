@@ -1,5 +1,8 @@
 package dk.northtech.dasscofileproxy.domain;
 
+import io.swagger.v3.oas.annotations.media.Schema;
+
+@Schema(description = "Possible HTTP Status responses for allocation", example = "DISK_FULL")
 public enum HttpAllocationStatus {
     DISK_FULL(403),
     SUCCESS(200),
