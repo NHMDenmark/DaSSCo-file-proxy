@@ -14,6 +14,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import javax.sql.DataSource;
+import java.io.File;
 import java.time.Instant;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -180,20 +181,29 @@ public class HttpShareService {
             if(writeableDirectory.isEmpty()) {
                 return new HttpInfo("Failed to allocate storage, no writeable directory found" , HttpAllocationStatus.BAD_REQUEST);
             }
+            Directory directory = writeableDirectory.get();
+            File localDirectory = new File(shareConfig.mountFolder() + directory.uri() + "/parent");
+            long parentSize = 0L;
             FileRepository fileRepository = h.attach(FileRepository.class);
-            long totalAllocatedAsset = fileRepository.getTotalAllocatedByAsset(newAllocation.asset_guid());
-            if(totalAllocatedAsset/1000000 > newAllocation.new_allocation_mb()) {
+            if(localDirectory.exists()){
+                AssetFull fullAsset = assetService.getFullAsset(newAllocation.asset_guid());
+                if(fullAsset.parent_guid != null) {
+                    parentSize = fileRepository.getTotalAllocatedByAsset(fullAsset.parent_guid);
+                }
+            }
+            long totalAllocatedAsset = parentSize + fileRepository.getTotalAllocatedByAsset(newAllocation.asset_guid());
+            if(totalAllocatedAsset / 1000000 > newAllocation.new_allocation_mb()) {
                 return new HttpInfo("Size of files in share is greater than the new value", HttpAllocationStatus.BAD_REQUEST);
             }
-            Directory directory = writeableDirectory.get();
             StorageMetrics resultMetrics = storageMetrics.allocate(newAllocation.new_allocation_mb() - directory.allocatedStorageMb());
             if(resultMetrics.remaining_storage_mb() < 0) {
                 return new HttpInfo(directory.uri(), directory.node_host(),storageMetrics.total_storage_mb(), storageMetrics.cache_storage_mb(),storageMetrics.all_allocated_storage_mb(), storageMetrics.remaining_storage_mb(), 0, "Cannot allocate more storage", HttpAllocationStatus.DISK_FULL, 0);
             }
             directoryRepository.updateAllocatedStorage(directory.directoryId(), newAllocation.new_allocation_mb());
-            return new HttpInfo(directory.uri(), directory.node_host(),resultMetrics.total_storage_mb(), resultMetrics.cache_storage_mb(),resultMetrics.all_allocated_storage_mb(), resultMetrics.remaining_storage_mb(), newAllocation.new_allocation_mb(), null, HttpAllocationStatus.SUCCESS, 0);
+            return new HttpInfo(directory.uri(), directory.node_host(),resultMetrics.total_storage_mb(), resultMetrics.cache_storage_mb(),resultMetrics.all_allocated_storage_mb(), resultMetrics.remaining_storage_mb(), newAllocation.new_allocation_mb(), null, HttpAllocationStatus.SUCCESS, parentSize/1000000);
         });
     }
+
     public String generateRandomToken() {
         int leftLimit = 48; // numeral '0'
         int rightLimit = 122; // letter 'z'
@@ -207,15 +217,11 @@ public class HttpShareService {
                 .toString();
     }
 
-
-
     public List<UserAccess> setupUserAccess(List<String> users, Instant creationDateTime) {
         ArrayList<UserAccess> userAccess = new ArrayList<>();
-
         users.forEach(username -> {
             userAccess.add(new UserAccess(null, null, username, generateRandomToken(), creationDateTime));
         });
-
         return userAccess;
     }
 
@@ -243,10 +249,15 @@ public class HttpShareService {
                     , 0);
         }
         Directory directoryToDelete = dirToDeleteOpt.get();
+        if(directoryToDelete.awaitingErdaSync()){
+            logger.warn("Attempt to delete share scheduled for ERDA synchronization");
+            
+        }
         return jdbi.withHandle(h -> {
             UserAccessList attach = h.attach(UserAccessList.class);
             List<UserAccess> userAccess = attach.getUserAccess(directoryToDelete.directoryId());
-            Optional<UserAccess> first = userAccess.stream().filter(x -> x.username().equals(user.username)).findFirst();
+            Optional<UserAccess> first = userAccess.stream()
+                    .filter(x -> x.username().equals(user.username)).findFirst();
             if(first.isEmpty() && !user.roles.contains(Role.ADMIN.roleName)){
                 logger.warn("User {} tried to delete directory they do not have access to", user.username);
                 throw new DasscoIllegalActionException();
