@@ -28,43 +28,23 @@ public class SFTPService {
     private final SFTPConfig sftpConfig;
     private final Jdbi jdbi;
 
-    private FileService fileService;
-    private ShareConfig shareConfig;
-    private AssetService assetService;
+    private final FileService fileService;
+    private final ShareConfig shareConfig;
+    private final AssetService assetService;
+
+    private ErdaDataSource erdaDataSource;
     //    private HttpShareService httpShareService;
     private static final Logger logger = LoggerFactory.getLogger(SFTPService.class);
 
     @Inject
-    public SFTPService(SFTPConfig sftpConfig, DataSource dataSource, FileService fileService, ShareConfig shareConfig, AssetService assetService, Jdbi jdbi) {
+    public SFTPService(SFTPConfig sftpConfig, FileService fileService, ShareConfig shareConfig, AssetService assetService, Jdbi jdbi, ErdaDataSource erdaDataSource) {
         this.sftpConfig = sftpConfig;
         this.assetService = assetService;
         this.fileService = fileService;
         this.shareConfig = shareConfig;
         this.jdbi = jdbi;
-//                Jdbi.create(dataSource)
-//                .installPlugin(new SqlObjectPlugin())
-//                .registerRowMapper(ConstructorMapper.factory(AssetCache.class));
+        this.erdaDataSource = erdaDataSource;
     }
-
-
-//    public void disconnect(ChannelSftp channel) {
-//        channel.exit();
-//        session.disconnect();
-//    }
-//
-//    public ChannelSftp startChannelSftp() {
-//        System.out.println("BEFORE OPEN()");
-//        session = open();
-//        System.out.println("AFTER OPEN");
-//        ChannelSftp channel = null;
-//        try {
-//            channel = (ChannelSftp) session.openChannel("sftp");
-//            channel.connect();
-//        } catch (JSchException e) {
-//            throw new RuntimeException(e);
-//        }
-//        return channel;
-//    }
 
 
     public void moveToERDA(AssetUpdate assetUpdate) {
@@ -104,7 +84,8 @@ public class SFTPService {
 //            serversToFlush = new ArrayList<>(filesToMove);
 //            filesToMove.clear();
 //        }
-        try (ERDAClient erdaClient = new ERDAClient(sftpConfig)) {
+        ERDAClient erdaClient = erdaDataSource.acquire();
+        try {
             for (Directory directory : directories) {
                 List<SharedAsset> sharedAssetList = getShardAsset(directory.directoryId());
                 if (sharedAssetList.size() != 1) {
@@ -157,6 +138,12 @@ public class SFTPService {
             }
         } catch (Exception e) {
             throw new RuntimeException(e);
+        } finally {
+            try {
+                erdaDataSource.recycle(erdaClient);
+            } catch (Exception e) {
+                logger.error("Failed to return erda client to pool", e);
+            }
         }
         for (FailedAsset s : failedGuids) {
             logger.error("ERDA sync failed for asset {}, retry attemps exhausted", s.guid);

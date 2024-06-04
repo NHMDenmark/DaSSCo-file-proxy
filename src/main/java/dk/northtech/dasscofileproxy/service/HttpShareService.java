@@ -68,15 +68,18 @@ public class HttpShareService {
             Instant creationDatetime = Instant.now();
             if (!creationObj.users().isEmpty() && !creationObj.assets().isEmpty()) {
                 if(creationObj.assets().size() != 1) {
+                    logger.warn("Create writeable share api received number of assets different than one");
                     throw new IllegalArgumentException("Number of assets must be one");
                 }
                 MinimalAsset minimalAsset = creationObj.assets().getFirst();
                 AssetFull fullAsset = assetService.getFullAsset(minimalAsset.asset_guid());
                 if(fullAsset != null && fullAsset.asset_locked) {
+                    logger.warn("Cannot create writeable share: Asset {} is locked", fullAsset.asset_guid);
                     throw new DasscoIllegalActionException("Asset is locked");
                 }
                 // Prevents people from checking out random assets as parents
                 if(fullAsset != null && fullAsset.parent_guid != null && minimalAsset.parent_guid() != null && !fullAsset.parent_guid.equals(minimalAsset.parent_guid())) {
+                    logger.warn("{} is not the parent of {}",minimalAsset.parent_guid(), minimalAsset.asset_guid());
                     throw new DasscoIllegalActionException("Provided parent is different than the actual parent of the asset");
                 }
                 FileService.AssetAllocation usageByAsset = fileService.getUsageByAsset(minimalAsset);
@@ -249,9 +252,19 @@ public class HttpShareService {
                     , 0);
         }
         Directory directoryToDelete = dirToDeleteOpt.get();
-        if(directoryToDelete.awaitingErdaSync()){
-            logger.warn("Attempt to delete share scheduled for ERDA synchronization");
-            
+        // Do not allow share that is synchronizing to be deleted as it is being used by another process. Permit cleaning failed shares.
+        if(directoryToDelete.awaitingErdaSync() && directoryToDelete.erdaSyncAttempts() < shareConfig.maxErdaSyncAttempts()) {
+            logger.warn("Attempt to delete share that is synchronizing");
+            return new HttpInfo(null
+                    , shareConfig.nodeHost()
+                    , storageMetrics.total_storage_mb()
+                    , storageMetrics.cache_storage_mb()
+                    , storageMetrics.all_allocated_storage_mb()
+                    , storageMetrics.remaining_storage_mb()
+                    , 0
+                    , "Share is synchronizing"
+                    , HttpAllocationStatus.BAD_REQUEST
+                    , 0);
         }
         return jdbi.withHandle(h -> {
             UserAccessList attach = h.attach(UserAccessList.class);

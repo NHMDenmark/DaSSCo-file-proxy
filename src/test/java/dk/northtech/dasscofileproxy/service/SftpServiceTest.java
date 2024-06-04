@@ -20,8 +20,10 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.concurrent.CompletableFuture;
 
 import static com.google.common.truth.Truth.assertThat;
+import static org.junit.jupiter.api.Assertions.fail;
 
 @SpringBootTest
 @Testcontainers
@@ -33,6 +35,8 @@ class SftpServiceTest {
     @Inject
     SFTPConfig sftpConfig;
 
+    @Inject
+    ErdaDataSource erdaDataSource;
     @Container
     static GenericContainer postgreSQL = new GenericContainer(DockerImageName.parse("apache/age:v1.1.0"))
             .withExposedPorts(5432)
@@ -44,17 +48,19 @@ class SftpServiceTest {
     static void dataSourceProperties(DynamicPropertyRegistry registry) {
         registry.add("datasource.jdbcUrl", () -> "jdbc:postgresql://localhost:" + postgreSQL.getFirstMappedPort() + "/dassco_file_proxy");
     }
+
     @Test
     public void testListFiles() {
         try {
             Files.createDirectories(Path.of("target/test/subfolder/"));
             Files.write(Path.of("target/test/test.txt"), "asdf".getBytes());
             Files.write(Path.of("target/test/subfolder/test.txt"), "asdf".getBytes());
-            new FileService(null, null,null).deleteAll(new File("target/test"));
+            new FileService(null, null, null).deleteAll(new File("target/test"));
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
     }
+
     @Test
     @Disabled
     public void uploadFile() {
@@ -62,9 +68,100 @@ class SftpServiceTest {
             // Open an SFTP channel
             String localFile = "target/sample.txt";
             String remoteDir = "TestInstitution/test-collection/testAsset_2/file_1.txt";
+//            ERDAClient erdaClient = new ERDAClient(sftpConfig);
+//            for (int i = 0; i < 100; i++) {
+//                try {
+//                    Files.write(Path.of("target/test/test." + i + ".txt"), ("asdf-" + i).getBytes());
+//                } catch (IOException e) {
+//                    fail(e);
+//                }
+//            }
+//            for (int i = 0; i < 100; i++) {
+//                String localFile = "target/test/test." + i + ".txt";
+//                String remoteDir = "TestInstitution/test-collection/testAsset_2/test." + i + ".txt";
+//                erdaClient.putFileToPath(localFile, remoteDir);
+//                System.out.println(i);
+//            }
+            ERDAClient erdaClient = new ERDAClient(sftpConfig);
+            try {
 
-            new ERDAClient(sftpConfig).putFileToPath(localFile, remoteDir);
-        } catch (JSchException e) {
+                new ERDAClient(sftpConfig).putFileToPath(localFile, remoteDir);
+                System.out.println("2");
+                new ERDAClient(sftpConfig).putFileToPath(localFile, remoteDir);
+                System.out.println("3");
+                new ERDAClient(sftpConfig).putFileToPath(localFile, remoteDir);
+                System.out.println("4");
+                new ERDAClient(sftpConfig).putFileToPath(localFile, remoteDir);
+                System.out.println("5");
+            } catch (Exception e) {
+                System.out.println("Fah hailed");
+            }
+            erdaClient.putFileToPath(localFile, remoteDir);
+            System.out.printf("sykse");
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    @Test
+    @Disabled
+    public void eurdahTezt() {
+        try {
+            // Open an SFTP channel
+//            String localFile = "target/sample.txt";
+//            String remoteDir = "TestInstitution/test-collection/testAsset_2/file_1.txt";
+//            ErdaDataSource erdaDataSource = new ErdaDataSource(3, true, sftpConfig);
+//            CompletableFuture.runAsync(() -> {
+//                try {
+//                    try {
+//                        ERDAClient acquire = erdaDataSource.acquire();
+//                    } catch (Exception e) {
+//                        throw new RuntimeException(e);
+//                    }
+//                }
+//            });
+//            acquire.putFileToPath(localFile, remoteDir);
+//            ERDAClient erdaClient = new ERDAClient(sftpConfig);
+            for (int i = 0; i < 100; i++) {
+                try {
+                    Files.write(Path.of("target/test/test." + i + ".txt"), ("asdf-" + i).getBytes());
+                } catch (IOException e) {
+                    fail(e);
+                }
+            }
+            for (int i = 0; i < 50; i++) {
+                final int i2 = i;
+                CompletableFuture<Void> voidCompletableFuture = CompletableFuture.runAsync(() -> {
+                    String localFile = "target/test/test." + i2 + ".txt";
+                    String remoteDir = "TestInstitution/test-collection/testAsset_2/test." + i2 + ".txt";
+                        ERDAClient acquire = erdaDataSource.acquire();
+                    try {
+                        acquire.putFileToPath(localFile, remoteDir);
+                        System.out.println("done " + i2);
+                    } catch (Exception e) {
+                        throw new RuntimeException(e);
+                    } finally {
+                        erdaDataSource.recycle(acquire);
+
+                    }
+
+                });
+//                erdaClient.putFileToPath(localFile, remoteDir);
+//                System.out.println(i);
+            }
+            while (true);
+
+//            new ERDAClient(sftpConfig).putFileToPath(localFile, remoteDir);
+//            System.out.println("2");
+//            new ERDAClient(sftpConfig).putFileToPath(localFile, remoteDir);
+//            System.out.println("3");
+//            new ERDAClient(sftpConfig).putFileToPath(localFile, remoteDir);
+//            System.out.println("4");
+//            new ERDAClient(sftpConfig).putFileToPath(localFile, remoteDir);
+//            System.out.println("5");
+//            new ERDAClient(sftpConfig).putFileToPath(localFile, remoteDir);
+
+        } catch (Exception e) {
             throw new RuntimeException(e);
         }
     }
@@ -103,7 +200,7 @@ class SftpServiceTest {
         try {
             String localFile = "target/sample.txt";
             String remoteDir = "/test-institution/test-collection/a4";
-            boolean exists = new ERDAClient(sftpConfig).exists(remoteDir,true);
+            boolean exists = new ERDAClient(sftpConfig).exists(remoteDir, true);
             System.out.println(exists);
             assertThat(exists).isTrue();
         } catch (SftpException | IOException e) {
