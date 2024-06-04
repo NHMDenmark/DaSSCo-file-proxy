@@ -18,7 +18,7 @@ public record HttpInfo(
         @Schema(description = "The amount of storage allocated on the server to the new asset", example = "5000")
         int allocated_storage_mb,
         @Schema(description = "A detailed error message if an error happens", example = "Allocation failed, no more disk space")
-        String proxy_allocation_status_text,
+        String allocation_status_text,
         @Schema(description = "Status of the allocation", example = "SUCCESS")
         HttpAllocationStatus http_allocation_status,
         @Schema(description = "Asset's parent size (in mb)", example = "20")

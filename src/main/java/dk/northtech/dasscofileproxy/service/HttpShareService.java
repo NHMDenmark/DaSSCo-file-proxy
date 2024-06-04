@@ -111,7 +111,7 @@ public class HttpShareService {
                     fileService.deleteDirectory(directory.directoryId());
                     throw e;
                 }
-                return new HttpInfo(null, null, storageMetrics.total_storage_mb(), storageMetrics.cache_storage_mb(), storageMetrics.remaining_storage_mb(), storageMetrics.all_allocated_storage_mb(), 0, httpInfo.proxy_allocation_status_text(), httpInfo.http_allocation_status(), 0);
+                return new HttpInfo(null, null, storageMetrics.total_storage_mb(), storageMetrics.cache_storage_mb(), storageMetrics.remaining_storage_mb(), storageMetrics.all_allocated_storage_mb(), 0, httpInfo.allocation_status_text(), httpInfo.http_allocation_status(), 0);
             } else {
                 throw new BadRequestException("You have to provide users in this call");
             }
