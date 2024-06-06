@@ -84,7 +84,7 @@ public class SFTPService {
 //            serversToFlush = new ArrayList<>(filesToMove);
 //            filesToMove.clear();
 //        }
-        ERDAClient erdaClient = erdaDataSource.acquire();
+        ERDAClient erdaClient = erdaDataSource.getClient();
         try {
             for (Directory directory : directories) {
                 List<SharedAsset> sharedAssetList = getShardAsset(directory.directoryId());
@@ -138,13 +138,14 @@ public class SFTPService {
             }
         } catch (Exception e) {
             throw new RuntimeException(e);
-        } finally {
-            try {
-                erdaDataSource.recycle(erdaClient);
-            } catch (Exception e) {
-                logger.error("Failed to return erda client to pool", e);
-            }
         }
+//        finally {
+//            try {
+//                erdaDataSource.recycle(erdaClient);
+//            } catch (Exception e) {
+//                logger.error("Failed to return erda client to pool", e);
+//            }
+//        }
         for (FailedAsset s : failedGuids) {
             logger.error("ERDA sync failed for asset {}, retry attemps exhausted", s.guid);
             assetService.setAssestStatus(s.guid(), InternalStatus.ERDA_ERROR, s.errorMessage);
@@ -171,7 +172,8 @@ public class SFTPService {
 //        AssetFull asset = assetService.getFullAsset(assetGuid);
         String remotePath = getRemotePath(minimalAsset);
         logger.info("Initialising asset folder, remote path is {}", remotePath);
-        try (ERDAClient erdaClient = new ERDAClient(sftpConfig)) {
+        ERDAClient erdaClient = erdaDataSource.getClient();
+        try  {
             if (!erdaClient.exists(remotePath, true)) {
                 logger.info("Remote path {} didnt exist ", remotePath);
             } else {
@@ -205,6 +207,9 @@ public class SFTPService {
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
+//        finally {
+//            erdaDataSource.recycle(erdaClient);
+//        }
     }
 
 

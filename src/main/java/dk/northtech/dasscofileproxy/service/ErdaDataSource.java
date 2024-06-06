@@ -4,24 +4,52 @@ import dk.northtech.dasscofileproxy.configuration.SFTPConfig;
 import jakarta.inject.Inject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
+
+import java.time.Instant;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 
 public class ErdaDataSource extends ResourcePool<ERDAClient> {
     private final SFTPConfig sftpConfig;
     private static final Logger logger = LoggerFactory.getLogger(ErdaDataSource.class);
-
+    Instant lastFailure = null;
+    private ERDAClient theClient = null;
     public ErdaDataSource(int size, Boolean dynamicCreation, SFTPConfig sftpConfig) {
         super(size, dynamicCreation);
         this.sftpConfig = sftpConfig;
     }
+
+    private final Object lock = new Object();
+    private List<ERDAClient> deadClients = Collections.synchronizedList(new ArrayList<>());
 
     @Override
     protected ERDAClient createObject() {
         return new ERDAClient(sftpConfig);
     }
 
+    public ERDAClient getClient() {
+        try {
+            if(theClient == null) {
+                theClient = acquire();
+            }
+            theClient.testAndRestore();
+            return theClient;
+        } catch (Exception e) {
+            if(theClient != null) {
+                deadClients.add(theClient);
+            }
+//            synchronized (lock) {
+                theClient = null;
+//            }
+            throw new RuntimeException("Failed to get client", e);
+        }
+
+    }
     @Override
-    public ERDAClient acquire() {
+    ERDAClient acquire() {
         try {
             ERDAClient acquire = super.acquire();
             try {
@@ -29,8 +57,9 @@ public class ErdaDataSource extends ResourcePool<ERDAClient> {
                 return acquire;
             } catch (Exception e) {
                 logger.warn("Failed to get ERDAClient, maybe ERDA is down?");
-                // Return failed connection to pool, it is likely a time based error and will self-correct after some time.
-                recycle(acquire);
+                deadClients.add(acquire);
+                lastFailure = Instant.now();
+//                recycle(acquire);
                 throw e;
             }
         } catch (Exception e) {
@@ -38,5 +67,30 @@ public class ErdaDataSource extends ResourcePool<ERDAClient> {
         }
 //        throw new RuntimeException("Failed to get ERDA client: unknown error", e);
 
+    }
+
+    //At random second to prevent other timed tasks to overlap and attempt to get Clients.
+    @Scheduled(cron = "33 */5 * * * *")
+    public void reviveClients() {
+        logger.info("checking for failed ERDAClients");
+        if (!deadClients.isEmpty() && lastFailure != null && Instant.now().minusSeconds(360).isBefore(lastFailure)) {
+            ArrayList<ERDAClient> erdaClients;
+//            synchronized (lock) {
+
+                erdaClients = new ArrayList<>(deadClients);
+                this.deadClients.removeAll(erdaClients);
+//            }
+            for (ERDAClient erdaClient : erdaClients) {
+                try {
+                    erdaClient.testAndRestore();
+                    logger.info("Restored one ERDAClient");
+                    recycle(erdaClient);
+                } catch (Exception e) {
+                    // If it is still impossible to add
+                    logger.info("Failed to restore an ERDAClient");
+                    this.deadClients.add(erdaClient);
+                }
+            }
+        }
     }
 }

@@ -34,7 +34,7 @@ public abstract class ResourcePool<Resource> {
         }
     }
 
-    public Resource acquire() throws Exception {
+    Resource acquire() throws Exception {
         if (!lock.isLocked()) {
             if (lock.tryLock()) {
                 try {
