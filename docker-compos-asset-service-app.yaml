@@ -9,8 +9,10 @@ services:
       POSTGRES_URL: jdbc:postgresql://database:5432/dassco_file_proxy
       #POSTGRES_USER: dassco_asset_service
       #POSTGRES_PASSWORD: dassco_asset_service
-      #KEYCLOAK_REALM: dassco
+      KEYCLOAK_REALM: dassco
       KEYCLOAK_AUTH_SERVER_URL: http://keycloak:8080/
-      #KEYCLOAK_RESOURCE: dassco-asset-service
+      KEYCLOAK_RESOURCE: dassco-asset-service
     volumes:
       - asset-service-log-volume:/target/logs
+
+#ERROR: NOT SEEING LOCALHOST 8084, SOMETHING WITH THE REDIRECTION TO KEYCLOAK NOT WORKING:!!!
