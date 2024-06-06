@@ -12,6 +12,7 @@ services:
       KEYCLOAK_REALM: dassco
       KEYCLOAK_AUTH_SERVER_URL: http://keycloak:8080/
       KEYCLOAK_RESOURCE: dassco-asset-service
+      LOCALHOST_KEYCLOAK: http://localhost:8083/realms/dassco
     volumes:
       - asset-service-log-volume:/target/logs
 
