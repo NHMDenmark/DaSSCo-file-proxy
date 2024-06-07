@@ -6,7 +6,6 @@ import jakarta.inject.Inject;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.containers.GenericContainer;
@@ -18,8 +17,9 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.Arrays;
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 import static com.google.common.truth.Truth.assertThat;
@@ -61,43 +61,32 @@ class SftpServiceTest {
         }
     }
 
+    // This test creates more ERDAClients than ERDA allows. This will cause application running on the same computer to lose all ERDA sessions.
+    // The purpose of this is to test how the file-proxy recovers from ERDA downtime errors
     @Test
     @Disabled
-    public void uploadFile() {
+    public void forceERDAError() {
         try {
             // Open an SFTP channel
             String localFile = "target/sample.txt";
             String remoteDir = "TestInstitution/test-collection/testAsset_2/file_1.txt";
-//            ERDAClient erdaClient = new ERDAClient(sftpConfig);
-//            for (int i = 0; i < 100; i++) {
-//                try {
-//                    Files.write(Path.of("target/test/test." + i + ".txt"), ("asdf-" + i).getBytes());
-//                } catch (IOException e) {
-//                    fail(e);
-//                }
-//            }
-//            for (int i = 0; i < 100; i++) {
-//                String localFile = "target/test/test." + i + ".txt";
-//                String remoteDir = "TestInstitution/test-collection/testAsset_2/test." + i + ".txt";
-//                erdaClient.putFileToPath(localFile, remoteDir);
-//                System.out.println(i);
-//            }
+
             ERDAClient erdaClient = new ERDAClient(sftpConfig);
             try {
 
+                new ERDAClient(sftpConfig).putFileToPath(localFile, remoteDir);
+                System.out.println("1");
                 new ERDAClient(sftpConfig).putFileToPath(localFile, remoteDir);
                 System.out.println("2");
                 new ERDAClient(sftpConfig).putFileToPath(localFile, remoteDir);
                 System.out.println("3");
                 new ERDAClient(sftpConfig).putFileToPath(localFile, remoteDir);
                 System.out.println("4");
-                new ERDAClient(sftpConfig).putFileToPath(localFile, remoteDir);
-                System.out.println("5");
             } catch (Exception e) {
-                System.out.println("Fah hailed");
+                System.out.println("Failed");
             }
             erdaClient.putFileToPath(localFile, remoteDir);
-            System.out.printf("sykse");
+            System.out.printf("It worked");
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
@@ -122,44 +111,105 @@ class SftpServiceTest {
 //            });
 //            acquire.putFileToPath(localFile, remoteDir);
 //            ERDAClient erdaClient = new ERDAClient(sftpConfig);
+
             for (int i = 0; i < 100; i++) {
                 try {
-                    Files.write(Path.of("target/test/test." + i + ".txt"), ("asdf-" + i).getBytes());
+                    Files.write(Path.of("target/test/test." + i + ".txt"), ("asdf'-" + i).getBytes());
                 } catch (IOException e) {
                     fail(e);
                 }
             }
-            for (int i = 0; i < 50; i++) {
+//            ERDAClient acquire = erdaDataSource.acquire();
+            List<String> files2Delete = new ArrayList<>();
+            List<CompletableFuture<Void>> futures = new ArrayList<>();
+            for (int i = 0; i < 100; i++) {
                 final int i2 = i;
                 CompletableFuture<Void> voidCompletableFuture = CompletableFuture.runAsync(() -> {
                     String localFile = "target/test/test." + i2 + ".txt";
                     String remoteDir = "TestInstitution/test-collection/testAsset_2/test." + i2 + ".txt";
-                        ERDAClient acquire = erdaDataSource.acquire();
-                    try {
+                    files2Delete.add(remoteDir);
+
+                    try (ERDAClient erdaClient = erdaDataSource.acquire();){
+                        erdaClient.putFileToPath(localFile, remoteDir);
+//                        acquire.deleteFiles();
+                        System.out.println("done " + i2);
+                    } catch (Exception e) {
+                        throw new RuntimeException(e);
+                    }
+                });
+                    futures.add(voidCompletableFuture);
+//                erdaClient.putFileToPath(localFile, remoteDir);
+//                System.out.println(i);
+            }
+            futures.forEach(CompletableFuture::join);
+            try (ERDAClient erdaClient = erdaDataSource.acquire();){
+                erdaClient.deleteFiles(files2Delete);
+            }
+//                erdaClient.putFileToPath(localFile, remoteDir);
+//                System.out.println(i);
+
+//            erdaDataSource.recycle(acquire);
+
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    @Test
+    @Disabled
+    public void eurdahTezt2() {
+        try {
+            // Open an SFTP channel
+//            String localFile = "target/sample.txt";
+//            String remoteDir = "TestInstitution/test-collection/testAsset_2/file_1.txt";
+//            ErdaDataSource erdaDataSource = new ErdaDataSource(3, true, sftpConfig);
+//            CompletableFuture.runAsync(() -> {
+//                try {
+//                    try {
+//                        ERDAClient acquire = erdaDataSource.acquire();
+//                    } catch (Exception e) {
+//                        throw new RuntimeException(e);
+//                    }
+//                }
+//            });
+//            acquire.putFileToPath(localFile, remoteDir);
+//            ERDAClient erdaClient = new ERDAClient(sftpConfig);
+
+//            for (int i = 0; i < 100; i++) {
+//                try {
+//                    Files.write(Path.of("target/test/test." + i + ".txt"), ("asdf'-" + i).getBytes());
+//                } catch (IOException e) {
+//                    fail(e);
+//                }
+//            }
+            List<String> files2Delete = new ArrayList<>();
+            List<CompletableFuture<Void>> futures = new ArrayList<>();
+            for (int i = 0; i < 10; i++) {
+                final int i2 = i;
+                CompletableFuture<Void> voidCompletableFuture = CompletableFuture.runAsync(() -> {
+                    String localFile = "C:\\Users\\Thomas\\Documents\\big-test-files\\pic-" + i2 + ".tif";
+                    String remoteDir = "TestInstitution/test-collection/testAsset_2/test." + i2 + ".tif";
+                    files2Delete.add(remoteDir);
+
+                    try (ERDAClient acquire = erdaDataSource.acquire();) {
                         acquire.putFileToPath(localFile, remoteDir);
                         System.out.println("done " + i2);
                     } catch (Exception e) {
                         throw new RuntimeException(e);
-                    } finally {
-                        erdaDataSource.recycle(acquire);
-
                     }
-
                 });
-//                erdaClient.putFileToPath(localFile, remoteDir);
-//                System.out.println(i);
-            }
-            while (true);
+                futures.add(voidCompletableFuture);
 
-//            new ERDAClient(sftpConfig).putFileToPath(localFile, remoteDir);
-//            System.out.println("2");
-//            new ERDAClient(sftpConfig).putFileToPath(localFile, remoteDir);
-//            System.out.println("3");
-//            new ERDAClient(sftpConfig).putFileToPath(localFile, remoteDir);
-//            System.out.println("4");
-//            new ERDAClient(sftpConfig).putFileToPath(localFile, remoteDir);
-//            System.out.println("5");
-//            new ERDAClient(sftpConfig).putFileToPath(localFile, remoteDir);
+            }
+            futures.forEach(CompletableFuture::join);
+            try (ERDAClient acquire = erdaDataSource.acquire();) {
+//                        acquire.putFileToPath(localFile, remoteDir);
+//                        acquire.deleteFiles();
+            acquire.deleteFiles(files2Delete);
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+
 
         } catch (Exception e) {
             throw new RuntimeException(e);

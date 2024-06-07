@@ -14,8 +14,8 @@ import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
-import javax.sql.DataSource;
-import java.io.*;
+import java.io.File;
+import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.LocalDateTime;
@@ -84,8 +84,8 @@ public class SFTPService {
 //            serversToFlush = new ArrayList<>(filesToMove);
 //            filesToMove.clear();
 //        }
-        ERDAClient erdaClient = erdaDataSource.getClient();
-        try {
+
+        try(ERDAClient erdaClient = erdaDataSource.acquire();) {
             for (Directory directory : directories) {
                 List<SharedAsset> sharedAssetList = getShardAsset(directory.directoryId());
                 if (sharedAssetList.size() != 1) {
@@ -139,13 +139,6 @@ public class SFTPService {
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
-//        finally {
-//            try {
-//                erdaDataSource.recycle(erdaClient);
-//            } catch (Exception e) {
-//                logger.error("Failed to return erda client to pool", e);
-//            }
-//        }
         for (FailedAsset s : failedGuids) {
             logger.error("ERDA sync failed for asset {}, retry attemps exhausted", s.guid);
             assetService.setAssestStatus(s.guid(), InternalStatus.ERDA_ERROR, s.errorMessage);
@@ -172,7 +165,7 @@ public class SFTPService {
 //        AssetFull asset = assetService.getFullAsset(assetGuid);
         String remotePath = getRemotePath(minimalAsset);
         logger.info("Initialising asset folder, remote path is {}", remotePath);
-        ERDAClient erdaClient = erdaDataSource.getClient();
+        ERDAClient erdaClient = erdaDataSource.acquire();
         try  {
             if (!erdaClient.exists(remotePath, true)) {
                 logger.info("Remote path {} didnt exist ", remotePath);
@@ -207,9 +200,9 @@ public class SFTPService {
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
-//        finally {
-//            erdaDataSource.recycle(erdaClient);
-//        }
+        finally {
+            erdaDataSource.recycle(erdaClient);
+        }
     }
 
 

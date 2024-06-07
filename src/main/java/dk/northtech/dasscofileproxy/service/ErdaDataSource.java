@@ -27,29 +27,12 @@ public class ErdaDataSource extends ResourcePool<ERDAClient> {
 
     @Override
     protected ERDAClient createObject() {
-        return new ERDAClient(sftpConfig);
+        return new ERDAClient(sftpConfig, this);
     }
 
-    public ERDAClient getClient() {
-        try {
-            if(theClient == null) {
-                theClient = acquire();
-            }
-            theClient.testAndRestore();
-            return theClient;
-        } catch (Exception e) {
-            if(theClient != null) {
-                deadClients.add(theClient);
-            }
-//            synchronized (lock) {
-                theClient = null;
-//            }
-            throw new RuntimeException("Failed to get client", e);
-        }
 
-    }
     @Override
-    ERDAClient acquire() {
+    public ERDAClient acquire() {
         try {
             ERDAClient acquire = super.acquire();
             try {
@@ -57,9 +40,10 @@ public class ErdaDataSource extends ResourcePool<ERDAClient> {
                 return acquire;
             } catch (Exception e) {
                 logger.warn("Failed to get ERDAClient, maybe ERDA is down?");
-                deadClients.add(acquire);
+                synchronized (lock) {
+                    deadClients.add(acquire);
+                }
                 lastFailure = Instant.now();
-//                recycle(acquire);
                 throw e;
             }
         } catch (Exception e) {
@@ -70,16 +54,16 @@ public class ErdaDataSource extends ResourcePool<ERDAClient> {
     }
 
     //At random second to prevent other timed tasks to overlap and attempt to get Clients.
-    @Scheduled(cron = "33 */5 * * * *")
+    @Scheduled(cron = "33 */1 * * * *")
     public void reviveClients() {
         logger.info("checking for failed ERDAClients");
         if (!deadClients.isEmpty() && lastFailure != null && Instant.now().minusSeconds(360).isBefore(lastFailure)) {
             ArrayList<ERDAClient> erdaClients;
-//            synchronized (lock) {
-
+            synchronized (lock) {
                 erdaClients = new ArrayList<>(deadClients);
-                this.deadClients.removeAll(erdaClients);
-//            }
+                this.deadClients = new ArrayList<>();
+            }
+            logger.warn("Therer are {} failed ERDAClients", erdaClients.size());
             for (ERDAClient erdaClient : erdaClients) {
                 try {
                     erdaClient.testAndRestore();

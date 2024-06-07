@@ -17,10 +17,34 @@ public class ERDAClient implements AutoCloseable {
     private Session session;
 
     private final SFTPConfig sftpConfig;
-    
-    
+    private ErdaDataSource creator;
+
     public ERDAClient(SFTPConfig sftpConfig) {
         this.sftpConfig = sftpConfig;
+        try {
+            JSch jSch = new JSch();
+            // Add the private key file for authentication
+            jSch.addIdentity(sftpConfig.privateKey(), sftpConfig.passphrase());
+            logger.info("Added credz");
+
+            session = jSch.getSession(sftpConfig.username(), sftpConfig.host(), sftpConfig.port());
+            session.setConfig("PreferredAuthentications", "publickey");
+            logger.info("Got sesh");
+            // Disable strict host key checking
+            session.setConfig("StrictHostKeyChecking", "no");
+
+            session.connect(10000);
+
+            logger.info("Connected");
+        } catch (JSchException e) {
+            logger.error("Failed to connect to ERDA: {}", e.getMessage());
+            throw new RuntimeException(e);
+        }
+    }
+
+    public ERDAClient(SFTPConfig sftpConfig, ErdaDataSource erdaDataSource) {
+        this.sftpConfig = sftpConfig;
+        this.creator = erdaDataSource;
         try {
             JSch jSch = new JSch();
             // Add the private key file for authentication
@@ -90,7 +114,12 @@ public class ERDAClient implements AutoCloseable {
 
     @Override
     public void close() throws Exception {
-        session.disconnect();
+        if (this.creator != null) {
+            creator.recycle(this);
+        } else {
+            session.disconnect();
+        }
+
     }
 
     public Collection<String> listFiles(String path) throws JSchException, SftpException {
