@@ -297,7 +297,7 @@ public class ERDAClient implements AutoCloseable {
 
     public void testAndRestore() {
         try {
-            logger.info("Verifying that ERDA connection works");
+//            logger.info("Verifying that ERDA connection works");
             Collection<String> strings = listFiles("healthcheck/");
         } catch (Exception e) {
             //Try to restore connection if connection fails
