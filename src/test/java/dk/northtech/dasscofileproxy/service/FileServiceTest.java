@@ -37,7 +37,7 @@ public class FileServiceTest {
     FileService fileService;
 
     @Container
-    static GenericContainer postgreSQL = new GenericContainer(DockerImageName.parse("apache/age:v1.1.0"))
+    static GenericContainer postgreSQL = new GenericContainer(DockerImageName.parse("apache/age:release_PG11_1.5.0"))
             .withExposedPorts(5432)
             .withEnv("POSTGRES_DB", "dassco_file_proxy")
             .withEnv("POSTGRES_USER", "dassco_file_proxy")
