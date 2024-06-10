@@ -37,12 +37,15 @@ public class FileService {
     }
 
 
-    public String createShareFolder(MinimalAsset asset) {
+    public Optional<String> createShareFolder(MinimalAsset asset) {
         File newDirectory = new File(shareConfig.mountFolder() + "/assetfiles/" + asset.institution() + "/" + asset.collection() + "/" + asset.asset_guid() + "/");
         if (!newDirectory.exists()) {
-            newDirectory.mkdirs();
+            boolean mkdirs = newDirectory.mkdirs();
+            if(!mkdirs) {
+                Optional.empty();
+            }
         }
-        return newDirectory.getPath();
+        return Optional.of(newDirectory.getPath());
     }
 
     public AssetAllocation getUsageByAsset(MinimalAsset minimalAsset) {

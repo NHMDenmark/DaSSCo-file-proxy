@@ -1,11 +1,11 @@
 package dk.northtech.dasscofileproxy.webapi.v1;
 
 import dk.northtech.dasscofileproxy.domain.*;
+import dk.northtech.dasscofileproxy.domain.exceptions.DasscoIllegalActionException;
 import dk.northtech.dasscofileproxy.service.*;
 import dk.northtech.dasscofileproxy.webapi.UserMapper;
 import dk.northtech.dasscofileproxy.webapi.exceptionmappers.DaSSCoError;
 import dk.northtech.dasscofileproxy.webapi.model.AssetStorageAllocation;
-import dk.northtech.dasscofileproxy.webapi.model.FileUploadResult;
 import io.swagger.v3.oas.annotations.Hidden;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;

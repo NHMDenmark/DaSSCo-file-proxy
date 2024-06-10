@@ -85,7 +85,7 @@ public class SFTPService {
 //            filesToMove.clear();
 //        }
 
-        try(ERDAClient erdaClient = erdaDataSource.acquire();) {
+        try(ERDAClient erdaClient = erdaDataSource.acquire()) {
             for (Directory directory : directories) {
                 List<SharedAsset> sharedAssetList = getShardAsset(directory.directoryId());
                 if (sharedAssetList.size() != 1) {

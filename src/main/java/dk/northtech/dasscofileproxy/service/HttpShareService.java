@@ -2,6 +2,8 @@ package dk.northtech.dasscofileproxy.service;
 
 import dk.northtech.dasscofileproxy.configuration.ShareConfig;
 import dk.northtech.dasscofileproxy.domain.*;
+import dk.northtech.dasscofileproxy.domain.exceptions.DasscoIllegalActionException;
+import dk.northtech.dasscofileproxy.domain.exceptions.DasscoInternalErrorException;
 import dk.northtech.dasscofileproxy.repository.*;
 import dk.northtech.dasscofileproxy.webapi.model.AssetStorageAllocation;
 import jakarta.inject.Inject;
@@ -104,7 +106,11 @@ public class HttpShareService {
                         , setupUserAccess(creationObj.users(), creationDatetime)
                 );
                 Directory directory = createDirectory(dir);
-                String shareFolder = fileService.createShareFolder(minimalAsset);
+                Optional<String> shareFolderOpt= fileService.createShareFolder(minimalAsset);
+                if(shareFolderOpt.isEmpty()) {
+                    throw new DasscoInternalErrorException("Local asset directory did not get created, this might be due to a disk space or permission error on the server.");
+                }
+                String shareFolder = shareFolderOpt.get();
                 try {
                     if (creationObj.assets().size() == 1) {
                         sftpService.initAssetShare(shareFolder, minimalAsset);
