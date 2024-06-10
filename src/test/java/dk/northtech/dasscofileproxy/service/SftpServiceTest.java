@@ -96,25 +96,9 @@ class SftpServiceTest {
     @Disabled
     public void eurdahTezt() {
         try {
-            // Open an SFTP channel
-//            String localFile = "target/sample.txt";
-//            String remoteDir = "TestInstitution/test-collection/testAsset_2/file_1.txt";
-//            ErdaDataSource erdaDataSource = new ErdaDataSource(3, true, sftpConfig);
-//            CompletableFuture.runAsync(() -> {
-//                try {
-//                    try {
-//                        ERDAClient acquire = erdaDataSource.acquire();
-//                    } catch (Exception e) {
-//                        throw new RuntimeException(e);
-//                    }
-//                }
-//            });
-//            acquire.putFileToPath(localFile, remoteDir);
-//            ERDAClient erdaClient = new ERDAClient(sftpConfig);
-
             for (int i = 0; i < 100; i++) {
                 try {
-                    Files.write(Path.of("target/test/test." + i + ".txt"), ("asdf'-" + i).getBytes());
+                    Files.write(Path.of("target/test/test." + i + ".txt"), ("asdfgfhgfhg-lkdfhgsg-fhasfhskjhfkjshfkjsdhfksjhiug r-" + i).getBytes());
                 } catch (IOException e) {
                     fail(e);
                 }

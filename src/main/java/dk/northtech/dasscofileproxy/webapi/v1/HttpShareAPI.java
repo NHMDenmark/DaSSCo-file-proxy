@@ -65,10 +65,12 @@ public class HttpShareAPI {
 
     }
 
+    // This API doesnt check if the asset exists because the asset service will first persist the asset once the share is open.
+    // This is only for internal use.
     @Hidden
     @POST
     @Path("/assets/{assetGuid}/createShareInternal")
-    @Operation(summary = "Create Share (Internal)", description = "Creates a share for the asset")
+    @Operation(summary = "Create Share (Internal)", description = "Creates a share for the asset, doesnt check if asset exists before creating share")
     @RolesAllowed({SecurityRoles.SERVICE, SecurityRoles.ADMIN})
     @Produces(MediaType.APPLICATION_JSON)
     @Consumes(APPLICATION_JSON)
