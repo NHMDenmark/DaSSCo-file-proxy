@@ -172,12 +172,20 @@ public class HttpShareService {
 
     public StorageMetrics getStorageMetrics() {
         return jdbi.withHandle(h -> {
-            int totalDiskSpace = shareConfig.totalDiskSpace();//(int) (new File("/").getTotalSpace() / 1000000);
-            int cacheDiskSpace = shareConfig.cacheDiskspace();
+            File file = new File("/");
+            long totalSpace = file.getTotalSpace();
+            long usableSpace = file.getUsableSpace();
             int totalAllocated = 0;
+            long foldersize = fileService.getFoldersize(shareConfig.mountFolder());
             DirectoryRepository attach = h.attach(DirectoryRepository.class);
             totalAllocated = attach.getTotalAllocated();
-            return new StorageMetrics(totalDiskSpace, cacheDiskSpace, totalAllocated, totalDiskSpace-totalAllocated-cacheDiskSpace);
+            int totalDiskSpace = (int) (totalSpace / 1000000);
+            int cacheDiskSpace = shareConfig.cacheDiskspace();
+            long totalAllocatedB = totalAllocated * 1000000L;
+            //We have to calculate the remaining disk space including allocations that have not been fully used
+            long actualUsable = usableSpace - foldersize;
+            long remaining = (actualUsable - totalAllocatedB);
+            return new StorageMetrics(totalDiskSpace, cacheDiskSpace, totalAllocated, (int) (remaining / 1000000));
         });
 
     }
@@ -285,6 +293,8 @@ public class HttpShareService {
             fileService.resetDirectoryAndResetFiles(directoryToDelete.directoryId(),assetGuid);
             //Clean up files
             fileService.removeShareFolder(directoryToDelete);
+            System.out.println(storageMetrics.remaining_storage_mb());
+            System.out.println(directoryToDelete.allocatedStorageMb());
             return new HttpInfo(null
                     , null
                     , shareConfig.totalDiskSpace()

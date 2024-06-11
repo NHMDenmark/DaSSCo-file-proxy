@@ -3,6 +3,7 @@ package dk.northtech.dasscofileproxy.service;
 import com.google.common.base.Strings;
 import dk.northtech.dasscofileproxy.configuration.ShareConfig;
 import dk.northtech.dasscofileproxy.domain.*;
+import dk.northtech.dasscofileproxy.domain.exceptions.DasscoInternalErrorException;
 import dk.northtech.dasscofileproxy.repository.DirectoryRepository;
 import dk.northtech.dasscofileproxy.repository.FileRepository;
 import dk.northtech.dasscofileproxy.repository.SharedAssetList;
@@ -19,6 +20,7 @@ import java.io.*;
 import java.nio.file.*;
 import java.util.*;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import java.util.zip.CRC32;
 import java.util.zip.CheckedInputStream;
 
@@ -146,6 +148,25 @@ public class FileService {
         dir.delete();
     }
 
+    public long getFoldersize(String directoryName) {
+        long size = 0;
+        try (Stream<Path> walk = Files.walk(Paths.get(directoryName))) {
+            size = walk
+                    .filter(Files::isRegularFile)
+                    .mapToLong(p -> {
+                        try {
+                            return Files.size(p);
+                        } catch (IOException e) {
+                            System.out.printf("Failed to get size of %s%n%s", p, e);
+                            return 0L;
+                        }
+                    })
+                    .sum();
+        } catch (IOException e) {
+            throw new DasscoInternalErrorException("Could not get size of folder", e);
+        }
+        return size;
+    }
 
     public Optional<Directory> getWriteableDirectory(String assetGuid) {
         return jdbi.withHandle(handle -> {
