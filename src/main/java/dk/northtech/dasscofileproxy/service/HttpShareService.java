@@ -172,11 +172,13 @@ public class HttpShareService {
 
     public StorageMetrics getStorageMetrics() {
         return jdbi.withHandle(h -> {
-            File file = new File("/");
+            File file = new File(shareConfig.mountFolder());
             long totalSpace = file.getTotalSpace();
             long usableSpace = file.getUsableSpace();
             int totalAllocated = 0;
+            logger.info("totalSpace {}", totalSpace);
             long foldersize = fileService.getFoldersize(shareConfig.mountFolder());
+            logger.info("folderSize {}", foldersize);
             DirectoryRepository attach = h.attach(DirectoryRepository.class);
             totalAllocated = attach.getTotalAllocated();
             int totalDiskSpace = (int) (totalSpace / 1000000);
