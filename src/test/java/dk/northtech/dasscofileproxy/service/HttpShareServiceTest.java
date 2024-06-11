@@ -92,12 +92,14 @@ class HttpShareServiceTest {
         Directory directory = new Directory(null, "/i1/c1/alloc8ExtraNotEnoughSpace/", "test.dassco.dk", AccessType.WRITE, Instant.now(), 10,false,0, Arrays.asList(azzet1), Arrays.asList(userAccess));
         Directory directory1 = httpShareService.createDirectory(directory);
         StorageMetrics storageMetrics = httpShareService.getStorageMetrics();
-        HttpInfo httpInfo = httpShareService.allocateStorage(new AssetStorageAllocation("alloc8ExtraNotEnoughSpace", (int) ((new File(shareConfig.mountFolder()).getUsableSpace() / 1000000) - 9)));
+        HttpInfo httpInfo = httpShareService.allocateStorage(new AssetStorageAllocation("alloc8ExtraNotEnoughSpace", (int) ((new File(shareConfig.mountFolder()).getUsableSpace() / 1000000) +1)));
         StorageMetrics resultMetrics = httpShareService.getStorageMetrics();
+        System.out.println(storageMetrics);
+        System.out.println(resultMetrics);
         assertThat(httpInfo.http_allocation_status()).isEqualTo(HttpAllocationStatus.DISK_FULL);
         assertThat(resultMetrics.all_allocated_storage_mb()).isEqualTo(storageMetrics.all_allocated_storage_mb());
-        assertThat(resultMetrics.cache_storage_mb()).isEqualTo(resultMetrics.cache_storage_mb());
-        assertThat(resultMetrics.remaining_storage_mb()).isEqualTo(resultMetrics.remaining_storage_mb());
+        assertThat(resultMetrics.cache_storage_mb()).isEqualTo(storageMetrics.cache_storage_mb());
+        assertThat(resultMetrics.remaining_storage_mb()).isEqualTo(storageMetrics.remaining_storage_mb());
     }
 
     @Test
