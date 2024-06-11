@@ -15,4 +15,14 @@ public record StorageMetrics(
     public StorageMetrics allocate(int allocationChange) {
         return new StorageMetrics(total_storage_mb, cache_storage_mb, all_allocated_storage_mb + allocationChange, remaining_storage_mb - allocationChange);
     }
+
+    @Override
+    public String toString() {
+        return "StorageMetrics{" +
+               "total_storage_mb=" + total_storage_mb +
+               ", cache_storage_mb=" + cache_storage_mb +
+               ", all_allocated_storage_mb=" + all_allocated_storage_mb +
+               ", remaining_storage_mb=" + remaining_storage_mb +
+               '}';
+    }
 }

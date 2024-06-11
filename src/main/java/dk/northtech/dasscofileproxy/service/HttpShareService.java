@@ -86,6 +86,7 @@ public class HttpShareService {
                 }
                 FileService.AssetAllocation usageByAsset = fileService.getUsageByAsset(minimalAsset);
                 StorageMetrics storageMetrics = getStorageMetrics();
+                logger.info("Storage metrics {}", storageMetrics);
                 HttpInfo httpInfo = createHttpInfo(storageMetrics, creationObj, usageByAsset);
                 if(httpInfo.http_allocation_status() != HttpAllocationStatus.SUCCESS) {
                     return httpInfo;
@@ -181,7 +182,7 @@ public class HttpShareService {
             logger.info("folderSize {}", foldersize);
             DirectoryRepository attach = h.attach(DirectoryRepository.class);
             totalAllocated = attach.getTotalAllocated();
-            int totalDiskSpace = (int) (totalSpace / 1000000);
+            int totalDiskSpace = (int) (totalSpace / 1000000L);
             int cacheDiskSpace = shareConfig.cacheDiskspace();
             long totalAllocatedB = totalAllocated * 1000000L;
             //We have to calculate the remaining disk space including allocations that have not been fully used
