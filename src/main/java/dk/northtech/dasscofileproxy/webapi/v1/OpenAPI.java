@@ -114,7 +114,7 @@ public class OpenAPI {
 
             s = authServerUrlPattern.matcher(s).replaceAll(this.authConfiguration.serverUrl());
             s = clientIdPattern.matcher(s).replaceAll(this.authConfiguration.clientName());
-            s = apiServerUrlPattern.matcher(s).replaceAll("http://" + shareConfig.nodeHost() + "/file_proxy/api");
+            s = apiServerUrlPattern.matcher(s).replaceAll(shareConfig.nodeHost());
         }
         return s;
     }
