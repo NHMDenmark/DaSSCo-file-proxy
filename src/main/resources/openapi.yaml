@@ -466,7 +466,7 @@ components:
           description: The amount of storage allocated on the server to the new asset
           format: int32
           example: 5000
-        proxy_allocation_status_text:
+        allocation_status_text:
           type: string
           description: A detailed error message if an error happens
           example: "Allocation failed, no more disk space"

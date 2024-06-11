@@ -1,6 +1,6 @@
 services:
   asset-service:
-    image: nhmdenmark/dassco-asset-service:1.3.0
+    image: nhmdenmark/dassco-asset-service:1.3.3
     ports:
       - 8084:8084
     environment:
@@ -15,5 +15,3 @@ services:
       LOCALHOST_KEYCLOAK: http://localhost:8083/realms/dassco
     volumes:
       - asset-service-log-volume:/target/logs
-
-#ERROR: NOT SEEING LOCALHOST 8084, SOMETHING WITH THE REDIRECTION TO KEYCLOAK NOT WORKING:!!!

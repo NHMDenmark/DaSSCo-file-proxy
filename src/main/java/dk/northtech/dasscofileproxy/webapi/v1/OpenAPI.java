@@ -1,5 +1,6 @@
 package dk.northtech.dasscofileproxy.webapi.v1;
 import dk.northtech.dasscofileproxy.configuration.AuthConfiguration;
+import dk.northtech.dasscofileproxy.configuration.ShareConfig;
 import dk.northtech.dasscofileproxy.domain.SecurityRoles;
 import io.swagger.v3.oas.annotations.Hidden;
 import io.swagger.v3.oas.annotations.OpenAPIDefinition;
@@ -63,9 +64,12 @@ import static jakarta.ws.rs.core.MediaType.APPLICATION_JSON;
 public class OpenAPI {
     private final AuthConfiguration authConfiguration;
 
+    private final ShareConfig shareConfig;
+
     @Inject
-    public OpenAPI(AuthConfiguration authConfiguration) {
+    public OpenAPI(AuthConfiguration authConfiguration, ShareConfig shareConfig) {
         this.authConfiguration = authConfiguration;
+        this.shareConfig = shareConfig;
     }
 
     @GET
@@ -110,7 +114,7 @@ public class OpenAPI {
 
             s = authServerUrlPattern.matcher(s).replaceAll(this.authConfiguration.serverUrl());
             s = clientIdPattern.matcher(s).replaceAll(this.authConfiguration.clientName());
-            s = apiServerUrlPattern.matcher(s).replaceAll("http://localhost:8080/file_proxy/api");
+            s = apiServerUrlPattern.matcher(s).replaceAll("http://" + shareConfig.nodeHost() + "/file_proxy/api");
         }
         return s;
     }
