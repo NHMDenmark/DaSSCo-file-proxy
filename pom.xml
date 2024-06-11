@@ -10,7 +10,7 @@
     </parent>
     <groupId>dk.northtech</groupId>
     <artifactId>dassco-file-proxy</artifactId>
-    <version>1.4.0-SNAPSHOT</version>
+    <version>1.4.1-SNAPSHOT</version>
     <name>dassco-file-proxy</name>
     <description>dassco-file-proxy</description>
     <properties>

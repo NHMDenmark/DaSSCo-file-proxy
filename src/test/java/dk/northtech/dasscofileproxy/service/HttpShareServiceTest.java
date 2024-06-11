@@ -1,14 +1,11 @@
 package dk.northtech.dasscofileproxy.service;
 
-import dk.northtech.dasscofileproxy.configuration.ShareConfig;
 import dk.northtech.dasscofileproxy.domain.*;
 import dk.northtech.dasscofileproxy.repository.FileRepository;
 import dk.northtech.dasscofileproxy.webapi.model.AssetStorageAllocation;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.BadRequestException;
-import org.checkerframework.checker.units.qual.C;
 import org.jdbi.v3.core.Jdbi;
-import org.junit.Ignore;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -20,7 +17,7 @@ import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.utility.DockerImageName;
 
-import javax.validation.constraints.Min;
+import java.io.File;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -37,8 +34,7 @@ class HttpShareServiceTest {
     HttpShareService httpShareService;
     @Inject
     FileService fileservice;
-    @Inject
-    ShareConfig shareConfig;
+
 
     @Inject
     Jdbi jdbi;
@@ -91,7 +87,7 @@ class HttpShareServiceTest {
         Directory directory = new Directory(null, "/i1/c1/alloc8ExtraNotEnoughSpace/", "test.dassco.dk", AccessType.WRITE, Instant.now(), 10,false,0, Arrays.asList(azzet1), Arrays.asList(userAccess));
         Directory directory1 = httpShareService.createDirectory(directory);
         StorageMetrics storageMetrics = httpShareService.getStorageMetrics();
-        HttpInfo httpInfo = httpShareService.allocateStorage(new AssetStorageAllocation("alloc8ExtraNotEnoughSpace", shareConfig.totalDiskSpace() -9));
+        HttpInfo httpInfo = httpShareService.allocateStorage(new AssetStorageAllocation("alloc8ExtraNotEnoughSpace", (int) ((new File("/").getUsableSpace() / 1000000) - 9)));
         StorageMetrics resultMetrics = httpShareService.getStorageMetrics();
         assertThat(httpInfo.http_allocation_status()).isEqualTo(HttpAllocationStatus.DISK_FULL);
         assertThat(resultMetrics.all_allocated_storage_mb()).isEqualTo(storageMetrics.all_allocated_storage_mb());
