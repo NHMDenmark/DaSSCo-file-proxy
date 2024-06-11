@@ -17,24 +17,51 @@ public class ERDAClient implements AutoCloseable {
     private Session session;
 
     private final SFTPConfig sftpConfig;
+    private ErdaDataSource creator;
 
     public ERDAClient(SFTPConfig sftpConfig) {
         this.sftpConfig = sftpConfig;
         try {
             JSch jSch = new JSch();
-
             // Add the private key file for authentication
             jSch.addIdentity(sftpConfig.privateKey(), sftpConfig.passphrase());
+            logger.info("Added credz");
 
             session = jSch.getSession(sftpConfig.username(), sftpConfig.host(), sftpConfig.port());
             session.setConfig("PreferredAuthentications", "publickey");
-
+            logger.info("Got sesh");
             // Disable strict host key checking
             session.setConfig("StrictHostKeyChecking", "no");
 
-            session.connect();
+            session.connect(10000);
+
+            logger.info("Connected");
         } catch (JSchException e) {
-            logger.error("Failed to connect to ERDA: {}",e.getMessage());
+            logger.error("Failed to connect to ERDA: {}", e.getMessage());
+            throw new RuntimeException(e);
+        }
+    }
+
+    public ERDAClient(SFTPConfig sftpConfig, ErdaDataSource erdaDataSource) {
+        this.sftpConfig = sftpConfig;
+        this.creator = erdaDataSource;
+        try {
+            JSch jSch = new JSch();
+            // Add the private key file for authentication
+            jSch.addIdentity(sftpConfig.privateKey(), sftpConfig.passphrase());
+            logger.info("Added credz");
+
+            session = jSch.getSession(sftpConfig.username(), sftpConfig.host(), sftpConfig.port());
+            session.setConfig("PreferredAuthentications", "publickey");
+            logger.info("Got sesh");
+            // Disable strict host key checking
+            session.setConfig("StrictHostKeyChecking", "no");
+
+            session.connect(10000);
+
+            logger.info("Connected");
+        } catch (JSchException e) {
+            logger.error("Failed to connect to ERDA: {}", e.getMessage());
             throw new RuntimeException(e);
         }
     }
@@ -43,6 +70,28 @@ public class ERDAClient implements AutoCloseable {
 //        logger.info("Connecting to ERDA");
 //
 //    }
+
+    public void restore() {
+        try {
+            JSch jSch = new JSch();
+            // Add the private key file for authentication
+            jSch.addIdentity(sftpConfig.privateKey(), sftpConfig.passphrase());
+            logger.info("Added credz");
+
+            this.session = jSch.getSession(sftpConfig.username(), sftpConfig.host(), sftpConfig.port());
+            this.session.setConfig("PreferredAuthentications", "publickey");
+            logger.info("Got sesh");
+            // Disable strict host key checking
+            this.session.setConfig("StrictHostKeyChecking", "no");
+
+            this.session.connect();
+
+            logger.info("Connected");
+        } catch (JSchException e) {
+            logger.error("Failed to connect to ERDA: {}", e.getMessage());
+            throw new RuntimeException(e);
+        }
+    }
 
     public void disconnect(ChannelSftp channel) {
         channel.exit();
@@ -65,8 +114,14 @@ public class ERDAClient implements AutoCloseable {
 
     @Override
     public void close() throws Exception {
-        session.disconnect();
+        if (this.creator != null) {
+            creator.recycle(this);
+        } else {
+            session.disconnect();
+        }
+
     }
+
     public Collection<String> listFiles(String path) throws JSchException, SftpException {
         List<String> fileList = new ArrayList<>();
         ChannelSftp channel = startChannelSftp();
@@ -139,10 +194,8 @@ public class ERDAClient implements AutoCloseable {
             throw new RuntimeException(e);
         } finally {
             disconnect(channel);
-
         }
     }
-
 
 
     public boolean exists(String path, boolean isFolder) throws IOException, SftpException {
@@ -192,22 +245,23 @@ public class ERDAClient implements AutoCloseable {
         Vector<ChannelSftp.LsEntry> files = channel.ls(path);
         for (ChannelSftp.LsEntry entry : files) {
             if (!entry.getAttrs().isDir()) {
-                if(path.endsWith("/")) {
-                    foundFiles.add(path +  entry.getFilename());
+                if (path.endsWith("/")) {
+                    foundFiles.add(path + entry.getFilename());
                 } else {
-                    foundFiles.add(path +  "/"+entry.getFilename());
+                    foundFiles.add(path + "/" + entry.getFilename());
                 }
 //                foundFiles.add(path +  entry.getFilename());
             } else {
-                if(path.endsWith("/")) {
+                if (path.endsWith("/")) {
                     listFolder(foundFiles, path + entry.getFilename(), channel);
                 } else {
-                    listFolder(foundFiles, path +"/"+ entry.getFilename(), channel);
+                    listFolder(foundFiles, path + "/" + entry.getFilename(), channel);
                 }
             }
         }
         return foundFiles;
     }
+
     //Takes a list of file locations and downloads the files
     public void downloadFiles(List<String> locations, String destination, String asset_guid) {
         ChannelSftp channel = startChannelSftp();
@@ -241,4 +295,20 @@ public class ERDAClient implements AutoCloseable {
         disconnect(channel);
     }
 
+    public void testAndRestore() {
+        try {
+//            logger.info("Verifying that ERDA connection works");
+            Collection<String> strings = listFiles("healthcheck/");
+        } catch (Exception e) {
+            //Try to restore connection if connection fails
+            try {
+                logger.info("Trying to restore failed ERDA SFTP connection");
+                restore();
+            } catch (Exception e2) {
+                logger.warn("Failed to restore ERDA SFTP connection");
+                // We do not want to return failed connection.
+                throw new RuntimeException(e2);
+            }
+        }
+    }
 }

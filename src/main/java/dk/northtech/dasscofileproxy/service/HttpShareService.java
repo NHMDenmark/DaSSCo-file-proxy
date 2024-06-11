@@ -2,6 +2,8 @@ package dk.northtech.dasscofileproxy.service;
 
 import dk.northtech.dasscofileproxy.configuration.ShareConfig;
 import dk.northtech.dasscofileproxy.domain.*;
+import dk.northtech.dasscofileproxy.domain.exceptions.DasscoIllegalActionException;
+import dk.northtech.dasscofileproxy.domain.exceptions.DasscoInternalErrorException;
 import dk.northtech.dasscofileproxy.repository.*;
 import dk.northtech.dasscofileproxy.webapi.model.AssetStorageAllocation;
 import jakarta.inject.Inject;
@@ -14,6 +16,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import javax.sql.DataSource;
+import java.io.File;
 import java.time.Instant;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -67,19 +70,23 @@ public class HttpShareService {
             Instant creationDatetime = Instant.now();
             if (!creationObj.users().isEmpty() && !creationObj.assets().isEmpty()) {
                 if(creationObj.assets().size() != 1) {
+                    logger.warn("Create writeable share api received number of assets different than one");
                     throw new IllegalArgumentException("Number of assets must be one");
                 }
                 MinimalAsset minimalAsset = creationObj.assets().getFirst();
                 AssetFull fullAsset = assetService.getFullAsset(minimalAsset.asset_guid());
                 if(fullAsset != null && fullAsset.asset_locked) {
+                    logger.warn("Cannot create writeable share: Asset {} is locked", fullAsset.asset_guid);
                     throw new DasscoIllegalActionException("Asset is locked");
                 }
                 // Prevents people from checking out random assets as parents
                 if(fullAsset != null && fullAsset.parent_guid != null && minimalAsset.parent_guid() != null && !fullAsset.parent_guid.equals(minimalAsset.parent_guid())) {
+                    logger.warn("{} is not the parent of {}",minimalAsset.parent_guid(), minimalAsset.asset_guid());
                     throw new DasscoIllegalActionException("Provided parent is different than the actual parent of the asset");
                 }
                 FileService.AssetAllocation usageByAsset = fileService.getUsageByAsset(minimalAsset);
                 StorageMetrics storageMetrics = getStorageMetrics();
+                logger.info("Storage metrics {}", storageMetrics);
                 HttpInfo httpInfo = createHttpInfo(storageMetrics, creationObj, usageByAsset);
                 if(httpInfo.http_allocation_status() != HttpAllocationStatus.SUCCESS) {
                     return httpInfo;
@@ -100,7 +107,11 @@ public class HttpShareService {
                         , setupUserAccess(creationObj.users(), creationDatetime)
                 );
                 Directory directory = createDirectory(dir);
-                String shareFolder = fileService.createShareFolder(minimalAsset);
+                Optional<String> shareFolderOpt= fileService.createShareFolder(minimalAsset);
+                if(shareFolderOpt.isEmpty()) {
+                    throw new DasscoInternalErrorException("Local asset directory did not get created, this might be due to a disk space or permission error on the server.");
+                }
+                String shareFolder = shareFolderOpt.get();
                 try {
                     if (creationObj.assets().size() == 1) {
                         sftpService.initAssetShare(shareFolder, minimalAsset);
@@ -162,12 +173,22 @@ public class HttpShareService {
 
     public StorageMetrics getStorageMetrics() {
         return jdbi.withHandle(h -> {
-            int totalDiskSpace = shareConfig.totalDiskSpace();//(int) (new File("/").getTotalSpace() / 1000000);
-            int cacheDiskSpace = shareConfig.cacheDiskspace();
+            File file = new File(shareConfig.mountFolder());
+            long totalSpace = file.getTotalSpace();
+            long usableSpace = file.getUsableSpace();
             int totalAllocated = 0;
+            logger.info("totalSpace {}", totalSpace);
+            long foldersize = fileService.getFoldersize(shareConfig.mountFolder());
+            logger.info("folderSize {}", foldersize);
             DirectoryRepository attach = h.attach(DirectoryRepository.class);
             totalAllocated = attach.getTotalAllocated();
-            return new StorageMetrics(totalDiskSpace, cacheDiskSpace, totalAllocated, totalDiskSpace-totalAllocated-cacheDiskSpace);
+            int totalDiskSpace = (int) (totalSpace / 1000000L);
+            int cacheDiskSpace = shareConfig.cacheDiskspace();
+            long totalAllocatedB = totalAllocated * 1000000L;
+            //We have to calculate the remaining disk space including allocations that have not been fully used
+            long actualUsable = usableSpace - foldersize;
+            long remaining = (actualUsable - totalAllocatedB);
+            return new StorageMetrics(totalDiskSpace, cacheDiskSpace, totalAllocated, (int) (remaining / 1000000));
         });
 
     }
@@ -180,20 +201,29 @@ public class HttpShareService {
             if(writeableDirectory.isEmpty()) {
                 return new HttpInfo("Failed to allocate storage, no writeable directory found" , HttpAllocationStatus.BAD_REQUEST);
             }
+            Directory directory = writeableDirectory.get();
+            File localDirectory = new File(shareConfig.mountFolder() + directory.uri() + "/parent");
+            long parentSize = 0L;
             FileRepository fileRepository = h.attach(FileRepository.class);
-            long totalAllocatedAsset = fileRepository.getTotalAllocatedByAsset(newAllocation.asset_guid());
-            if(totalAllocatedAsset/1000000 > newAllocation.new_allocation_mb()) {
+            if(localDirectory.exists()){
+                AssetFull fullAsset = assetService.getFullAsset(newAllocation.asset_guid());
+                if(fullAsset.parent_guid != null) {
+                    parentSize = fileRepository.getTotalAllocatedByAsset(fullAsset.parent_guid);
+                }
+            }
+            long totalAllocatedAsset = parentSize + fileRepository.getTotalAllocatedByAsset(newAllocation.asset_guid());
+            if(totalAllocatedAsset / 1000000 > newAllocation.new_allocation_mb()) {
                 return new HttpInfo("Size of files in share is greater than the new value", HttpAllocationStatus.BAD_REQUEST);
             }
-            Directory directory = writeableDirectory.get();
             StorageMetrics resultMetrics = storageMetrics.allocate(newAllocation.new_allocation_mb() - directory.allocatedStorageMb());
             if(resultMetrics.remaining_storage_mb() < 0) {
                 return new HttpInfo(directory.uri(), directory.node_host(),storageMetrics.total_storage_mb(), storageMetrics.cache_storage_mb(),storageMetrics.all_allocated_storage_mb(), storageMetrics.remaining_storage_mb(), 0, "Cannot allocate more storage", HttpAllocationStatus.DISK_FULL, 0);
             }
             directoryRepository.updateAllocatedStorage(directory.directoryId(), newAllocation.new_allocation_mb());
-            return new HttpInfo(directory.uri(), directory.node_host(),resultMetrics.total_storage_mb(), resultMetrics.cache_storage_mb(),resultMetrics.all_allocated_storage_mb(), resultMetrics.remaining_storage_mb(), newAllocation.new_allocation_mb(), null, HttpAllocationStatus.SUCCESS, 0);
+            return new HttpInfo(directory.uri(), directory.node_host(),resultMetrics.total_storage_mb(), resultMetrics.cache_storage_mb(),resultMetrics.all_allocated_storage_mb(), resultMetrics.remaining_storage_mb(), newAllocation.new_allocation_mb(), null, HttpAllocationStatus.SUCCESS, parentSize/1000000);
         });
     }
+
     public String generateRandomToken() {
         int leftLimit = 48; // numeral '0'
         int rightLimit = 122; // letter 'z'
@@ -207,15 +237,11 @@ public class HttpShareService {
                 .toString();
     }
 
-
-
     public List<UserAccess> setupUserAccess(List<String> users, Instant creationDateTime) {
         ArrayList<UserAccess> userAccess = new ArrayList<>();
-
         users.forEach(username -> {
             userAccess.add(new UserAccess(null, null, username, generateRandomToken(), creationDateTime));
         });
-
         return userAccess;
     }
 
@@ -243,10 +269,25 @@ public class HttpShareService {
                     , 0);
         }
         Directory directoryToDelete = dirToDeleteOpt.get();
+        // Do not allow share that is synchronizing to be deleted as it is being used by another process. Permit cleaning failed shares.
+        if(directoryToDelete.awaitingErdaSync() && directoryToDelete.erdaSyncAttempts() < shareConfig.maxErdaSyncAttempts()) {
+            logger.warn("Attempt to delete share that is synchronizing");
+            return new HttpInfo(null
+                    , shareConfig.nodeHost()
+                    , storageMetrics.total_storage_mb()
+                    , storageMetrics.cache_storage_mb()
+                    , storageMetrics.all_allocated_storage_mb()
+                    , storageMetrics.remaining_storage_mb()
+                    , 0
+                    , "Share is synchronizing"
+                    , HttpAllocationStatus.BAD_REQUEST
+                    , 0);
+        }
         return jdbi.withHandle(h -> {
             UserAccessList attach = h.attach(UserAccessList.class);
             List<UserAccess> userAccess = attach.getUserAccess(directoryToDelete.directoryId());
-            Optional<UserAccess> first = userAccess.stream().filter(x -> x.username().equals(user.username)).findFirst();
+            Optional<UserAccess> first = userAccess.stream()
+                    .filter(x -> x.username().equals(user.username)).findFirst();
             if(first.isEmpty() && !user.roles.contains(Role.ADMIN.roleName)){
                 logger.warn("User {} tried to delete directory they do not have access to", user.username);
                 throw new DasscoIllegalActionException();
@@ -255,6 +296,8 @@ public class HttpShareService {
             fileService.resetDirectoryAndResetFiles(directoryToDelete.directoryId(),assetGuid);
             //Clean up files
             fileService.removeShareFolder(directoryToDelete);
+            System.out.println(storageMetrics.remaining_storage_mb());
+            System.out.println(directoryToDelete.allocatedStorageMb());
             return new HttpInfo(null
                     , null
                     , shareConfig.totalDiskSpace()

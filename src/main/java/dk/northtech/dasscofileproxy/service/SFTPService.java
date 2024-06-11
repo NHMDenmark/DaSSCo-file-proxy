@@ -14,8 +14,8 @@ import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
-import javax.sql.DataSource;
-import java.io.*;
+import java.io.File;
+import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.LocalDateTime;
@@ -28,43 +28,23 @@ public class SFTPService {
     private final SFTPConfig sftpConfig;
     private final Jdbi jdbi;
 
-    private FileService fileService;
-    private ShareConfig shareConfig;
-    private AssetService assetService;
+    private final FileService fileService;
+    private final ShareConfig shareConfig;
+    private final AssetService assetService;
+
+    private ErdaDataSource erdaDataSource;
     //    private HttpShareService httpShareService;
     private static final Logger logger = LoggerFactory.getLogger(SFTPService.class);
 
     @Inject
-    public SFTPService(SFTPConfig sftpConfig, DataSource dataSource, FileService fileService, ShareConfig shareConfig, AssetService assetService, Jdbi jdbi) {
+    public SFTPService(SFTPConfig sftpConfig, FileService fileService, ShareConfig shareConfig, AssetService assetService, Jdbi jdbi, ErdaDataSource erdaDataSource) {
         this.sftpConfig = sftpConfig;
         this.assetService = assetService;
         this.fileService = fileService;
         this.shareConfig = shareConfig;
         this.jdbi = jdbi;
-//                Jdbi.create(dataSource)
-//                .installPlugin(new SqlObjectPlugin())
-//                .registerRowMapper(ConstructorMapper.factory(AssetCache.class));
+        this.erdaDataSource = erdaDataSource;
     }
-
-
-//    public void disconnect(ChannelSftp channel) {
-//        channel.exit();
-//        session.disconnect();
-//    }
-//
-//    public ChannelSftp startChannelSftp() {
-//        System.out.println("BEFORE OPEN()");
-//        session = open();
-//        System.out.println("AFTER OPEN");
-//        ChannelSftp channel = null;
-//        try {
-//            channel = (ChannelSftp) session.openChannel("sftp");
-//            channel.connect();
-//        } catch (JSchException e) {
-//            throw new RuntimeException(e);
-//        }
-//        return channel;
-//    }
 
 
     public void moveToERDA(AssetUpdate assetUpdate) {
@@ -104,7 +84,8 @@ public class SFTPService {
 //            serversToFlush = new ArrayList<>(filesToMove);
 //            filesToMove.clear();
 //        }
-        try (ERDAClient erdaClient = new ERDAClient(sftpConfig)) {
+
+        try(ERDAClient erdaClient = erdaDataSource.acquire()) {
             for (Directory directory : directories) {
                 List<SharedAsset> sharedAssetList = getShardAsset(directory.directoryId());
                 if (sharedAssetList.size() != 1) {
@@ -184,7 +165,8 @@ public class SFTPService {
 //        AssetFull asset = assetService.getFullAsset(assetGuid);
         String remotePath = getRemotePath(minimalAsset);
         logger.info("Initialising asset folder, remote path is {}", remotePath);
-        try (ERDAClient erdaClient = new ERDAClient(sftpConfig)) {
+        ERDAClient erdaClient = erdaDataSource.acquire();
+        try  {
             if (!erdaClient.exists(remotePath, true)) {
                 logger.info("Remote path {} didnt exist ", remotePath);
             } else {
@@ -217,6 +199,9 @@ public class SFTPService {
             }
         } catch (Exception e) {
             throw new RuntimeException(e);
+        }
+        finally {
+            erdaDataSource.recycle(erdaClient);
         }
     }
 

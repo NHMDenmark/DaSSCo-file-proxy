@@ -1,11 +1,11 @@
 package dk.northtech.dasscofileproxy.webapi.v1;
 
 import dk.northtech.dasscofileproxy.domain.*;
+import dk.northtech.dasscofileproxy.domain.exceptions.DasscoIllegalActionException;
 import dk.northtech.dasscofileproxy.service.*;
 import dk.northtech.dasscofileproxy.webapi.UserMapper;
 import dk.northtech.dasscofileproxy.webapi.exceptionmappers.DaSSCoError;
 import dk.northtech.dasscofileproxy.webapi.model.AssetStorageAllocation;
-import dk.northtech.dasscofileproxy.webapi.model.FileUploadResult;
 import io.swagger.v3.oas.annotations.Hidden;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -65,10 +65,12 @@ public class HttpShareAPI {
 
     }
 
+    // This API doesnt check if the asset exists because the asset service will first persist the asset once the share is open.
+    // This is only for internal use.
     @Hidden
     @POST
     @Path("/assets/{assetGuid}/createShareInternal")
-    @Operation(summary = "Create Share (Internal)", description = "Creates a share for the asset")
+    @Operation(summary = "Create Share (Internal)", description = "Creates a share for the asset, doesnt check if asset exists before creating share")
     @RolesAllowed({SecurityRoles.SERVICE, SecurityRoles.ADMIN})
     @Produces(MediaType.APPLICATION_JSON)
     @Consumes(APPLICATION_JSON)

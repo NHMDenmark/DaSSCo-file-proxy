@@ -8,6 +8,8 @@ import jakarta.inject.Inject;
 import jakarta.ws.rs.BadRequestException;
 import org.checkerframework.checker.units.qual.C;
 import org.jdbi.v3.core.Jdbi;
+import org.junit.Ignore;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.annotation.DirtiesContext;
@@ -19,6 +21,7 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.utility.DockerImageName;
 
 import javax.validation.constraints.Min;
+import java.io.File;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -42,7 +45,7 @@ class HttpShareServiceTest {
     Jdbi jdbi;
 
     @Container
-    static GenericContainer postgreSQL = new GenericContainer(DockerImageName.parse("apache/age:v1.1.0"))
+    static GenericContainer postgreSQL = new GenericContainer(DockerImageName.parse("apache/age:release_PG11_1.5.0"))
             .withExposedPorts(5432)
             .withEnv("POSTGRES_DB", "dassco_file_proxy")
             .withEnv("POSTGRES_USER", "dassco_file_proxy")
@@ -89,12 +92,14 @@ class HttpShareServiceTest {
         Directory directory = new Directory(null, "/i1/c1/alloc8ExtraNotEnoughSpace/", "test.dassco.dk", AccessType.WRITE, Instant.now(), 10,false,0, Arrays.asList(azzet1), Arrays.asList(userAccess));
         Directory directory1 = httpShareService.createDirectory(directory);
         StorageMetrics storageMetrics = httpShareService.getStorageMetrics();
-        HttpInfo httpInfo = httpShareService.allocateStorage(new AssetStorageAllocation("alloc8ExtraNotEnoughSpace", shareConfig.totalDiskSpace() -9));
+        HttpInfo httpInfo = httpShareService.allocateStorage(new AssetStorageAllocation("alloc8ExtraNotEnoughSpace", (int) ((new File(shareConfig.mountFolder()).getUsableSpace() / 1000000) +1)));
         StorageMetrics resultMetrics = httpShareService.getStorageMetrics();
+        System.out.println(storageMetrics);
+        System.out.println(resultMetrics);
         assertThat(httpInfo.http_allocation_status()).isEqualTo(HttpAllocationStatus.DISK_FULL);
         assertThat(resultMetrics.all_allocated_storage_mb()).isEqualTo(storageMetrics.all_allocated_storage_mb());
-        assertThat(resultMetrics.cache_storage_mb()).isEqualTo(resultMetrics.cache_storage_mb());
-        assertThat(resultMetrics.remaining_storage_mb()).isEqualTo(resultMetrics.remaining_storage_mb());
+        assertThat(resultMetrics.cache_storage_mb()).isEqualTo(storageMetrics.cache_storage_mb());
+        assertThat(resultMetrics.remaining_storage_mb()).isEqualTo(storageMetrics.remaining_storage_mb());
     }
 
     @Test
@@ -143,6 +148,7 @@ class HttpShareServiceTest {
     }
 
     @Test
+    @Disabled("Requires keycloak so is disabled for now")
     void testCreateHttpShareInternal(){
         MinimalAsset minimalAsset = new MinimalAsset("testCreateHttpShareInternal", null, null, null);
         List<MinimalAsset> listMinimalAsset = new ArrayList<>();
