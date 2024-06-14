@@ -176,6 +176,9 @@ public class HttpShareService {
             File file = new File(shareConfig.mountFolder());
             long totalSpace = file.getTotalSpace();
             long usableSpace = file.getUsableSpace();
+            long freeSpace = file.getFreeSpace();
+            logger.info("Usable space {}", usableSpace);
+            logger.info("Free space {}", freeSpace);
             int totalAllocated = 0;
             logger.info("totalSpace {}", totalSpace);
             long foldersize = fileService.getFoldersize(shareConfig.mountFolder());

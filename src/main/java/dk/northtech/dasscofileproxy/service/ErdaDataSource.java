@@ -41,7 +41,10 @@ public class ErdaDataSource extends ResourcePool<ERDAClient> {
                 synchronized (lock) {
                     deadClients.add(acquire);
                 }
-                lastFailure = Instant.now();
+                // Don't reset last failure if it happened within the last 5 minutes (ERDA failure typically lasts 5 minutes).
+                if(lastFailure == null || Instant.now().minusSeconds(310).isBefore(lastFailure)) {
+                    lastFailure = Instant.now();
+                }
                 throw e;
             }
         } catch (Exception e) {
@@ -54,14 +57,14 @@ public class ErdaDataSource extends ResourcePool<ERDAClient> {
     //At random second to prevent other timed tasks to overlap and attempt to get Clients.
     @Scheduled(cron = "33 */1 * * * *")
     public void reviveClients() {
-//        logger.info("checking for failed ERDAClients");
+        logger.info("checking for failed ERDAClients");
         if (!deadClients.isEmpty() && lastFailure != null && Instant.now().minusSeconds(360).isBefore(lastFailure)) {
             ArrayList<ERDAClient> erdaClients;
             synchronized (lock) {
                 erdaClients = new ArrayList<>(deadClients);
                 this.deadClients = new ArrayList<>();
             }
-            logger.warn("Therer are {} failed ERDAClients", erdaClients.size());
+            logger.warn("There are {} failed ERDAClients", erdaClients.size());
             for (ERDAClient erdaClient : erdaClients) {
                 try {
                     erdaClient.testAndRestore();

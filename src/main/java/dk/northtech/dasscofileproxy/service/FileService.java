@@ -76,6 +76,18 @@ public class FileService {
         }
     }
 
+    public Optional<FileResult> getFile(String path) {
+        File file = new File(path);
+        if (file.exists()) {
+            try {
+                return Optional.of(new FileResult(new FileInputStream(file), file.getName()));
+            } catch (FileNotFoundException e) {
+                throw new RuntimeException(e);
+            }
+        } else {
+            return Optional.empty();
+        }
+    }
     public List<String> listAvailableFiles(FileUploadData fileUploadData) {
         List<String> links = new ArrayList<>();
         File file = new File(shareConfig.mountFolder() + fileUploadData.getBasePath());

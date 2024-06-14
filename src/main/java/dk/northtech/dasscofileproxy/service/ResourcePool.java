@@ -43,7 +43,9 @@ public abstract class ResourcePool<Resource> {
                     logger.info("Created {} resources", createdObjects);
                     return object;
                 } finally {
-                    if (createdObjects < size) lock.unlock();
+                    if (createdObjects < size) {
+                        lock.unlock();
+                    }
                 }
             }
         }

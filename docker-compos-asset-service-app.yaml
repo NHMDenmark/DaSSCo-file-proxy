@@ -1,6 +1,6 @@
 services:
   asset-service:
-    image: nhmdenmark/dassco-asset-service:1.3.3
+    image: nhmdenmark/dassco-asset-service:1.5.0-SNAPSHOT
     ports:
       - 8084:8084
     environment:

@@ -165,8 +165,8 @@ public class SFTPService {
 //        AssetFull asset = assetService.getFullAsset(assetGuid);
         String remotePath = getRemotePath(minimalAsset);
         logger.info("Initialising asset folder, remote path is {}", remotePath);
-        ERDAClient erdaClient = erdaDataSource.acquire();
-        try  {
+
+        try (ERDAClient erdaClient = erdaDataSource.acquire();) {
             if (!erdaClient.exists(remotePath, true)) {
                 logger.info("Remote path {} didnt exist ", remotePath);
             } else {
@@ -199,9 +199,6 @@ public class SFTPService {
             }
         } catch (Exception e) {
             throw new RuntimeException(e);
-        }
-        finally {
-            erdaDataSource.recycle(erdaClient);
         }
     }
 
