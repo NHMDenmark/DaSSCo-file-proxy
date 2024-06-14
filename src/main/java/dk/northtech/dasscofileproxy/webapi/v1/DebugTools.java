@@ -1,6 +1,7 @@
 package dk.northtech.dasscofileproxy.webapi.v1;
 
 import dk.northtech.dasscofileproxy.configuration.SFTPConfig;
+import dk.northtech.dasscofileproxy.domain.SecurityRoles;
 import dk.northtech.dasscofileproxy.domain.exceptions.DasscoInternalErrorException;
 import dk.northtech.dasscofileproxy.service.ERDAClient;
 import io.swagger.v3.oas.annotations.Hidden;
@@ -8,6 +9,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.annotation.security.RolesAllowed;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.Context;
@@ -28,12 +30,13 @@ public class DebugTools {
     }
 
 
+    @Operation(summary = "Get Asset File by path", description = "Get an asset file based on institution, collection, asset_guid and path to the file")
+    @ApiResponse(responseCode = "200", description = "ERDA ")
     @POST
     @Hidden
     @Path("/forceerdadisconnect")
-    @Operation(summary = "Get Asset File by path", description = "Get an asset file based on institution, collection, asset_guid and path to the file")
-    @ApiResponse(responseCode = "200", description = "ERDA ")
-    public void listLogs(
+    @RolesAllowed({SecurityRoles.DEVELOPER, SecurityRoles.ADMIN})
+    public void disconnectErda(
             @Context SecurityContext securityContext
     ) {
         //This exhausts ERDA connections and disconnects all ERDA client for the next 5 minutes

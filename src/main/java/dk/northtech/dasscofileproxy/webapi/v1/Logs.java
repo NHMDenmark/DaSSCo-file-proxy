@@ -1,5 +1,6 @@
 package dk.northtech.dasscofileproxy.webapi.v1;
 
+import dk.northtech.dasscofileproxy.domain.SecurityRoles;
 import dk.northtech.dasscofileproxy.domain.User;
 import dk.northtech.dasscofileproxy.service.FileService;
 import dk.northtech.dasscofileproxy.service.LogService;
@@ -11,6 +12,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.annotation.security.RolesAllowed;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.*;
@@ -38,6 +40,7 @@ public class Logs {
     @Produces(APPLICATION_JSON)
     @ApiResponse(responseCode = "200", description = "Returns the file.")
     @ApiResponse(responseCode = "400-599", content = @Content(mediaType = APPLICATION_JSON, schema = @Schema(implementation = DaSSCoError.class)))
+    @RolesAllowed({SecurityRoles.DEVELOPER, SecurityRoles.ADMIN})
     public List<String> listLogs(
              @Context SecurityContext securityContext
     ) {
@@ -52,6 +55,7 @@ public class Logs {
     @Consumes(APPLICATION_JSON)
     @ApiResponse(responseCode = "200", description = "Returns the file.")
     @ApiResponse(responseCode = "400-599", content = @Content(mediaType = APPLICATION_JSON, schema = @Schema(implementation = DaSSCoError.class)))
+    @RolesAllowed({SecurityRoles.DEVELOPER, SecurityRoles.ADMIN})
     public Response getFile(
             @Context SecurityContext securityContext
             , @PathParam("fileName") String name

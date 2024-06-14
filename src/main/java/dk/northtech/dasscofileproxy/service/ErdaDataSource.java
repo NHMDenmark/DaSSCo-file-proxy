@@ -57,7 +57,7 @@ public class ErdaDataSource extends ResourcePool<ERDAClient> {
     //At random second to prevent other timed tasks to overlap and attempt to get Clients.
     @Scheduled(cron = "33 */1 * * * *")
     public void reviveClients() {
-        logger.info("checking for failed ERDAClients");
+//        logger.info("checking for failed ERDAClients");
         if (!deadClients.isEmpty() && lastFailure != null && Instant.now().minusSeconds(360).isBefore(lastFailure)) {
             ArrayList<ERDAClient> erdaClients;
             synchronized (lock) {
