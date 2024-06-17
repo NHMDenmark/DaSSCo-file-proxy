@@ -45,4 +45,7 @@ public interface DirectoryRepository {
     //This should look for node host in future
     @SqlQuery("UPDATE directories SET erda_sync_attempts = erda_sync_attempts + 1 WHERE awaiting_erda_sync = true AND erda_sync_attempts < :maxAttempts RETURNING *")
     List<Directory> getDirectoriesForSynchronization(int maxAttempts);
+
+    @SqlQuery("SELECT * FROM directories")
+    List<Directory> getAll();
 }

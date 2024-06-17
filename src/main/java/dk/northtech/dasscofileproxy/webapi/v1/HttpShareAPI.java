@@ -23,6 +23,8 @@ import jakarta.ws.rs.core.SecurityContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.List;
+
 import static jakarta.ws.rs.core.MediaType.APPLICATION_JSON;
 
 @Path("/shares")
@@ -39,6 +41,21 @@ public class HttpShareAPI {
         this.sftpService = sftpService;
     }
 
+    @GET
+    @Path("/")
+    @Operation(summary = "Open Share", description = "Here you can open a share of an existing asset. The post body consists of a list of assets to be shared and a list of usernames of users that should have access to the share. The amount of space needed to be allocated also needs to be specified. The list of assets can only contain one asset when using this endpoint.")
+    @Produces(MediaType.APPLICATION_JSON)
+    @Consumes(APPLICATION_JSON)
+    @RolesAllowed({SecurityRoles.USER, SecurityRoles.ADMIN, SecurityRoles.SERVICE})
+    @ApiResponse(responseCode = "200", content = @Content(mediaType = APPLICATION_JSON, schema = @Schema(implementation = HttpInfo.class)))
+    @ApiResponse(responseCode = "400-599", content = @Content(mediaType = APPLICATION_JSON, schema = @Schema(implementation = DaSSCoError.class)))
+    public List<HttpShareService.Share> createSambaServer(@PathParam("assetGuid") String assetGuid
+            , @Context SecurityContext securityContext) {
+        User user = UserMapper.from(securityContext);
+      return httpShareService.listShares();
+
+
+    }
     @POST
     @Path("/assets/{assetGuid}/createShare")
     @Operation(summary = "Open Share", description = "Here you can open a share of an existing asset. The post body consists of a list of assets to be shared and a list of usernames of users that should have access to the share. The amount of space needed to be allocated also needs to be specified. The list of assets can only contain one asset when using this endpoint.")

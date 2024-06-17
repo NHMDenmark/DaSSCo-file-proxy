@@ -22,4 +22,8 @@ public interface SharedAssetList {
 
     @SqlUpdate("DELETE FROM shared_assets WHERE directory_id = :directoryId")
     void deleteSharedAsset(@Bind long directoryId);
+
+    @SqlQuery("SELECT * FROM shared_assets")
+    List<SharedAsset> getSharedAssets();
+
 }
