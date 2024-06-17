@@ -177,10 +177,10 @@ public class HttpShareService {
             long totalSpace = file.getTotalSpace();
             long usableSpace = file.getUsableSpace();
             long freeSpace = file.getFreeSpace();
-            logger.info("Usable space {}", usableSpace);
-            logger.info("Free space {}", freeSpace);
-            int totalAllocated = 0;
             logger.info("totalSpace {}", totalSpace);
+            logger.info("Free space {}", freeSpace);
+            logger.info("Usable space {}", usableSpace);
+            int totalAllocated = 0;
             long foldersize = fileService.getFoldersize(shareConfig.mountFolder());
             logger.info("folderSize {}", foldersize);
             DirectoryRepository attach = h.attach(DirectoryRepository.class);
@@ -299,8 +299,6 @@ public class HttpShareService {
             fileService.resetDirectoryAndResetFiles(directoryToDelete.directoryId(),assetGuid);
             //Clean up files
             fileService.removeShareFolder(directoryToDelete);
-            System.out.println(storageMetrics.remaining_storage_mb());
-            System.out.println(directoryToDelete.allocatedStorageMb());
             return new HttpInfo(null
                     , null
                     , shareConfig.totalDiskSpace()

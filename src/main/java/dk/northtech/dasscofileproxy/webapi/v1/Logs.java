@@ -36,7 +36,7 @@ public class Logs {
 
     @GET
     @Path("/")
-    @Operation(summary = "Get Asset File by path", description = "Get an asset file based on institution, collection, asset_guid and path to the file")
+    @Operation(summary = "List logfiles", description = "List all logfiles in the log directory")
     @Produces(APPLICATION_JSON)
     @ApiResponse(responseCode = "200", description = "Returns the file.")
     @ApiResponse(responseCode = "400-599", content = @Content(mediaType = APPLICATION_JSON, schema = @Schema(implementation = DaSSCoError.class)))
@@ -50,8 +50,7 @@ public class Logs {
 
     @GET
     @Path("/{fileName}")
-    // TODO: Should the path remain like this? This endpoint only works in Postman in its current state, and not in the Documentation Page. •
-    @Operation(summary = "Get Asset File by path", description = "Get an asset file based on institution, collection, asset_guid and path to the file")
+    @Operation(summary = "Get a log file", description = "Get a log file by name, use list endpoint to see names.")
     @Consumes(APPLICATION_JSON)
     @ApiResponse(responseCode = "200", description = "Returns the file.")
     @ApiResponse(responseCode = "400-599", content = @Content(mediaType = APPLICATION_JSON, schema = @Schema(implementation = DaSSCoError.class)))
@@ -69,9 +68,6 @@ public class Logs {
                 fileResult.is().transferTo(output);
                 output.flush();
             };
-            asdfg: {
-
-            }
             return Response.status(200)
                     .header("Content-Disposition", "attachment; filename=" + fileResult.filename())
                     .header("Content-Type", new Tika().detect(fileResult.filename())).entity(streamingOutput).build();
