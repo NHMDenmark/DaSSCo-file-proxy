@@ -48,11 +48,6 @@ public class FileServiceTest {
         registry.add("datasource.jdbcUrl", () -> "jdbc:postgresql://localhost:" + postgreSQL.getFirstMappedPort() + "/dassco_file_proxy");
     }
 
-    //    @Test
-//    @Disabled
-//    public void test () {
-//        assertThat(fileService.createShareFolder(16L)).isNull();
-//    }
     @Inject
     HttpShareService httpShareService;
 
@@ -178,20 +173,5 @@ public class FileServiceTest {
             return h;
         }).close();
     }
-
-//    @Test
-//    public void tezt() {
-//        File file = new File("C:/Users/Thomas/Documents/dassco-file-proxy/target/The.Navidson.Record.1080p.BluRay.x264.AC3.erdatv.mp4");
-//        try {
-//            FileOutputStream fileOutputStream = new FileOutputStream(file);
-//            for(int i = 0 ; i < 100000000 ; i++) {
-//                fileOutputStream.write(UUID.randomUUID().toString().getBytes());
-//        }
-//        } catch (FileNotFoundException e) {
-//            throw new RuntimeException(e);
-//        } catch (IOException e) {
-//            throw new RuntimeException(e);
-//        }
-//    }
 
 }

@@ -80,10 +80,6 @@ public class SFTPService {
         List<Directory> directories = getHttpSharesToSynchronize(shareConfig.maxErdaSyncAttempts());
         List<FailedAsset> failedGuids = new ArrayList<>();
 
-//        synchronized (filesToMove) {
-//            serversToFlush = new ArrayList<>(filesToMove);
-//            filesToMove.clear();
-//        }
 
         try(ERDAClient erdaClient = erdaDataSource.acquire()) {
             for (Directory directory : directories) {

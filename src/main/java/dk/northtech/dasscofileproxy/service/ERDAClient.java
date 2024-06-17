@@ -66,11 +66,6 @@ public class ERDAClient implements AutoCloseable {
         }
     }
 
-//    public Session open() {
-//        logger.info("Connecting to ERDA");
-//
-//    }
-
     public void restore() {
         try {
             JSch jSch = new JSch();
@@ -95,13 +90,9 @@ public class ERDAClient implements AutoCloseable {
 
     public void disconnect(ChannelSftp channel) {
         channel.exit();
-//        session.disconnect();
     }
 
     public ChannelSftp startChannelSftp() {
-//        System.out.println("BEFORE OPEN()");
-//        session = open();
-//        System.out.println("AFTER OPEN");
         ChannelSftp channel = null;
         try {
             channel = (ChannelSftp) session.openChannel("sftp");

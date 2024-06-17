@@ -17,8 +17,6 @@ public interface FileRepository {
     @GetGeneratedKeys
     public long insertFile(@BindMethods DasscoFile dasscoFile);
 
-//    @SqlQuery("SELECT * FROM directories")
-//    List<Directory> getAllDirectories(@Bind long directoryId);
 
     @SqlQuery("SELECT * FROM files WHERE asset_guid = :assetGuid")
     List<DasscoFile> getFilesByAssetGuid(@Bind String assetGuid);

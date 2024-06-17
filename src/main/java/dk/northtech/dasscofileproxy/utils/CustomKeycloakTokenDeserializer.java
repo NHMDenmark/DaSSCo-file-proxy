@@ -52,12 +52,6 @@ public class CustomKeycloakTokenDeserializer extends StdDeserializer<KeycloakTok
         JsonNode tokenTypeNode = node.get("token_type");
         String tokenType = tokenTypeNode.asText();
 
-        //JsonNode idTokenNode = node.get("id_token");
-        //String idToken = idTokenNode.asText();
-
-        //JsonNode sessionStateNode = node.get("session_state");
-        //String sessionState = sessionStateNode.asText();
-
         JsonNode scopeNode = node.get("scope");
         String scope = scopeNode.asText();
 

@@ -58,7 +58,7 @@ public class ErdaDataSource extends ResourcePool<ERDAClient> {
     @Scheduled(cron = "33 */1 * * * *")
     public void reviveClients() {
 //        logger.info("checking for failed ERDAClients");
-        if (!deadClients.isEmpty() && lastFailure != null && Instant.now().minusSeconds(360).isBefore(lastFailure)) {
+        if (!deadClients.isEmpty() && lastFailure != null && Instant.now().minusSeconds(310).isBefore(lastFailure)) {
             ArrayList<ERDAClient> erdaClients;
             synchronized (lock) {
                 erdaClients = new ArrayList<>(deadClients);

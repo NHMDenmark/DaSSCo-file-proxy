@@ -265,16 +265,7 @@ public class FileService {
             logger.info("Receiving: " + fullPath);
             // Use tempfile so we dont overwrite existing files when crc doesnt match
             File tempFile = new File(fullPath + tempName);
-            long value = 0;
-            try (FileOutputStream fileOutput = new FileOutputStream(tempFile)) {
-                CRC32 crc32 = new CRC32();
-                CheckedInputStream checkedInputStream = new CheckedInputStream(file, crc32);
-                checkedInputStream.transferTo(fileOutput);
-                value = checkedInputStream.getChecksum().getValue();
-            } catch (IOException e) {
-                tempFile.delete();
-                throw new RuntimeException("Failed to write file", e);
-            }
+            long value = writeToDiskAndGetCRC(file, tempFile);
             try {
                 if (crc == value) {
                     if (markForDeletion) {
@@ -296,6 +287,20 @@ public class FileService {
             }
             return new FileUploadResult(crc, value);
         });
+    }
+
+    private static long writeToDiskAndGetCRC(InputStream file, File tempFile) {
+        long value = 0;
+        try (FileOutputStream fileOutput = new FileOutputStream(tempFile)) {
+            CRC32 crc32 = new CRC32();
+            CheckedInputStream checkedInputStream = new CheckedInputStream(file, crc32);
+            checkedInputStream.transferTo(fileOutput);
+            value = checkedInputStream.getChecksum().getValue();
+        } catch (IOException e) {
+            tempFile.delete();
+            throw new RuntimeException("Failed to write file", e);
+        }
+        return value;
     }
 
     public List<DasscoFile> listFilesByAssetGuid(String assetGuid) {

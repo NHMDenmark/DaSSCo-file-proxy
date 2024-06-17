@@ -70,7 +70,7 @@ public class Logs {
             };
             return Response.status(200)
                     .header("Content-Disposition", "attachment; filename=" + fileResult.filename())
-                    .header("Content-Type", new Tika().detect(fileResult.filename())).entity(streamingOutput).build();
+                    .header("Content-Type", "text/plain").entity(streamingOutput).build();
         }
         return Response.status(404).build();
     }
