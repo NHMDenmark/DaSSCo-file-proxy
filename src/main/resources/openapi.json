@@ -13,11 +13,17 @@
     "name" : "Assets",
     "description" : "Endpoints related to assets"
   }, {
+    "name" : "Debug tools",
+    "description" : "Endpoints for debugging"
+  }, {
     "name" : "Asset Files",
     "description" : "Endpoints related to assets' files."
   }, {
     "name" : "Shares",
     "description" : "Endpoints related to assets' allocation"
+  }, {
+    "name" : "Log Files",
+    "description" : "Endpoints for getting log files"
   } ],
   "paths" : {
     "/assets/{assetGuid}/files" : {
@@ -489,6 +495,64 @@
               "application/json" : {
                 "schema" : {
                   "$ref" : "#/components/schemas/HttpInfo"
+                }
+              }
+            }
+          }
+        },
+        "security" : [ {
+          "dassco-idp" : [ ]
+        } ]
+      }
+    },
+    "/logs/{fileName}" : {
+      "get" : {
+        "tags" : [ "Log Files" ],
+        "summary" : "Get a log file",
+        "description" : "Get a log file by name, use list endpoint to see names.",
+        "operationId" : "getFile_1",
+        "parameters" : [ {
+          "name" : "fileName",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "Returns the file."
+          },
+          "400-599" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/DaSSCoError"
+                }
+              }
+            }
+          }
+        },
+        "security" : [ {
+          "dassco-idp" : [ ]
+        } ]
+      }
+    },
+    "/logs" : {
+      "get" : {
+        "tags" : [ "Log Files" ],
+        "summary" : "List logfiles",
+        "description" : "List all logfiles in the log directory",
+        "operationId" : "listLogs",
+        "responses" : {
+          "200" : {
+            "description" : "Returns the file."
+          },
+          "400-599" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/DaSSCoError"
                 }
               }
             }
