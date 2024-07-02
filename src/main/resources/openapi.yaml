@@ -45,6 +45,36 @@ paths:
                 $ref: '#/components/schemas/DaSSCoError'
       security:
       - dassco-idp: []
+  /assetfiles/createZipFile/{assetGuid}:
+    post:
+      tags:
+      - Asset Files
+      summary: Create Zip File
+      description: Creates a Zip File with Asset metadata in CSV format and its associated
+        files
+      operationId: createZip
+      parameters:
+      - name: assetGuid
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          content:
+            text/plain:
+              schema:
+                type: array
+                items:
+                  type: string
+              example: Zip File created successfully at /target folder
+        "400-599":
+          content:
+            text/plain:
+              schema:
+                $ref: '#/components/schemas/DaSSCoError'
+      security:
+      - dassco-idp: []
   /assetfiles/{institutionName}/{collectionName}/{assetGuid}:
     get:
       tags:
@@ -240,6 +270,27 @@ paths:
                 $ref: '#/components/schemas/DaSSCoError'
       security:
       - dassco-idp: []
+  /assetfiles/downloadZipFile/{assetGuid}:
+    get:
+      tags:
+      - Asset Files
+      summary: Download Zip File
+      description: "Downloads zip file associated to an asset_guid. The file needs\
+        \ to be created beforehand by calling /createZipFile/{asset_guid}"
+      operationId: downloadZip
+      parameters:
+      - name: assetGuid
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        default:
+          description: default response
+          content:
+            '*/*': {}
+      security:
+      - dassco-idp: []
   /shares/assets/{assetGuid}/deleteShare:
     delete:
       tags:
@@ -267,6 +318,36 @@ paths:
                 $ref: '#/components/schemas/HttpInfo'
       security:
       - dassco-idp: []
+  /shares:
+    get:
+      tags:
+      - Shares
+      summary: Open Share
+      description: Here you can open a share of an existing asset. The post body consists
+        of a list of assets to be shared and a list of usernames of users that should
+        have access to the share. The amount of space needed to be allocated also
+        needs to be specified. The list of assets can only contain one asset when
+        using this endpoint.
+      operationId: createSambaServer
+      parameters:
+      - name: assetGuid
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HttpInfo'
+        "400-599":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DaSSCoError'
+      security:
+      - dassco-idp: []
   /shares/assets/{assetGuid}/createShare:
     post:
       tags:
@@ -277,7 +358,7 @@ paths:
         have access to the share. The amount of space needed to be allocated also
         needs to be specified. The list of assets can only contain one asset when
         using this endpoint.
-      operationId: createSambaServer
+      operationId: createSambaServer_1
       parameters:
       - name: assetGuid
         in: path
@@ -531,6 +612,18 @@ components:
           description: Asset's parent size (in mb)
           format: int64
           example: 20
+    Share:
+      type: object
+      properties:
+        path:
+          type: string
+        id:
+          type: integer
+          format: int64
+        assets:
+          type: array
+          items:
+            type: string
     CreationObj:
       type: object
       properties:

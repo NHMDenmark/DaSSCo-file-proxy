@@ -11,6 +11,8 @@ import dk.northtech.dasscofileproxy.repository.UserAccessList;
 import dk.northtech.dasscofileproxy.webapi.model.FileUploadData;
 import dk.northtech.dasscofileproxy.webapi.model.FileUploadResult;
 import jakarta.inject.Inject;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import org.jdbi.v3.core.Jdbi;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -23,6 +25,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.util.zip.CRC32;
 import java.util.zip.CheckedInputStream;
+import java.util.zip.ZipOutputStream;
 
 @Service
 public class FileService {
@@ -377,5 +380,37 @@ public class FileService {
             }
         }
         return true;
+    }
+
+    public String createEmptyZip(String relativePath) throws IOException {
+
+        relativePath +=".zip";
+
+        String projectDir = System.getProperty("user.dir");
+        String zipFilePath = Paths.get(projectDir, "target", relativePath).toString();
+
+        try (FileOutputStream fos = new FileOutputStream(zipFilePath);
+             ZipOutputStream zos = new ZipOutputStream(fos)) {
+
+        }
+
+        return zipFilePath;
+    }
+
+    public File getZipFile(String relativePath) {
+            relativePath += ".zip";
+
+        String projectDir = System.getProperty("user.dir");
+        String zipFilePath = Paths.get(projectDir, "target", relativePath).toString();
+
+        return new File(zipFilePath);
+    }
+
+    public byte[] readZipFileContent(File file) throws IOException {
+        byte[] fileContent;
+        try (FileInputStream fis = new FileInputStream(file)) {
+            fileContent = fis.readAllBytes();
+        }
+        return fileContent;
     }
 }

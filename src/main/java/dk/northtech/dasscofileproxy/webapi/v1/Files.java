@@ -15,12 +15,18 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.inject.Inject;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.*;
 import org.apache.tika.Tika;
 import org.checkerframework.checker.units.qual.A;
 import org.checkerframework.checker.units.qual.C;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.RequestParam;
 
+import javax.print.attribute.standard.Media;
+import java.io.File;
+import java.io.IOException;
 import java.io.InputStream;
 import java.util.List;
 import java.util.Optional;
@@ -161,4 +167,40 @@ public class Files {
         boolean deleted = fileService.deleteFile(new FileUploadData(assetGuid, institutionName, collectionName, null, 0));
         return Response.status(deleted ? 204 : 404).build();
     }
+
+    @POST
+    @Path("/createZipFile/{assetGuid}")
+    @Operation(summary = "Create Zip File", description = "Creates a Zip File with Asset metadata in CSV format and its associated files")
+    @Produces(MediaType.TEXT_PLAIN)
+    @ApiResponse(responseCode = "200", content = @Content(mediaType = MediaType.TEXT_PLAIN, array = @ArraySchema(schema = @Schema(implementation = String.class)), examples = { @ExampleObject("Zip File created successfully at /target folder")}))
+    @ApiResponse(responseCode = "400-599", content = @Content(mediaType = MediaType.TEXT_PLAIN, schema = @Schema(implementation = DaSSCoError.class)))
+    public String createZip(@PathParam("assetGuid") String assetGuid){
+        try {
+            fileService.createEmptyZip(assetGuid);
+            return "ZIP file created successfully at /target/" + assetGuid;
+        } catch (IOException e) {
+            return "Error creating ZIP file: " + e.getMessage();
+        }
+    }
+
+    @GET
+    @Path("/downloadZipFile/{assetGuid}")
+    @Operation(summary = "Download Zip File", description = "Downloads zip file associated to an asset_guid. The file needs to be created beforehand by calling /createZipFile/{asset_guid}")
+    public Response downloadZip(@PathParam("assetGuid") String assetGuid, @Context SecurityContext securityContext){
+        try {
+            File file = fileService.getZipFile(assetGuid);
+            if (file == null || !file.exists()) {
+                return Response.status(Response.Status.NOT_FOUND).build();
+            }
+
+            byte[] fileContent = fileService.readZipFileContent(file);
+
+            return Response.ok(fileContent, MediaType.APPLICATION_OCTET_STREAM)
+                    .header("Content-Disposition", "attachment; filename=\"" + file.getName() + "\"")
+                    .build();
+        } catch (IOException e) {
+            return Response.status(Response.Status.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
 }
