@@ -65,13 +65,53 @@
         } ]
       }
     },
-    "/assetfiles/createZipFile/{assetGuid}" : {
+    "/assetfiles/createCsvFile" : {
+      "post" : {
+        "tags" : [ "Asset Files" ],
+        "operationId" : "createCsvFile",
+        "requestBody" : {
+          "content" : {
+            "*/*" : {
+              "schema" : {
+                "type" : "string"
+              }
+            }
+          }
+        },
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "*/*" : { }
+            }
+          }
+        },
+        "security" : [ {
+          "dassco-idp" : [ ]
+        } ]
+      }
+    },
+    "/assetfiles/createZipFile/{institution}/{collection}/{assetGuid}" : {
       "post" : {
         "tags" : [ "Asset Files" ],
         "summary" : "Create Zip File",
         "description" : "Creates a Zip File with Asset metadata in CSV format and its associated files",
         "operationId" : "createZip",
         "parameters" : [ {
+          "name" : "institution",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "collection",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
           "name" : "assetGuid",
           "in" : "path",
           "required" : true,
@@ -89,7 +129,7 @@
                     "type" : "string"
                   }
                 },
-                "example" : "Zip File created successfully at /target folder"
+                "example" : "Zip File created successfully."
               }
             }
           },
@@ -376,13 +416,27 @@
         } ]
       }
     },
-    "/assetfiles/downloadZipFile/{assetGuid}" : {
+    "/assetfiles/downloadZipFile/{institution}/{collection}/{assetGuid}" : {
       "get" : {
         "tags" : [ "Asset Files" ],
         "summary" : "Download Zip File",
         "description" : "Downloads zip file associated to an asset_guid. The file needs to be created beforehand by calling /createZipFile/{asset_guid}",
         "operationId" : "downloadZip",
         "parameters" : [ {
+          "name" : "institution",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "collection",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
           "name" : "assetGuid",
           "in" : "path",
           "required" : true,
@@ -391,10 +445,16 @@
           }
         } ],
         "responses" : {
-          "default" : {
-            "description" : "default response",
+          "200" : {
+            "description" : "Returns the file."
+          },
+          "400-599" : {
             "content" : {
-              "*/*" : { }
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/DaSSCoError"
+                }
+              }
             }
           }
         },

@@ -1,5 +1,6 @@
 package dk.northtech.dasscofileproxy.webapi.v1;
 
+import dk.northtech.dasscofileproxy.domain.Asset;
 import dk.northtech.dasscofileproxy.domain.User;
 import dk.northtech.dasscofileproxy.service.FileService;
 import dk.northtech.dasscofileproxy.webapi.UserMapper;
@@ -22,6 +23,7 @@ import org.apache.tika.Tika;
 import org.checkerframework.checker.units.qual.A;
 import org.checkerframework.checker.units.qual.C;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
 
 import javax.print.attribute.standard.Media;
@@ -169,38 +171,59 @@ public class Files {
     }
 
     @POST
-    @Path("/createZipFile/{assetGuid}")
+    @Path("/createZipFile/{institution}/{collection}/{assetGuid}")
     @Operation(summary = "Create Zip File", description = "Creates a Zip File with Asset metadata in CSV format and its associated files")
     @Produces(MediaType.TEXT_PLAIN)
-    @ApiResponse(responseCode = "200", content = @Content(mediaType = MediaType.TEXT_PLAIN, array = @ArraySchema(schema = @Schema(implementation = String.class)), examples = { @ExampleObject("Zip File created successfully at /target folder")}))
+    @ApiResponse(responseCode = "200", content = @Content(mediaType = MediaType.TEXT_PLAIN, array = @ArraySchema(schema = @Schema(implementation = String.class)), examples = { @ExampleObject("Zip File created successfully.")}))
     @ApiResponse(responseCode = "400-599", content = @Content(mediaType = MediaType.TEXT_PLAIN, schema = @Schema(implementation = DaSSCoError.class)))
-    public String createZip(@PathParam("assetGuid") String assetGuid){
+    public String createZip(@PathParam("institution") String institution,
+                            @PathParam("collection") String collection,
+                            @PathParam("assetGuid") String assetGuid){
+
+        FileUploadData fileUploadData = new FileUploadData(assetGuid, institution, collection, assetGuid + ".zip", 0);
+
         try {
-            fileService.createEmptyZip(assetGuid);
-            return "ZIP file created successfully at /target/" + assetGuid;
+            fileService.createEmptyZip(fileUploadData.getFilePath());
+            return "ZIP file created successfully";
         } catch (IOException e) {
             return "Error creating ZIP file: " + e.getMessage();
         }
     }
 
     @GET
-    @Path("/downloadZipFile/{assetGuid}")
+    @Path("/downloadZipFile/{institution}/{collection}/{assetGuid}")
     @Operation(summary = "Download Zip File", description = "Downloads zip file associated to an asset_guid. The file needs to be created beforehand by calling /createZipFile/{asset_guid}")
-    public Response downloadZip(@PathParam("assetGuid") String assetGuid, @Context SecurityContext securityContext){
-        try {
-            File file = fileService.getZipFile(assetGuid);
-            if (file == null || !file.exists()) {
-                return Response.status(Response.Status.NOT_FOUND).build();
-            }
+    @ApiResponse(responseCode = "200", description = "Returns the file.")
+    @ApiResponse(responseCode = "400-599", content = @Content(mediaType = APPLICATION_JSON, schema = @Schema(implementation = DaSSCoError.class)))
+    public Response downloadZip(@PathParam("institution") String institution,
+                                @PathParam("collection") String collection,
+                                @PathParam("assetGuid") String assetGuid,
+                                @Context SecurityContext securityContext){
 
-            byte[] fileContent = fileService.readZipFileContent(file);
+        FileUploadData fileUploadData = new FileUploadData(assetGuid, institution, collection, assetGuid + ".zip", 0);
+        Optional<FileService.FileResult> getFileResult = fileService.getFile(fileUploadData);
+        if (getFileResult.isPresent()){
+            FileService.FileResult fileResult = getFileResult.get();
+            StreamingOutput streamingOutput = output -> {
+                fileResult.is().transferTo(output);
+                output.flush();
+            };
 
-            return Response.ok(fileContent, MediaType.APPLICATION_OCTET_STREAM)
-                    .header("Content-Disposition", "attachment; filename=\"" + file.getName() + "\"")
-                    .build();
-        } catch (IOException e) {
-            return Response.status(Response.Status.INTERNAL_SERVER_ERROR).build();
+            return Response.status(200)
+                    .header("Content-Disposition", "attachment; filename=" + fileResult.filename())
+                    .header("Content-Type", new Tika().detect(fileResult.filename())).entity(streamingOutput).build();
         }
+
+        return Response.status(404).build();
     }
+
+    @POST
+    @Path("/createCsvFile")
+    public void createCsvFile(@RequestBody String csv){
+        // TODO: Save string as csv file, in the same folder as the images and the zip file.
+        System.out.println(csv);
+    }
+
+    // TODO: Create "get csv file" endpoint.
 
 }

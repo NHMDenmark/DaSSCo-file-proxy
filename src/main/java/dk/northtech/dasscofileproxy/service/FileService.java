@@ -25,6 +25,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.util.zip.CRC32;
 import java.util.zip.CheckedInputStream;
+import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
 @Service
@@ -384,33 +385,41 @@ public class FileService {
 
     public String createEmptyZip(String relativePath) throws IOException {
 
-        relativePath +=".zip";
-
         String projectDir = System.getProperty("user.dir");
         String zipFilePath = Paths.get(projectDir, "target", relativePath).toString();
 
+        String directoryPath = Paths.get(projectDir, "target", relativePath.substring(0, relativePath.lastIndexOf("/") + 1)).toString();
+
+        File sourceFolder = new File(directoryPath);
+        File[] files = sourceFolder.listFiles();
+
         try (FileOutputStream fos = new FileOutputStream(zipFilePath);
              ZipOutputStream zos = new ZipOutputStream(fos)) {
-
+            for (File file : files){
+                if (file.isFile()) {
+                    addToZip(zos, file);
+                }
+            }
         }
 
         return zipFilePath;
     }
 
-    public File getZipFile(String relativePath) {
-            relativePath += ".zip";
-
-        String projectDir = System.getProperty("user.dir");
-        String zipFilePath = Paths.get(projectDir, "target", relativePath).toString();
-
-        return new File(zipFilePath);
-    }
-
-    public byte[] readZipFileContent(File file) throws IOException {
-        byte[] fileContent;
-        try (FileInputStream fis = new FileInputStream(file)) {
-            fileContent = fis.readAllBytes();
+    private void addToZip(ZipOutputStream zos, File file) throws IOException {
+        if (file.getName().toLowerCase().endsWith(".zip")){
+            return;
         }
-        return fileContent;
+        try (FileInputStream fis = new FileInputStream(file)){
+            ZipEntry zipEntry = new ZipEntry(file.getName());
+            zos.putNextEntry(zipEntry);
+
+            byte[] bytes = new byte[1024];
+            int length;
+            while ((length = fis.read(bytes)) > 0) {
+                zos.write(bytes, 0, length);
+            }
+
+            zos.closeEntry();
+        }
     }
 }
