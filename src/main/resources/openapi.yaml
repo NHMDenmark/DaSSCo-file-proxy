@@ -45,21 +45,51 @@ paths:
                 $ref: '#/components/schemas/DaSSCoError'
       security:
       - dassco-idp: []
-  /assetfiles/createCsvFile:
+  /assetfiles/createCsvFile/{institution}/{collection}/{assetGuid}:
     post:
       tags:
       - Asset Files
+      summary: Create CSV File
+      description: Creates a CSV File with Asset metadata
       operationId: createCsvFile
+      parameters:
+      - name: institution
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: collection
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: assetGuid
+        in: path
+        required: true
+        schema:
+          type: string
       requestBody:
         content:
-          '*/*':
+          text/plain:
             schema:
               type: string
       responses:
-        default:
-          description: default response
+        "200":
           content:
-            '*/*': {}
+            text/plain:
+              schema:
+                type: array
+                items:
+                  type: string
+              example: CSV File created successfully.
+        "400-599":
+          content:
+            text/plain:
+              schema:
+                type: array
+                items:
+                  type: string
+              example: Error creating CSV file.
       security:
       - dassco-idp: []
   /assetfiles/createZipFile/{institution}/{collection}/{assetGuid}:
@@ -94,12 +124,15 @@ paths:
                 type: array
                 items:
                   type: string
-              example: Zip File created successfully.
+              example: ZIP File created successfully.
         "400-599":
           content:
             text/plain:
               schema:
-                $ref: '#/components/schemas/DaSSCoError'
+                type: array
+                items:
+                  type: string
+              example: Error creating ZIP file.
       security:
       - dassco-idp: []
   /assetfiles/{institutionName}/{collectionName}/{assetGuid}:
@@ -323,7 +356,7 @@ paths:
           type: string
       responses:
         "200":
-          description: Returns the file.
+          description: Returns the .zip file.
         "400-599":
           content:
             application/json:

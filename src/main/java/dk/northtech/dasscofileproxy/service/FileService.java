@@ -383,11 +383,12 @@ public class FileService {
         return true;
     }
 
-    public String createEmptyZip(String relativePath) throws IOException {
+    // TODO: Corner cases: Non existent folder, non existent files.
+
+    public String createZipFile(String relativePath) throws IOException {
 
         String projectDir = System.getProperty("user.dir");
         String zipFilePath = Paths.get(projectDir, "target", relativePath).toString();
-
         String directoryPath = Paths.get(projectDir, "target", relativePath.substring(0, relativePath.lastIndexOf("/") + 1)).toString();
 
         File sourceFolder = new File(directoryPath);
@@ -395,9 +396,21 @@ public class FileService {
 
         try (FileOutputStream fos = new FileOutputStream(zipFilePath);
              ZipOutputStream zos = new ZipOutputStream(fos)) {
+
+            // Add Folder with asset_guid name:
+            String folderName = sourceFolder.getName();
+            ZipEntry folderEntry = new ZipEntry(folderName + "/");
+            zos.putNextEntry(folderEntry);
+            zos.closeEntry();
+
             for (File file : files){
                 if (file.isFile()) {
-                    addToZip(zos, file);
+                    if(file.getName().endsWith(".csv")){
+                        addCsvToZip(zos, file);
+                    } else {
+                        addToZip(zos, file, folderName + "/");
+                    }
+
                 }
             }
         }
@@ -405,10 +418,39 @@ public class FileService {
         return zipFilePath;
     }
 
-    private void addToZip(ZipOutputStream zos, File file) throws IOException {
+    public void createCsvFile(String relativePath, String csv) throws IOException {
+        String projectDir = System.getProperty("user.dir");
+        Path csvFilePath = Paths.get(projectDir, "target", relativePath);
+
+        if (!Files.exists(csvFilePath.getParent())){
+            throw new IOException("Target directory does not exist: " + csvFilePath.getParent());
+        }
+
+        File file = new File(csvFilePath.toString());
+        try (FileWriter writer = new FileWriter(file)) {
+            writer.write(csv);
+        }
+    }
+
+    private void addToZip(ZipOutputStream zos, File file, String folderName) throws IOException {
         if (file.getName().toLowerCase().endsWith(".zip")){
             return;
         }
+        try (FileInputStream fis = new FileInputStream(file)){
+            ZipEntry zipEntry = new ZipEntry(folderName + file.getName());
+            zos.putNextEntry(zipEntry);
+
+            byte[] bytes = new byte[1024];
+            int length;
+            while ((length = fis.read(bytes)) > 0) {
+                zos.write(bytes, 0, length);
+            }
+
+            zos.closeEntry();
+        }
+    }
+
+    private void addCsvToZip(ZipOutputStream zos, File file) throws IOException {
         try (FileInputStream fis = new FileInputStream(file)){
             ZipEntry zipEntry = new ZipEntry(file.getName());
             zos.putNextEntry(zipEntry);

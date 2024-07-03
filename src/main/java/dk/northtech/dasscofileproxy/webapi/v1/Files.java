@@ -173,27 +173,29 @@ public class Files {
     @POST
     @Path("/createZipFile/{institution}/{collection}/{assetGuid}")
     @Operation(summary = "Create Zip File", description = "Creates a Zip File with Asset metadata in CSV format and its associated files")
-    @Produces(MediaType.TEXT_PLAIN)
-    @ApiResponse(responseCode = "200", content = @Content(mediaType = MediaType.TEXT_PLAIN, array = @ArraySchema(schema = @Schema(implementation = String.class)), examples = { @ExampleObject("Zip File created successfully.")}))
-    @ApiResponse(responseCode = "400-599", content = @Content(mediaType = MediaType.TEXT_PLAIN, schema = @Schema(implementation = DaSSCoError.class)))
-    public String createZip(@PathParam("institution") String institution,
+    @Produces(APPLICATION_JSON)
+    @ApiResponse(responseCode = "200", content = @Content(mediaType = MediaType.TEXT_PLAIN, array = @ArraySchema(schema = @Schema(implementation = String.class)), examples = { @ExampleObject("ZIP File created successfully.")}))
+    @ApiResponse(responseCode = "400-599", content = @Content(mediaType = MediaType.TEXT_PLAIN, array = @ArraySchema(schema = @Schema(implementation = String.class)), examples = { @ExampleObject("Error creating ZIP file.")}))
+            public Response createZip(@PathParam("institution") String institution,
                             @PathParam("collection") String collection,
                             @PathParam("assetGuid") String assetGuid){
 
         FileUploadData fileUploadData = new FileUploadData(assetGuid, institution, collection, assetGuid + ".zip", 0);
 
         try {
-            fileService.createEmptyZip(fileUploadData.getFilePath());
-            return "ZIP file created successfully";
+            fileService.createZipFile(fileUploadData.getFilePath());
+            return Response.ok().entity("ZIP file created successfully").build();
         } catch (IOException e) {
-            return "Error creating ZIP file: " + e.getMessage();
+            return Response.status(Response.Status.INTERNAL_SERVER_ERROR)
+                    .entity("Error creating ZIP file: " + e.getMessage())
+                    .build();
         }
     }
 
     @GET
     @Path("/downloadZipFile/{institution}/{collection}/{assetGuid}")
     @Operation(summary = "Download Zip File", description = "Downloads zip file associated to an asset_guid. The file needs to be created beforehand by calling /createZipFile/{asset_guid}")
-    @ApiResponse(responseCode = "200", description = "Returns the file.")
+    @ApiResponse(responseCode = "200", description = "Returns the .zip file.")
     @ApiResponse(responseCode = "400-599", content = @Content(mediaType = APPLICATION_JSON, schema = @Schema(implementation = DaSSCoError.class)))
     public Response downloadZip(@PathParam("institution") String institution,
                                 @PathParam("collection") String collection,
@@ -218,12 +220,28 @@ public class Files {
     }
 
     @POST
-    @Path("/createCsvFile")
-    public void createCsvFile(@RequestBody String csv){
-        // TODO: Save string as csv file, in the same folder as the images and the zip file.
-        System.out.println(csv);
+    @Path("/createCsvFile/{institution}/{collection}/{assetGuid}")
+    @Operation(summary = "Create CSV File", description = "Creates a CSV File with Asset metadata")
+    @Produces(APPLICATION_JSON)
+    @Consumes(MediaType.TEXT_PLAIN)
+    @ApiResponse(responseCode = "200", content = @Content(mediaType = MediaType.TEXT_PLAIN, array = @ArraySchema(schema = @Schema(implementation = String.class)), examples = { @ExampleObject("CSV File created successfully.")}))
+    @ApiResponse(responseCode = "400-599", content = @Content(mediaType = MediaType.TEXT_PLAIN, array = @ArraySchema(schema = @Schema(implementation = String.class)), examples = { @ExampleObject("Error creating CSV file.")}))
+
+    public Response createCsvFile(@RequestBody String csv,
+                                  @PathParam("institution") String institution,
+                                  @PathParam("collection") String collection,
+                                  @PathParam("assetGuid") String assetGuid) {
+
+        FileUploadData fileUploadData = new FileUploadData(assetGuid, institution, collection, assetGuid + ".csv", 0);
+
+        try {
+            fileService.createCsvFile(fileUploadData.getFilePath(), csv);
+            return Response.ok().entity("CSV file created successfully").build();
+        } catch (IOException e){
+            return Response.status(Response.Status.INTERNAL_SERVER_ERROR)
+                    .entity("Error creating CSV file: " + e.getMessage())
+                    .build();
+        }
+
     }
-
-    // TODO: Create "get csv file" endpoint.
-
 }
