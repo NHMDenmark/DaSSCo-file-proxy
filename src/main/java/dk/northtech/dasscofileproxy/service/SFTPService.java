@@ -176,6 +176,9 @@ public class SFTPService {
                 //We could save a http request here as we dont need the full parent asset to get the remote location, it is in the same collection and institution.
                 if (minimalAsset.parent_guid() != null) {
                     AssetFull parent = assetService.getFullAsset(minimalAsset.parent_guid());
+                    if(parent == null) {
+                        throw new IllegalArgumentException("parent doesnt exist");
+                    }
                     String parentRemotePath = getRemotePath(new MinimalAsset(parent.asset_guid, parent.parent_guid, parent.institution, parent.collection));
                     logger.info("Initialising parent folder, remote path is {}", parentRemotePath);
                     try {
