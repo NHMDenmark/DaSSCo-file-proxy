@@ -209,6 +209,42 @@ paths:
                 $ref: '#/components/schemas/DaSSCoError'
       security:
       - dassco-idp: []
+  /assetfiles/deleteLocalFiles/{institution}/{collection}/{assetGuid}/{file}:
+    delete:
+      tags:
+      - Asset Files
+      summary: Delete Local File
+      description: "Deletes a file saved in the local machine, such as the generated\
+        \ .csv and .zip files for the Detailed View"
+      operationId: deleteLocalFiles
+      parameters:
+      - name: institution
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: collection
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: assetGuid
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: file
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        default:
+          description: default response
+          content:
+            '*/*': {}
+      security:
+      - dassco-idp: []
   /assetfiles/{institutionName}/{collectionName}/{assetGuid}/{path}:
     get:
       tags:

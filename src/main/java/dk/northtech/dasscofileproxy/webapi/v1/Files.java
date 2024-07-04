@@ -102,8 +102,10 @@ public class Files {
         if (getFileResult.isPresent()) {
             FileService.FileResult fileResult = getFileResult.get();
             StreamingOutput streamingOutput = output -> {
-                fileResult.is().transferTo(output);
-                output.flush();
+                try (InputStream is = fileResult.is()) {
+                    is.transferTo(output);
+                    output.flush();
+                }
             };
 
             return Response.status(200)
@@ -242,6 +244,22 @@ public class Files {
                     .entity("Error creating CSV file: " + e.getMessage())
                     .build();
         }
+    }
 
+    @DELETE
+    @Path("/deleteLocalFiles/{institution}/{collection}/{assetGuid}/{file}")
+    @Operation(summary = "Delete Local File", description = "Deletes a file saved in the local machine, such as the generated .csv and .zip files for the Detailed View")
+    public Response deleteLocalFiles(@PathParam("institution") String institution,
+                                     @PathParam("collection") String collection,
+                                     @PathParam("assetGuid") String assetGuid,
+                                     @PathParam("file") String file){
+        FileUploadData fileUploadData = new FileUploadData(assetGuid, institution, collection, file, 0);
+        boolean isDeleted = fileService.deleteLocalFiles(fileUploadData.getFilePath());
+
+        if (isDeleted){
+            return Response.status(Response.Status.NO_CONTENT).build();
+        } else {
+            return Response.status(Response.Status.NOT_FOUND).build();
+        }
     }
 }

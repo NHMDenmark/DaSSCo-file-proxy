@@ -383,8 +383,6 @@ public class FileService {
         return true;
     }
 
-    // TODO: Corner cases: Non existent folder, non existent files.
-
     public String createZipFile(String relativePath) throws IOException {
 
         String projectDir = System.getProperty("user.dir");
@@ -429,6 +427,24 @@ public class FileService {
         File file = new File(csvFilePath.toString());
         try (FileWriter writer = new FileWriter(file)) {
             writer.write(csv);
+        }
+    }
+
+    public boolean deleteLocalFiles(String relativePath){
+        String projectDir = System.getProperty("user.dir");
+        Path filePath = Paths.get(projectDir, "target", relativePath);
+        File file = new File(filePath.toString());
+
+        if (file.exists()){
+            try {
+                Files.delete(filePath);
+                return true;
+            } catch (IOException e){
+                e.printStackTrace();
+                return false;
+            }
+        } else {
+            return false;
         }
     }
 
