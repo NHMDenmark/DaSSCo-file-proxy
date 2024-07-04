@@ -254,7 +254,7 @@ public class Files {
                                      @PathParam("assetGuid") String assetGuid,
                                      @PathParam("file") String file){
         FileUploadData fileUploadData = new FileUploadData(assetGuid, institution, collection, file, 0);
-        boolean isDeleted = fileService.deleteLocalFiles(fileUploadData.getFilePath());
+        boolean isDeleted = fileService.deleteLocalFiles(fileUploadData.getFilePath(), file);
 
         if (isDeleted){
             return Response.status(Response.Status.NO_CONTENT).build();

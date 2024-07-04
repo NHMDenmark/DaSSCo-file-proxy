@@ -430,12 +430,15 @@ public class FileService {
         }
     }
 
-    public boolean deleteLocalFiles(String relativePath){
+    public boolean deleteLocalFiles(String relativePath, String fileName){
         String projectDir = System.getProperty("user.dir");
         Path filePath = Paths.get(projectDir, "target", relativePath);
         File file = new File(filePath.toString());
 
-        if (file.exists()){
+        System.out.println(relativePath);
+
+        if (file.exists() && file.getName().equals(fileName)){
+            System.out.println(file.getName());
             try {
                 Files.delete(filePath);
                 return true;
@@ -448,7 +451,7 @@ public class FileService {
         }
     }
 
-    private void addToZip(ZipOutputStream zos, File file, String folderName) throws IOException {
+    public void addToZip(ZipOutputStream zos, File file, String folderName) throws IOException {
         if (file.getName().toLowerCase().endsWith(".zip")){
             return;
         }
@@ -466,7 +469,7 @@ public class FileService {
         }
     }
 
-    private void addCsvToZip(ZipOutputStream zos, File file) throws IOException {
+    public void addCsvToZip(ZipOutputStream zos, File file) throws IOException {
         try (FileInputStream fis = new FileInputStream(file)){
             ZipEntry zipEntry = new ZipEntry(file.getName());
             zos.putNextEntry(zipEntry);
