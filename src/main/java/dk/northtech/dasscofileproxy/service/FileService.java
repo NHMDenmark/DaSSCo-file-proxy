@@ -435,10 +435,7 @@ public class FileService {
         Path filePath = Paths.get(projectDir, "target", relativePath);
         File file = new File(filePath.toString());
 
-        System.out.println(relativePath);
-
         if (file.exists() && file.getName().equals(fileName)){
-            System.out.println(file.getName());
             try {
                 Files.delete(filePath);
                 return true;

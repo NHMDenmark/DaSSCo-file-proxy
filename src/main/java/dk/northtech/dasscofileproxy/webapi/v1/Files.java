@@ -2,9 +2,11 @@ package dk.northtech.dasscofileproxy.webapi.v1;
 
 import dk.northtech.dasscofileproxy.domain.Asset;
 import dk.northtech.dasscofileproxy.domain.User;
+import dk.northtech.dasscofileproxy.domain.exceptions.DasscoIllegalActionException;
 import dk.northtech.dasscofileproxy.service.FileService;
 import dk.northtech.dasscofileproxy.webapi.UserMapper;
 import dk.northtech.dasscofileproxy.webapi.exceptionmappers.DaSSCoError;
+import dk.northtech.dasscofileproxy.webapi.exceptionmappers.DaSSCoErrorCode;
 import dk.northtech.dasscofileproxy.webapi.model.FileUploadData;
 import dk.northtech.dasscofileproxy.webapi.model.FileUploadResult;
 import io.swagger.v3.oas.annotations.Operation;
@@ -188,9 +190,7 @@ public class Files {
             fileService.createZipFile(fileUploadData.getFilePath());
             return Response.ok().entity("ZIP file created successfully").build();
         } catch (IOException e) {
-            return Response.status(Response.Status.INTERNAL_SERVER_ERROR)
-                    .entity("Error creating ZIP file: " + e.getMessage())
-                    .build();
+            return Response.status(400).entity(new DaSSCoError("1.0", DaSSCoErrorCode.BAD_REQUEST, e.getMessage())).build();
         }
     }
 
@@ -209,8 +209,10 @@ public class Files {
         if (getFileResult.isPresent()){
             FileService.FileResult fileResult = getFileResult.get();
             StreamingOutput streamingOutput = output -> {
-                fileResult.is().transferTo(output);
-                output.flush();
+                try (InputStream is = fileResult.is()) {
+                    is.transferTo(output);
+                    output.flush();
+                }
             };
 
             return Response.status(200)
@@ -218,7 +220,7 @@ public class Files {
                     .header("Content-Type", new Tika().detect(fileResult.filename())).entity(streamingOutput).build();
         }
 
-        return Response.status(404).build();
+        return Response.status(400).entity(new DaSSCoError("1.0", DaSSCoErrorCode.BAD_REQUEST, "Incorrect File or Path")).build();
     }
 
     @POST
@@ -240,15 +242,15 @@ public class Files {
             fileService.createCsvFile(fileUploadData.getFilePath(), csv);
             return Response.ok().entity("CSV file created successfully").build();
         } catch (IOException e){
-            return Response.status(Response.Status.INTERNAL_SERVER_ERROR)
-                    .entity("Error creating CSV file: " + e.getMessage())
-                    .build();
+            return Response.status(400).entity(new DaSSCoError("1.0", DaSSCoErrorCode.BAD_REQUEST, e.getMessage())).build();
         }
     }
 
     @DELETE
     @Path("/deleteLocalFiles/{institution}/{collection}/{assetGuid}/{file}")
     @Operation(summary = "Delete Local File", description = "Deletes a file saved in the local machine, such as the generated .csv and .zip files for the Detailed View")
+    @ApiResponse(responseCode = "204", description = "No Content. File has been deleted.")
+    @ApiResponse(responseCode = "400-599", content = @Content(mediaType = APPLICATION_JSON, schema = @Schema(implementation = DaSSCoError.class)))
     public Response deleteLocalFiles(@PathParam("institution") String institution,
                                      @PathParam("collection") String collection,
                                      @PathParam("assetGuid") String assetGuid,
@@ -259,7 +261,7 @@ public class Files {
         if (isDeleted){
             return Response.status(Response.Status.NO_CONTENT).build();
         } else {
-            return Response.status(Response.Status.NOT_FOUND).build();
+            return Response.status(400).entity(new DaSSCoError("1.0", DaSSCoErrorCode.BAD_REQUEST, "Incorrect File or Path")).build();
         }
     }
 }

@@ -334,10 +334,16 @@
           }
         } ],
         "responses" : {
-          "default" : {
-            "description" : "default response",
+          "204" : {
+            "description" : "No Content. File has been deleted."
+          },
+          "400-599" : {
             "content" : {
-              "*/*" : { }
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/DaSSCoError"
+                }
+              }
             }
           }
         },
