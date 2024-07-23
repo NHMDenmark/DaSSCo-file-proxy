@@ -234,8 +234,14 @@ public class Files {
     public Response createCsvFile(@RequestBody String csv,
                                   @PathParam("institution") String institution,
                                   @PathParam("collection") String collection,
-                                  @PathParam("assetGuid") String assetGuid) {
+                                  @PathParam("assetGuid") String assetGuid,
+                                  @Context SecurityContext securityContext) {
 
+        boolean hasAccess = fileService.checkAccess(assetGuid, UserMapper.from(securityContext));
+
+        if (!hasAccess){
+            return Response.status(400).entity(new DaSSCoError("1.0", DaSSCoErrorCode.FORBIDDEN, "User does not have access to download this CSV file")).build();
+        }
         FileUploadData fileUploadData = new FileUploadData(assetGuid, institution, collection, assetGuid + ".csv", 0);
 
         try {
