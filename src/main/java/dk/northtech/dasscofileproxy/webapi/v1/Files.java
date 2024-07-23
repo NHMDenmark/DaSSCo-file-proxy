@@ -96,12 +96,20 @@ public class Files {
             , @PathParam("assetGuid") String assetGuid
             , @Context SecurityContext securityContext
     ) {
+
         final String path
                 = uriInfo.getPathParameters().getFirst("path");
         User user = UserMapper.from(securityContext);
         FileUploadData fileUploadData = new FileUploadData(assetGuid, institutionName, collectionName, path, 0);
         Optional<FileService.FileResult> getFileResult = fileService.getFile(fileUploadData);
         if (getFileResult.isPresent()) {
+
+            boolean hasAccess = fileService.checkAccess(assetGuid, UserMapper.from(securityContext));
+
+            if (!hasAccess){
+                return Response.status(400).entity(new DaSSCoError("1.0", DaSSCoErrorCode.FORBIDDEN, "User does not have access to download this file")).build();
+            }
+
             FileService.FileResult fileResult = getFileResult.get();
             StreamingOutput streamingOutput = output -> {
                 try (InputStream is = fileResult.is()) {
@@ -182,7 +190,14 @@ public class Files {
     @ApiResponse(responseCode = "400-599", content = @Content(mediaType = MediaType.TEXT_PLAIN, array = @ArraySchema(schema = @Schema(implementation = String.class)), examples = { @ExampleObject("Error creating ZIP file.")}))
             public Response createZip(@PathParam("institution") String institution,
                             @PathParam("collection") String collection,
-                            @PathParam("assetGuid") String assetGuid){
+                            @PathParam("assetGuid") String assetGuid,
+                                      @Context SecurityContext securityContext){
+
+        boolean hasAccess = fileService.checkAccess(assetGuid, UserMapper.from(securityContext));
+
+        if (!hasAccess){
+            return Response.status(400).entity(new DaSSCoError("1.0", DaSSCoErrorCode.FORBIDDEN, "User does not have access to create this Zip file")).build();
+        }
 
         FileUploadData fileUploadData = new FileUploadData(assetGuid, institution, collection, assetGuid + ".zip", 0);
 
@@ -203,6 +218,12 @@ public class Files {
                                 @PathParam("collection") String collection,
                                 @PathParam("assetGuid") String assetGuid,
                                 @Context SecurityContext securityContext){
+
+        boolean hasAccess = fileService.checkAccess(assetGuid, UserMapper.from(securityContext));
+
+        if (!hasAccess){
+            return Response.status(400).entity(new DaSSCoError("1.0", DaSSCoErrorCode.FORBIDDEN, "User does not have access to download this Zip file")).build();
+        }
 
         FileUploadData fileUploadData = new FileUploadData(assetGuid, institution, collection, assetGuid + ".zip", 0);
         Optional<FileService.FileResult> getFileResult = fileService.getFile(fileUploadData);
@@ -240,7 +261,7 @@ public class Files {
         boolean hasAccess = fileService.checkAccess(assetGuid, UserMapper.from(securityContext));
 
         if (!hasAccess){
-            return Response.status(400).entity(new DaSSCoError("1.0", DaSSCoErrorCode.FORBIDDEN, "User does not have access to download this CSV file")).build();
+            return Response.status(400).entity(new DaSSCoError("1.0", DaSSCoErrorCode.FORBIDDEN, "User does not have access to create this CSV file")).build();
         }
         FileUploadData fileUploadData = new FileUploadData(assetGuid, institution, collection, assetGuid + ".csv", 0);
 

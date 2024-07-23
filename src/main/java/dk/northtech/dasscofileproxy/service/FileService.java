@@ -491,7 +491,6 @@ public class FileService {
     }
 
     public boolean checkAccess(String assetGuid, User user){
-        System.out.println("Im here!");
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create(assetServiceProperties.rootUrl() + "/api/v1/assets/readaccess?assetGuid=" + assetGuid))
                 .header("Authorization", "Bearer " + user.token)
