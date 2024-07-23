@@ -1,6 +1,7 @@
 package dk.northtech.dasscofileproxy.service;
 
 import com.google.common.base.Strings;
+import dk.northtech.dasscofileproxy.assets.AssetServiceProperties;
 import dk.northtech.dasscofileproxy.configuration.ShareConfig;
 import dk.northtech.dasscofileproxy.domain.*;
 import dk.northtech.dasscofileproxy.domain.exceptions.DasscoInternalErrorException;
@@ -19,6 +20,10 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.io.*;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.nio.file.*;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -33,13 +38,16 @@ public class FileService {
     ShareConfig shareConfig;
     Jdbi jdbi;
     AssetService assetService;
+    AssetServiceProperties assetServiceProperties;
     private static final Logger logger = LoggerFactory.getLogger(FileService.class);
 
     @Inject
-    public FileService(ShareConfig shareConfig, Jdbi jdbi, AssetService assetService) {
+    public FileService(ShareConfig shareConfig, Jdbi jdbi, AssetService assetService,
+                       AssetServiceProperties assetServiceProperties) {
         this.shareConfig = shareConfig;
         this.assetService = assetService;
         this.jdbi = jdbi;
+        this.assetServiceProperties = assetServiceProperties;
     }
 
 
@@ -417,6 +425,7 @@ public class FileService {
     }
 
     public void createCsvFile(String relativePath, String csv) throws IOException {
+
         String projectDir = System.getProperty("user.dir");
         Path csvFilePath = Paths.get(projectDir, "target", relativePath);
 
@@ -479,5 +488,28 @@ public class FileService {
 
             zos.closeEntry();
         }
+    }
+
+    public boolean checkAccess(String assetGuid, User user){
+        HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create(assetServiceProperties.rootUrl() + "/api/v1/assets/readaccess?assetGuid=" + assetGuid))
+                .header("Authorization", "Bearer " + user.token)
+                .header("Content-Type", "application/json")
+                .POST(HttpRequest.BodyPublishers.noBody())
+                .build();
+
+        HttpClient httpClient = HttpClient.newHttpClient();
+
+        try {
+            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+            if (response.statusCode() == 403){
+                return false;
+            } else if (response.statusCode() == 204){
+                return true;
+            }
+        } catch (Exception e){
+            e.printStackTrace();
+        }
+        return false;
     }
 }
