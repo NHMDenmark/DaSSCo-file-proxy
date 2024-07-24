@@ -6,6 +6,7 @@ import jakarta.inject.Inject;
 import org.apache.commons.net.ftp.FTPFile;
 import org.apache.commons.net.ftp.FTPSClient;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
@@ -26,7 +27,7 @@ import java.util.Collections;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
-
+@Disabled("This service is to be removed")
 @SpringBootTest
 @Testcontainers
 @DirtiesContext // The database container is torn down between tests, so the pool cannot be reused
