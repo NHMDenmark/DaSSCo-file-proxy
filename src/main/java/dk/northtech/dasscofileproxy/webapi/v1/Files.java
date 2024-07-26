@@ -41,6 +41,7 @@ public class Files {
         final String path = uriInfo.getPathParameters().getFirst("path");
         logger.info("Getting file");
         Optional<FileService.FileResult> file = cacheFileService.getFile(institution, collection, guid, path, UserMapper.from(securityContext));
+        logger.info("got file");
         if (file.isPresent()) {
             FileService.FileResult fileResult = file.get();
             StreamingOutput streamingOutput = output -> {
