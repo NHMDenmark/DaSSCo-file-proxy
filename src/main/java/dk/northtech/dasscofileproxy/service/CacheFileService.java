@@ -66,6 +66,8 @@ public class CacheFileService {
 
     LoadingCache<String, CacheInfo> cachedFiles;
 
+    // If we run more than one instance we need to handle rare situations where an entry in the Loading cache has been deleted by another node.
+    // This can likely be handled by evicting the dead entry and calling getFile again.
     public Optional<FileService.FileResult> getFile(String institution, String collection, String assetGuid, String filePath, User user) {
         logger.info("validating access");
         if (!validateAccess(user, assetGuid)) {
@@ -116,8 +118,12 @@ public class CacheFileService {
         cachedFiles.put(dasscoFile.path(), fileCacheByPath.orElseThrow(() -> new RuntimeException("Some thing went wrong :^(")));
     }
 
+    // If we are going to run in more than one instance we should create a lock in the db so only one instance runs the eviction code.
+    // We can use SELECT FOR UPDATE.
+
     @Scheduled(cron = "0 15,45 * * * *") // at min 15 and 45
     public void removedExpiredCaches() {
+        logger.info("Running cache eviction code");
         jdbi.inTransaction(h -> {
                 FileCacheRepository fileCacheRepository = h.attach(FileCacheRepository.class);
                 // If more than 90% of available space is used, we evict based on disk usage as well as expiration date.

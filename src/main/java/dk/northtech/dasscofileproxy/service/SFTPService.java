@@ -76,7 +76,6 @@ public class SFTPService {
 
     @Scheduled(cron = "0 * * * * *")
     public void moveFiles() {
-        logger.info("checking files");
         List<Directory> directories = getHttpSharesToSynchronize(shareConfig.maxErdaSyncAttempts());
         List<FailedAsset> failedGuids = new ArrayList<>();
 
