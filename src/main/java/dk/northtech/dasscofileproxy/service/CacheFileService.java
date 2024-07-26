@@ -116,10 +116,11 @@ public class CacheFileService {
         cachedFiles.put(dasscoFile.path(), fileCacheByPath.orElseThrow(() -> new RuntimeException("Some thing went wrong :^(")));
     }
 
-    @Scheduled(cron = "0 * * * * *") // hourly
+    @Scheduled(cron = "0 15,45 * * * *") // at min 15 and 45
     public void removedExpiredCaches() {
         jdbi.inTransaction(h -> {
                 FileCacheRepository fileCacheRepository = h.attach(FileCacheRepository.class);
+                // If more than 90% of available space is used, we evict based on disk usage as well as expiration date.
                 long maxBytes = (long) (.90 * (shareConfig.cacheDiskspace() * 1000000));
                 List<String> pathsToDelete = fileCacheRepository.evict(maxBytes);
                 for (String s : pathsToDelete) {
