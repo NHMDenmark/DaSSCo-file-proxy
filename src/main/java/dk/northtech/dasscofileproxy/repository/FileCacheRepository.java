@@ -2,6 +2,7 @@ package dk.northtech.dasscofileproxy.repository;
 
 import dk.northtech.dasscofileproxy.domain.CacheInfo;
 import org.jdbi.v3.sqlobject.customizer.Bind;
+import org.jdbi.v3.sqlobject.customizer.BindList;
 import org.jdbi.v3.sqlobject.customizer.BindMethods;
 import org.jdbi.v3.sqlobject.statement.SqlQuery;
 import org.jdbi.v3.sqlobject.statement.SqlUpdate;
@@ -31,6 +32,12 @@ public interface FileCacheRepository {
             VALUES (now(), :expiration_datetime, :fileId)
             """)
     void insertCache(@BindMethods CacheInfo cacheInfo);
+
+    @SqlUpdate("""
+            UPDATE file_cache f SET expiration_datetime = now() 
+            WHERE f.file_cache_id IN (<ids>)
+            """)
+    void refreshCacheEntries(@BindList List<Long> ids);
 
     @SqlQuery("""
             DELETE FROM public.file_cache fic

@@ -37,8 +37,7 @@ import java.nio.file.StandardCopyOption;
 import java.sql.SQLException;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 
 @Service
 public class CacheFileService {
@@ -48,6 +47,8 @@ public class CacheFileService {
     private final ShareConfig shareConfig;
     private final ErdaProperties erdaProperties;
     private final Jdbi jdbi;
+
+    private Set<Long> idsToRefresh = new HashSet<>();
 
     @Inject
     public CacheFileService(AssetServiceProperties assetServiceProperties, FileService fileService, ShareConfig shareConfig, ErdaProperties erdaProperties, Jdbi jdbi) {
@@ -66,8 +67,6 @@ public class CacheFileService {
 
     LoadingCache<String, CacheInfo> cachedFiles;
 
-    // If we run more than one instance we need to handle rare situations where an entry in the Loading cache has been deleted by another node.
-    // This can likely be handled by evicting the dead entry and calling getFile again.
     public Optional<FileService.FileResult> getFile(String institution, String collection, String assetGuid, String filePath, User user) {
         logger.info("validating access");
         if (!validateAccess(user, assetGuid)) {
@@ -81,7 +80,12 @@ public class CacheFileService {
             CacheInfo cacheInfo = cachedFiles.get(assetPath);
             if (cacheInfo != null) {
                 Optional<FileService.FileResult> file = fileService.getFile(path);
-                return file;
+                // If the file does not exist, another node has likely deleted it.
+                if(file.isPresent()){
+                    idsToRefresh.add(cacheInfo.fileCacheId());
+                    return file;
+                }
+                cachedFiles.invalidate(cacheInfo.path());
             }
             FileRepository fileRepository = jdbi.onDemand(FileRepository.class);
             DasscoFile filesByAssetPath = fileRepository.getFilesByAssetPath(assetPath);
@@ -94,8 +98,7 @@ public class CacheFileService {
             logger.info("File didnt exist in cache, fetching from ERDA");
             String erdaLocation = Strings.join(new String[]{erdaProperties.httpURL(), institution, collection, assetGuid, filePath}, "/");
             logger.info("ERDA location: {}", erdaLocation);
-            try
-                    (InputStream inputStream = fetchFromERDA(erdaLocation)) {
+            try (InputStream inputStream = fetchFromERDA(erdaLocation)) {
 
                 logger.info("got stream");
                 new File(path).mkdirs();
@@ -110,21 +113,20 @@ public class CacheFileService {
     }
 
     public void cacheFile(DasscoFile dasscoFile) {
-        int maxCache = shareConfig.cacheDiskspace();
         FileCacheRepository fileCacheRepository = jdbi.onDemand(FileCacheRepository.class);
-        CacheInfo cacheInfo = new CacheInfo(dasscoFile.path(), Instant.now().plus(1, ChronoUnit.HOURS), dasscoFile.fileId());
+        CacheInfo cacheInfo = new CacheInfo(dasscoFile.path(), Instant.now().plus(1, ChronoUnit.DAYS), dasscoFile.fileId());
         fileCacheRepository.insertCache(cacheInfo);
         Optional<CacheInfo> fileCacheByPath = fileCacheRepository.getFileCacheByPath(dasscoFile.path());
         cachedFiles.put(dasscoFile.path(), fileCacheByPath.orElseThrow(() -> new RuntimeException("Some thing went wrong :^(")));
     }
 
+    // WARNING WARNING WARNING
     // If we are going to run in more than one instance we should create a lock in the db so only one instance runs the eviction code.
     // We can use SELECT FOR UPDATE.
-
     @Scheduled(cron = "0 15,45 * * * *") // at min 15 and 45
     public void removedExpiredCaches() {
-        logger.info("Running cache eviction code");
         jdbi.inTransaction(h -> {
+        logger.info("Running cache eviction code");
                 FileCacheRepository fileCacheRepository = h.attach(FileCacheRepository.class);
                 // If more than 90% of available space is used, we evict based on disk usage as well as expiration date.
                 long maxBytes = (long) (.90 * (shareConfig.cacheDiskspace() * 1000000));
@@ -136,8 +138,31 @@ public class CacheFileService {
                     boolean b = fileService.deleteFile(locationOnDisk);
                 }
 
-            return h;
+            return pathsToDelete;
         });
+    }
+
+    @Scheduled(cron = "0 0,30 * * * *") // at min 0 and 30
+    public void refreshCache() {
+        logger.info("Running cache refresh code");
+        List<Long> idsToUpdate;
+        synchronized (this) {
+            idsToUpdate = new ArrayList<>(idsToRefresh);
+            idsToRefresh.clear();
+        }
+        logger.info("Refreshing {} cache entries", idsToUpdate.size());
+        List<Long> batch = new ArrayList<>();
+        FileCacheRepository fcr = jdbi.onDemand(FileCacheRepository.class);
+        for(Long l: idsToUpdate) {
+            batch.add(l);
+            if(batch.size() > 1000) {
+                fcr.refreshCacheEntries(batch);
+                batch.clear();
+            }
+        }
+        if(!batch.isEmpty()){
+            fcr.refreshCacheEntries(batch);
+        }
     }
 
     public InputStream fetchFromERDA(String path) {
