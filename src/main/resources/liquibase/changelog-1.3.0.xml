@@ -42,6 +42,9 @@
     <createIndex tableName="files" indexName="path_idx">
       <column name="path"></column>
     </createIndex>
+    <createIndex tableName="file_cache" indexName="file_cache_expiration_datetime_idx">
+      <column name="expiration_datetime"></column>
+    </createIndex>
   </changeSet>
   <changeSet id="1.3.0:REMOVE_PATH_PREFIX" author="Thomas Skov Bornerup">
     <sql>
