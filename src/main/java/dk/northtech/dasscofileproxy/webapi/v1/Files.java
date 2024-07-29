@@ -14,6 +14,7 @@ import org.apache.tika.Tika;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
 import java.util.Optional;
 
 @Path("/files")
@@ -40,17 +41,30 @@ public class Files {
     ) {
         final String path = uriInfo.getPathParameters().getFirst("path");
         logger.info("Getting file");
+        if(securityContext == null) {
+            return Response.status(401).build();
+        }
         Optional<FileService.FileResult> file = cacheFileService.getFile(institution, collection, guid, path, UserMapper.from(securityContext));
         logger.info("got file");
+
         if (file.isPresent()) {
-            FileService.FileResult fileResult = file.get();
-            StreamingOutput streamingOutput = output -> {
-                fileResult.is().transferTo(output);
-                output.flush();
-            };
-            return Response.status(200)
-                    .header("Content-Disposition", "attachment; filename=" + fileResult.filename())
-                    .header("Content-Type", new Tika().detect(fileResult.filename())).entity(streamingOutput).build();
+//            try {
+                FileService.FileResult fileResult = file.get();
+                StreamingOutput streamingOutput = output -> {
+                    fileResult.is().transferTo(output);
+                    output.flush();
+                };
+                return Response.status(200)
+                        .header("Content-Disposition", "attachment; filename=" + fileResult.filename())
+                        .header("Content-Type", new Tika().detect(fileResult.filename())).entity(streamingOutput).build();
+//            }
+//            finally {
+//                try {
+//                    file.get().is().close();
+//                } catch (IOException e) {
+//                    throw new RuntimeException(e);
+//                }
+//            }
         } else {
             return Response.status(404).build();
         }
