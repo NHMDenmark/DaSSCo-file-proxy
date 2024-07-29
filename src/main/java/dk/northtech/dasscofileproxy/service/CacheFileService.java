@@ -11,6 +11,7 @@ import dk.northtech.dasscofileproxy.domain.FileSyncStatus;
 import dk.northtech.dasscofileproxy.domain.User;
 import dk.northtech.dasscofileproxy.domain.exceptions.DasscoException;
 import dk.northtech.dasscofileproxy.domain.exceptions.DasscoIllegalActionException;
+import dk.northtech.dasscofileproxy.domain.exceptions.DasscoNotFoundException;
 import dk.northtech.dasscofileproxy.repository.FileCacheRepository;
 import dk.northtech.dasscofileproxy.repository.FileRepository;
 import dk.northtech.dasscofileproxy.webapi.exceptionmappers.DaSSCoError;
@@ -90,16 +91,15 @@ public class CacheFileService {
             FileRepository fileRepository = jdbi.onDemand(FileRepository.class);
             DasscoFile filesByAssetPath = fileRepository.getFilesByAssetPath(assetPath);
             if (filesByAssetPath == null) {
-                throw new RuntimeException("File does not exist in DB");
+                throw new DasscoNotFoundException("The asset does not have this file");
             }
             if (filesByAssetPath.syncStatus() != FileSyncStatus.SYNCHRONIZED || filesByAssetPath.deleteAfterSync()) {
-                throw new DasscoIllegalActionException("Asset is being worked on");
+                throw new DasscoIllegalActionException("File is being edited");
             }
             logger.info("File didnt exist in cache, fetching from ERDA");
             String erdaLocation = Strings.join(new String[]{erdaProperties.httpURL(), institution, collection, assetGuid, filePath}, "/");
             logger.info("ERDA location: {}", erdaLocation);
             try (InputStream inputStream = fetchFromERDA(erdaLocation)) {
-
                 logger.info("got stream");
                 new File(path).mkdirs();
                 Files.copy(inputStream, Path.of(path), StandardCopyOption.REPLACE_EXISTING);
@@ -145,6 +145,10 @@ public class CacheFileService {
     @Scheduled(cron = "0 0,30 * * * *") // at min 0 and 30
     public void refreshCache() {
         logger.info("Running cache refresh code");
+        if(idsToRefresh.isEmpty()) {
+            return;
+        }
+        Instant newExpirationDate = Instant.now().plus(1, ChronoUnit.HOURS);
         List<Long> idsToUpdate;
         synchronized (this) {
             idsToUpdate = new ArrayList<>(idsToRefresh);
@@ -153,15 +157,16 @@ public class CacheFileService {
         logger.info("Refreshing {} cache entries", idsToUpdate.size());
         List<Long> batch = new ArrayList<>();
         FileCacheRepository fcr = jdbi.onDemand(FileCacheRepository.class);
+
         for(Long l: idsToUpdate) {
             batch.add(l);
             if(batch.size() > 1000) {
-                fcr.refreshCacheEntries(batch);
+                fcr.refreshCacheEntries(batch, newExpirationDate);
                 batch.clear();
             }
         }
         if(!batch.isEmpty()){
-            fcr.refreshCacheEntries(batch);
+            fcr.refreshCacheEntries(batch, newExpirationDate);
         }
     }
 
@@ -208,17 +213,7 @@ public class CacheFileService {
                 return false;
             }
             if (send.statusCode() == 404) {
-                throw new DasscoException() {
-                    @Override
-                    public int getHttpCode() {
-                        return 404;
-                    }
-
-                    @Override
-                    public DaSSCoError getDassCoError() {
-                        return new DaSSCoError("1.0", DaSSCoErrorCode.NOT_FOUND, "Requested asset doesnt exist");
-                    }
-                };
+                throw new DasscoNotFoundException("Asset " + assetGuid + " does not exist");
             } else {
                 throw new RuntimeException("Error occurred when querying user access to asset, response code: " + send.statusCode());
             }

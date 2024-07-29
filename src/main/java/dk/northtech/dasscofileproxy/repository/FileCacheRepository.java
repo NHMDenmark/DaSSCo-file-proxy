@@ -7,6 +7,7 @@ import org.jdbi.v3.sqlobject.customizer.BindMethods;
 import org.jdbi.v3.sqlobject.statement.SqlQuery;
 import org.jdbi.v3.sqlobject.statement.SqlUpdate;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 
@@ -34,15 +35,14 @@ public interface FileCacheRepository {
     void insertCache(@BindMethods CacheInfo cacheInfo);
 
     @SqlUpdate("""
-            UPDATE file_cache f SET expiration_datetime = now() 
+            UPDATE file_cache f SET expiration_datetime = :expirationDate 
             WHERE f.file_cache_id IN (<ids>)
             """)
-    void refreshCacheEntries(@BindList List<Long> ids);
+    void refreshCacheEntries(@BindList List<Long> ids, @Bind Instant expirationDate);
 
     @SqlQuery("""
             DELETE FROM public.file_cache fic
-            USING
-            (
+            USING (
             	SELECT subq.file_cache_id, subq.path FROM (
             		SELECT fc.*
             		, f.path
