@@ -1,6 +1,7 @@
 package dk.northtech.dasscofileproxy.service;
 
 import com.google.common.base.Strings;
+import com.nimbusds.jose.shaded.gson.Gson;
 import dk.northtech.dasscofileproxy.assets.AssetServiceProperties;
 import dk.northtech.dasscofileproxy.configuration.ShareConfig;
 import dk.northtech.dasscofileproxy.domain.*;
@@ -510,6 +511,31 @@ public class FileService {
         } catch (Exception e){
             e.printStackTrace();
         }
+        return false;
+    }
+
+    // Overloaded, for checking multiple assets:
+    public HttpResponse<String> checkAccess(List<String> assets, User user){
+
+        Gson gson = new Gson();
+        String requestBody = gson.toJson(assets);
+
+        HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create(assetServiceProperties.rootUrl() + "/api/v1/assets/readaccessmultiple"))
+                .header("Authorization", "Bearer " + user.token)
+                .header("Content-Type", "application/json")
+                .POST(HttpRequest.BodyPublishers.ofString(requestBody))
+                .build();
+
+        HttpClient httpClient = HttpClient.newHttpClient();
+
+        try {
+            return httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+
+        } catch (Exception e){
+            e.printStackTrace();
+        }
+
         return false;
     }
 }

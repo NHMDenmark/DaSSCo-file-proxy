@@ -32,6 +32,7 @@ import javax.print.attribute.standard.Media;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.http.HttpResponse;
 import java.util.List;
 import java.util.Optional;
 
@@ -245,19 +246,28 @@ public class Files {
     }
 
     @POST
-    @Path("/createCsvFile/{institution}/{collection}/{assetGuid}")
+    // Return Responses accordingly:
+    // Create CSV file (then it can be reused for list of assets).
+    @Path("/createCsvFile/{institution}/{collection}")
     @Operation(summary = "Create CSV File", description = "Creates a CSV File with Asset metadata")
     @Produces(APPLICATION_JSON)
-    @Consumes(MediaType.TEXT_PLAIN)
-    @ApiResponse(responseCode = "200", content = @Content(mediaType = MediaType.TEXT_PLAIN, array = @ArraySchema(schema = @Schema(implementation = String.class)), examples = { @ExampleObject("CSV File created successfully.")}))
-    @ApiResponse(responseCode = "400-599", content = @Content(mediaType = MediaType.TEXT_PLAIN, array = @ArraySchema(schema = @Schema(implementation = String.class)), examples = { @ExampleObject("Error creating CSV file.")}))
+    @Consumes(APPLICATION_JSON)
+    //@ApiResponse(responseCode = "200", content = @Content(mediaType = MediaType.TEXT_PLAIN, array = @ArraySchema(schema = @Schema(implementation = String.class)), examples = { @ExampleObject("CSV File created successfully.")}))
+    //@ApiResponse(responseCode = "400-599", content = @Content(mediaType = MediaType.TEXT_PLAIN, array = @ArraySchema(schema = @Schema(implementation = String.class)), examples = { @ExampleObject("Error creating CSV file.")}))
+    public void createCsvFile(@PathParam("institution") String institution,
+                              @PathParam("collection") String collection,
+                              @Context SecurityContext securityContext,
+                              List<String> assets) {
 
-    public Response createCsvFile(@RequestBody String csv,
-                                  @PathParam("institution") String institution,
-                                  @PathParam("collection") String collection,
-                                  @PathParam("assetGuid") String assetGuid,
-                                  @Context SecurityContext securityContext) {
+        HttpResponse<String> hasAccess = fileService.checkAccess(assets, UserMapper.from(securityContext));
 
+        if (hasAccess.statusCode() == 403){
+
+        } else if (hasAccess.statusCode() == 200) {
+
+        }
+
+/*
         boolean hasAccess = fileService.checkAccess(assetGuid, UserMapper.from(securityContext));
 
         if (!hasAccess){
@@ -271,6 +281,8 @@ public class Files {
         } catch (IOException e){
             return Response.status(400).entity(new DaSSCoError("1.0", DaSSCoErrorCode.BAD_REQUEST, e.getMessage())).build();
         }
+
+ */
     }
 
     @DELETE

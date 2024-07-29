@@ -65,7 +65,7 @@
         } ]
       }
     },
-    "/assetfiles/createCsvFile/{institution}/{collection}/{assetGuid}" : {
+    "/assetfiles/createCsvFile/{institution}/{collection}" : {
       "post" : {
         "tags" : [ "Asset Files" ],
         "summary" : "Create CSV File",
@@ -85,48 +85,24 @@
           "schema" : {
             "type" : "string"
           }
-        }, {
-          "name" : "assetGuid",
-          "in" : "path",
-          "required" : true,
-          "schema" : {
-            "type" : "string"
-          }
         } ],
         "requestBody" : {
           "content" : {
-            "text/plain" : {
+            "application/json" : {
               "schema" : {
-                "type" : "string"
+                "type" : "array",
+                "items" : {
+                  "type" : "string"
+                }
               }
             }
           }
         },
         "responses" : {
-          "200" : {
+          "default" : {
+            "description" : "default response",
             "content" : {
-              "text/plain" : {
-                "schema" : {
-                  "type" : "array",
-                  "items" : {
-                    "type" : "string"
-                  }
-                },
-                "example" : "CSV File created successfully."
-              }
-            }
-          },
-          "400-599" : {
-            "content" : {
-              "text/plain" : {
-                "schema" : {
-                  "type" : "array",
-                  "items" : {
-                    "type" : "string"
-                  }
-                },
-                "example" : "Error creating CSV file."
-              }
+              "application/json" : { }
             }
           }
         },
