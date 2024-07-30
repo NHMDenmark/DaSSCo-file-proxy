@@ -7,13 +7,6 @@ import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.locks.ReentrantLock;
 
-/**
- * Created with IntelliJ IDEA.
- * User: dtsai
- * Date: 2/18/13
- * Time: 3:42 PM
- */
-
 public abstract class ResourcePool<Resource> {
     private final BlockingQueue<Resource> pool;
     private final ReentrantLock lock = new ReentrantLock();

@@ -14,7 +14,6 @@ public class ErdaDataSource extends ResourcePool<ERDAClient> {
     private final SFTPConfig sftpConfig;
     private static final Logger logger = LoggerFactory.getLogger(ErdaDataSource.class);
     Instant lastFailure = null;
-    private ERDAClient theClient = null;
     public ErdaDataSource(int size, Boolean dynamicCreation, SFTPConfig sftpConfig) {
         super(size, dynamicCreation);
         this.sftpConfig = sftpConfig;
