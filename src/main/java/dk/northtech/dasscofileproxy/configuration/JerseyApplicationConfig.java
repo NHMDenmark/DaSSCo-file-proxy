@@ -1,6 +1,5 @@
 package dk.northtech.dasscofileproxy.configuration;
 
-import dk.northtech.dasscofileproxy.service.CacheFileService;
 import dk.northtech.dasscofileproxy.webapi.exceptionmappers.DaSScoExceptionMapper;
 import dk.northtech.dasscofileproxy.webapi.exceptionmappers.IllegalArguementExceptionMapper;
 import dk.northtech.dasscofileproxy.webapi.v1.*;
@@ -26,6 +25,6 @@ public class JerseyApplicationConfig extends ResourceConfig {
     register(OpenAPI.class);
     register(Logs.class);
     register(DebugTools.class);
-    register(Files.class);
+    register(AssetFiles.class);
   }
 }

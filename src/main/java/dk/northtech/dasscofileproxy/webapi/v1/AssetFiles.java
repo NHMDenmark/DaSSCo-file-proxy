@@ -4,6 +4,7 @@ import dk.northtech.dasscofileproxy.domain.User;
 import dk.northtech.dasscofileproxy.service.FileService;
 import dk.northtech.dasscofileproxy.webapi.UserMapper;
 import dk.northtech.dasscofileproxy.webapi.exceptionmappers.DaSSCoError;
+import dk.northtech.dasscofileproxy.webapi.exceptionmappers.DaSSCoErrorCode;
 import dk.northtech.dasscofileproxy.webapi.model.FileUploadData;
 import dk.northtech.dasscofileproxy.webapi.model.FileUploadResult;
 import io.swagger.v3.oas.annotations.Operation;
@@ -18,7 +19,9 @@ import jakarta.inject.Inject;
 import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.*;
 import org.apache.tika.Tika;
+import org.springframework.web.bind.annotation.RequestBody;
 
+import java.io.IOException;
 import java.io.InputStream;
 import java.util.List;
 import java.util.Optional;
@@ -30,7 +33,6 @@ import static jakarta.ws.rs.core.MediaType.APPLICATION_JSON;
 @SecurityRequirement(name = "dassco-idp")
 public class AssetFiles {
     private FileService fileService;
-
 
     @Inject
     public AssetFiles(FileService fileService) {
@@ -85,16 +87,26 @@ public class AssetFiles {
             , @PathParam("assetGuid") String assetGuid
             , @Context SecurityContext securityContext
     ) {
+
         final String path
                 = uriInfo.getPathParameters().getFirst("path");
         User user = UserMapper.from(securityContext);
         FileUploadData fileUploadData = new FileUploadData(assetGuid, institutionName, collectionName, path, 0);
         Optional<FileService.FileResult> getFileResult = fileService.getFile(fileUploadData);
         if (getFileResult.isPresent()) {
+
+            boolean hasAccess = fileService.checkAccess(assetGuid, UserMapper.from(securityContext));
+
+            if (!hasAccess){
+                return Response.status(400).entity(new DaSSCoError("1.0", DaSSCoErrorCode.FORBIDDEN, "User does not have access to download this file")).build();
+            }
+
             FileService.FileResult fileResult = getFileResult.get();
             StreamingOutput streamingOutput = output -> {
-                fileResult.is().transferTo(output);
-                output.flush();
+                try (InputStream is = fileResult.is()) {
+                    is.transferTo(output);
+                    output.flush();
+                }
             };
 
             return Response.status(200)
@@ -159,5 +171,115 @@ public class AssetFiles {
         User user = UserMapper.from(securityContext);
         boolean deleted = fileService.deleteFile(new FileUploadData(assetGuid, institutionName, collectionName, null, 0));
         return Response.status(deleted ? 204 : 404).build();
+    }
+
+    @POST
+    @Path("/createZipFile/{institution}/{collection}/{assetGuid}")
+    @Operation(summary = "Create Zip File", description = "Creates a Zip File with Asset metadata in CSV format and its associated files")
+    @Produces(APPLICATION_JSON)
+    @ApiResponse(responseCode = "200", content = @Content(mediaType = MediaType.TEXT_PLAIN, array = @ArraySchema(schema = @Schema(implementation = String.class)), examples = { @ExampleObject("ZIP File created successfully.")}))
+    @ApiResponse(responseCode = "400-599", content = @Content(mediaType = MediaType.TEXT_PLAIN, array = @ArraySchema(schema = @Schema(implementation = String.class)), examples = { @ExampleObject("Error creating ZIP file.")}))
+            public Response createZip(@PathParam("institution") String institution,
+                            @PathParam("collection") String collection,
+                            @PathParam("assetGuid") String assetGuid,
+                                      @Context SecurityContext securityContext){
+
+        boolean hasAccess = fileService.checkAccess(assetGuid, UserMapper.from(securityContext));
+
+        if (!hasAccess){
+            return Response.status(400).entity(new DaSSCoError("1.0", DaSSCoErrorCode.FORBIDDEN, "User does not have access to create this Zip file")).build();
+        }
+
+        FileUploadData fileUploadData = new FileUploadData(assetGuid, institution, collection, assetGuid + ".zip", 0);
+
+        try {
+            fileService.createZipFile(fileUploadData.getAssetFilePath());
+            return Response.ok().entity("ZIP file created successfully").build();
+        } catch (IOException e) {
+            return Response.status(400).entity(new DaSSCoError("1.0", DaSSCoErrorCode.BAD_REQUEST, e.getMessage())).build();
+        }
+    }
+
+    @GET
+    @Path("/downloadZipFile/{institution}/{collection}/{assetGuid}")
+    @Operation(summary = "Download Zip File", description = "Downloads zip file associated to an asset_guid. The file needs to be created beforehand by calling /createZipFile/{asset_guid}")
+    @ApiResponse(responseCode = "200", description = "Returns the .zip file.")
+    @ApiResponse(responseCode = "400-599", content = @Content(mediaType = APPLICATION_JSON, schema = @Schema(implementation = DaSSCoError.class)))
+    public Response downloadZip(@PathParam("institution") String institution,
+                                @PathParam("collection") String collection,
+                                @PathParam("assetGuid") String assetGuid,
+                                @Context SecurityContext securityContext){
+
+        boolean hasAccess = fileService.checkAccess(assetGuid, UserMapper.from(securityContext));
+
+        if (!hasAccess){
+            return Response.status(400).entity(new DaSSCoError("1.0", DaSSCoErrorCode.FORBIDDEN, "User does not have access to download this Zip file")).build();
+        }
+
+        FileUploadData fileUploadData = new FileUploadData(assetGuid, institution, collection, assetGuid + ".zip", 0);
+        Optional<FileService.FileResult> getFileResult = fileService.getFile(fileUploadData);
+        if (getFileResult.isPresent()){
+            FileService.FileResult fileResult = getFileResult.get();
+            StreamingOutput streamingOutput = output -> {
+                try (InputStream is = fileResult.is()) {
+                    is.transferTo(output);
+                    output.flush();
+                }
+            };
+
+            return Response.status(200)
+                    .header("Content-Disposition", "attachment; filename=" + fileResult.filename())
+                    .header("Content-Type", new Tika().detect(fileResult.filename())).entity(streamingOutput).build();
+        }
+
+        return Response.status(400).entity(new DaSSCoError("1.0", DaSSCoErrorCode.BAD_REQUEST, "Incorrect File or Path")).build();
+    }
+
+    @POST
+    @Path("/createCsvFile/{institution}/{collection}/{assetGuid}")
+    @Operation(summary = "Create CSV File", description = "Creates a CSV File with Asset metadata")
+    @Produces(APPLICATION_JSON)
+    @Consumes(MediaType.TEXT_PLAIN)
+    @ApiResponse(responseCode = "200", content = @Content(mediaType = MediaType.TEXT_PLAIN, array = @ArraySchema(schema = @Schema(implementation = String.class)), examples = { @ExampleObject("CSV File created successfully.")}))
+    @ApiResponse(responseCode = "400-599", content = @Content(mediaType = MediaType.TEXT_PLAIN, array = @ArraySchema(schema = @Schema(implementation = String.class)), examples = { @ExampleObject("Error creating CSV file.")}))
+
+    public Response createCsvFile(@RequestBody String csv,
+                                  @PathParam("institution") String institution,
+                                  @PathParam("collection") String collection,
+                                  @PathParam("assetGuid") String assetGuid,
+                                  @Context SecurityContext securityContext) {
+
+        boolean hasAccess = fileService.checkAccess(assetGuid, UserMapper.from(securityContext));
+
+        if (!hasAccess){
+            return Response.status(400).entity(new DaSSCoError("1.0", DaSSCoErrorCode.FORBIDDEN, "User does not have access to create this CSV file")).build();
+        }
+        FileUploadData fileUploadData = new FileUploadData(assetGuid, institution, collection, assetGuid + ".csv", 0);
+
+        try {
+            fileService.createCsvFile(fileUploadData.getAssetFilePath(), csv);
+            return Response.ok().entity("CSV file created successfully").build();
+        } catch (IOException e){
+            return Response.status(400).entity(new DaSSCoError("1.0", DaSSCoErrorCode.BAD_REQUEST, e.getMessage())).build();
+        }
+    }
+
+    @DELETE
+    @Path("/deleteLocalFiles/{institution}/{collection}/{assetGuid}/{file}")
+    @Operation(summary = "Delete Local File", description = "Deletes a file saved in the local machine, such as the generated .csv and .zip files for the Detailed View")
+    @ApiResponse(responseCode = "204", description = "No Content. File has been deleted.")
+    @ApiResponse(responseCode = "400-599", content = @Content(mediaType = APPLICATION_JSON, schema = @Schema(implementation = DaSSCoError.class)))
+    public Response deleteLocalFiles(@PathParam("institution") String institution,
+                                     @PathParam("collection") String collection,
+                                     @PathParam("assetGuid") String assetGuid,
+                                     @PathParam("file") String file){
+        FileUploadData fileUploadData = new FileUploadData(assetGuid, institution, collection, file, 0);
+        boolean isDeleted = fileService.deleteLocalFiles(fileUploadData.getAssetFilePath(), file);
+
+        if (isDeleted){
+            return Response.status(Response.Status.NO_CONTENT).build();
+        } else {
+            return Response.status(400).entity(new DaSSCoError("1.0", DaSSCoErrorCode.BAD_REQUEST, "Incorrect File or Path")).build();
+        }
     }
 }

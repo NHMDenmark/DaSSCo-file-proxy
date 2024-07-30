@@ -122,6 +122,11 @@ public class FileService {
         });
     }
 
+    public boolean deleteFile(String locationOnDisk) {
+        File file = new File(locationOnDisk);
+        return file.delete();
+    }
+
     public record FileResult(InputStream is, String filename) {
     }
 
