@@ -21,6 +21,7 @@ import jakarta.inject.Inject;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.*;
+import org.apache.commons.io.FileUtils;
 import org.apache.tika.Tika;
 import org.checkerframework.checker.units.qual.A;
 import org.checkerframework.checker.units.qual.C;
@@ -34,6 +35,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.http.HttpResponse;
 import java.nio.file.Paths;
+import java.nio.file.SimpleFileVisitor;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -288,6 +290,28 @@ public class Files {
         return Response.ok(streamingOutput)
                 .header("Content-Disposition", "attachment; filename=\"" + fileName + "\"")
                 .build();
+    }
+
+    @DELETE
+    @Path("/deleteTempFolder")
+    @Operation(summary = "Deletes the temp folder, which contains .csv and .zip files from the Query Page and Detailed View")
+    @ApiResponse(responseCode = "204", description = "No Content. File has been deleted.")
+    @ApiResponse(responseCode = "400-599", content = @Content(mediaType = APPLICATION_JSON, schema = @Schema(implementation = DaSSCoError.class)))
+    public Response deleteTempFolder(){
+
+        String projectDir = System.getProperty("user.dir");
+        File tempDir = new File(projectDir, "target/temp");
+
+        try {
+            if (tempDir.exists()){
+                FileUtils.deleteDirectory(tempDir);
+                return Response.status(Response.Status.NO_CONTENT).build();
+            } else  {
+                return Response.status(Response.Status.INTERNAL_SERVER_ERROR).build();
+            }
+        } catch (IOException e) {
+            throw new RuntimeException("Error deleting temporary folder" + e.getMessage());
+        }
     }
 
     @DELETE

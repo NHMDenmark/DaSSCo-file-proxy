@@ -235,6 +235,23 @@ paths:
                 $ref: '#/components/schemas/DaSSCoError'
       security:
       - dassco-idp: []
+  /assetfiles/deleteTempFolder:
+    delete:
+      tags:
+      - Asset Files
+      summary: "Deletes the temp folder, which contains .csv and .zip files from the\
+        \ Query Page and Detailed View"
+      operationId: deleteTempFolder
+      responses:
+        "204":
+          description: No Content. File has been deleted.
+        "400-599":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DaSSCoError'
+      security:
+      - dassco-idp: []
   /assetfiles/{institutionName}/{collectionName}/{assetGuid}/{path}:
     get:
       tags:
