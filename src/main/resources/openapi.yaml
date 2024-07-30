@@ -45,24 +45,13 @@ paths:
                 $ref: '#/components/schemas/DaSSCoError'
       security:
       - dassco-idp: []
-  /assetfiles/createCsvFile/{institution}/{collection}:
+  /assetfiles/createCsvFile:
     post:
       tags:
       - Asset Files
       summary: Create CSV File
       description: Creates a CSV File with Asset metadata
       operationId: createCsvFile
-      parameters:
-      - name: institution
-        in: path
-        required: true
-        schema:
-          type: string
-      - name: collection
-        in: path
-        required: true
-        schema:
-          type: string
       requestBody:
         content:
           application/json:

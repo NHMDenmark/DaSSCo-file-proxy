@@ -1,6 +1,9 @@
 package dk.northtech.dasscofileproxy.service;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Strings;
+import com.google.common.reflect.TypeToken;
 import com.nimbusds.jose.shaded.gson.Gson;
 import dk.northtech.dasscofileproxy.assets.AssetServiceProperties;
 import dk.northtech.dasscofileproxy.configuration.ShareConfig;
@@ -15,6 +18,7 @@ import dk.northtech.dasscofileproxy.webapi.model.FileUploadResult;
 import jakarta.inject.Inject;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import jakarta.ws.rs.core.Response;
 import org.jdbi.v3.core.Jdbi;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -515,7 +519,7 @@ public class FileService {
     }
 
     // Overloaded, for checking multiple assets:
-    public HttpResponse<String> checkAccess(List<String> assets, User user){
+    public void checkAccess(List<String> assets, User user){
 
         Gson gson = new Gson();
         String requestBody = gson.toJson(assets);
@@ -530,12 +534,33 @@ public class FileService {
         HttpClient httpClient = HttpClient.newHttpClient();
 
         try {
-            return httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+
+            if (response.statusCode() == 403){
+                // IDK!
+            } else if (response.statusCode() == 200){
+                // Create the CSV file:
+                createCsvFile(response.body());
+            }
 
         } catch (Exception e){
             e.printStackTrace();
         }
+    }
 
-        return false;
+    public void createCsvFile(String csvString){
+        String separatorLine = "sep=,\r\n";
+        String fullCsv = separatorLine + csvString;
+        String projectDir = System.getProperty("user.dir");
+        Path tempDir = Paths.get(projectDir, "target", "temp");
+        try {
+            Files.createDirectories(tempDir);
+            Path filePath = tempDir.resolve("assets.csv");
+            try (FileWriter writer = new FileWriter(filePath.toFile())){
+                writer.write(fullCsv);
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 }
