@@ -18,11 +18,14 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.*;
+import org.apache.commons.io.FileUtils;
 import org.apache.tika.Tika;
 import org.springframework.web.bind.annotation.RequestBody;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.file.Paths;
 import java.util.List;
 import java.util.Optional;
 
@@ -235,33 +238,18 @@ public class AssetFiles {
         return Response.status(400).entity(new DaSSCoError("1.0", DaSSCoErrorCode.BAD_REQUEST, "Incorrect File or Path")).build();
     }
 
+    // EDITED
     @POST
-    @Path("/createCsvFile/{institution}/{collection}/{assetGuid}")
+    @Path("/createCsvFile")
     @Operation(summary = "Create CSV File", description = "Creates a CSV File with Asset metadata")
-    @Produces(APPLICATION_JSON)
-    @Consumes(MediaType.TEXT_PLAIN)
+    @Produces(MediaType.TEXT_PLAIN)
+    @Consumes(APPLICATION_JSON)
     @ApiResponse(responseCode = "200", content = @Content(mediaType = MediaType.TEXT_PLAIN, array = @ArraySchema(schema = @Schema(implementation = String.class)), examples = { @ExampleObject("CSV File created successfully.")}))
-    @ApiResponse(responseCode = "400-599", content = @Content(mediaType = MediaType.TEXT_PLAIN, array = @ArraySchema(schema = @Schema(implementation = String.class)), examples = { @ExampleObject("Error creating CSV file.")}))
+    @ApiResponse(responseCode = "400-599", content = @Content(mediaType = MediaType.TEXT_PLAIN, array = @ArraySchema(schema = @Schema(implementation = String.class)), examples = { @ExampleObject("Error creating CSV file: User does not have access to Asset ['asset-1']")}))
+    public Response createCsvFile(@Context SecurityContext securityContext,
+                                  List<String> assets) {
 
-    public Response createCsvFile(@RequestBody String csv,
-                                  @PathParam("institution") String institution,
-                                  @PathParam("collection") String collection,
-                                  @PathParam("assetGuid") String assetGuid,
-                                  @Context SecurityContext securityContext) {
-
-        boolean hasAccess = fileService.checkAccess(assetGuid, UserMapper.from(securityContext));
-
-        if (!hasAccess){
-            return Response.status(400).entity(new DaSSCoError("1.0", DaSSCoErrorCode.FORBIDDEN, "User does not have access to create this CSV file")).build();
-        }
-        FileUploadData fileUploadData = new FileUploadData(assetGuid, institution, collection, assetGuid + ".csv", 0);
-
-        try {
-            fileService.createCsvFile(fileUploadData.getAssetFilePath(), csv);
-            return Response.ok().entity("CSV file created successfully").build();
-        } catch (IOException e){
-            return Response.status(400).entity(new DaSSCoError("1.0", DaSSCoErrorCode.BAD_REQUEST, e.getMessage())).build();
-        }
+        return fileService.checkAccess(assets, UserMapper.from(securityContext));
     }
 
     @DELETE
@@ -280,6 +268,60 @@ public class AssetFiles {
             return Response.status(Response.Status.NO_CONTENT).build();
         } else {
             return Response.status(400).entity(new DaSSCoError("1.0", DaSSCoErrorCode.BAD_REQUEST, "Incorrect File or Path")).build();
+        }
+    }
+
+    // NEW
+    @GET
+    @Path("/getTempFile/{fileName}")
+    @Operation(summary = "Get Temporary File", description = "Gets a file from the Temp Folder (.csv or .zip for downloading assets).")
+    public Response getTempFile(@PathParam("fileName") String fileName){
+        String projectDir = System.getProperty("user.dir");
+        java.nio.file.Path tempDir = Paths.get(projectDir, "target", "temp");
+        java.nio.file.Path filePath = tempDir.resolve(fileName);
+
+        if (java.nio.file.Files.notExists(filePath)){
+            // We'll see:
+        }
+
+        if (java.nio.file.Files.notExists(tempDir)){
+            // We'll see:
+        }
+
+        StreamingOutput streamingOutput = output -> {
+            try (InputStream is = java.nio.file.Files.newInputStream(filePath)) {
+                is.transferTo(output);
+                output.flush();
+            } catch (IOException e) {
+                throw new RuntimeException("Error reading file", e);
+            }
+        };
+
+        return Response.ok(streamingOutput)
+                .header("Content-Disposition", "attachment; filename=\"" + fileName + "\"")
+                .build();
+    }
+
+    // NEW
+    @DELETE
+    @Path("/deleteTempFolder")
+    @Operation(summary = "Deletes the temp folder, which contains .csv and .zip files from the Query Page and Detailed View")
+    @ApiResponse(responseCode = "204", description = "No Content. File has been deleted.")
+    @ApiResponse(responseCode = "400-599", content = @Content(mediaType = APPLICATION_JSON, schema = @Schema(implementation = DaSSCoError.class)))
+    public Response deleteTempFolder(){
+
+        String projectDir = System.getProperty("user.dir");
+        File tempDir = new File(projectDir, "target/temp");
+
+        try {
+            if (tempDir.exists()){
+                FileUtils.deleteDirectory(tempDir);
+                return Response.status(Response.Status.NO_CONTENT).build();
+            } else  {
+                return Response.status(Response.Status.INTERNAL_SERVER_ERROR).build();
+            }
+        } catch (IOException e) {
+            throw new RuntimeException("Error deleting temporary folder" + e.getMessage());
         }
     }
 }

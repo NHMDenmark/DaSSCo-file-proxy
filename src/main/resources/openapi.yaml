@@ -19,34 +19,20 @@ tags:
 - name: Log Files
   description: Endpoints for getting log files
 paths:
-  /assetfiles/createCsvFile/{institution}/{collection}/{assetGuid}:
+  /assetfiles/createCsvFile:
     post:
       tags:
       - Asset Files
       summary: Create CSV File
       description: Creates a CSV File with Asset metadata
       operationId: createCsvFile
-      parameters:
-      - name: institution
-        in: path
-        required: true
-        schema:
-          type: string
-      - name: collection
-        in: path
-        required: true
-        schema:
-          type: string
-      - name: assetGuid
-        in: path
-        required: true
-        schema:
-          type: string
       requestBody:
         content:
-          text/plain:
+          application/json:
             schema:
-              type: string
+              type: array
+              items:
+                type: string
       responses:
         "200":
           content:
@@ -63,7 +49,8 @@ paths:
                 type: array
                 items:
                   type: string
-              example: Error creating CSV file.
+              example: "Error creating CSV file: User does not have access to Asset\
+                \ ['asset-1']"
       security:
       - dassco-idp: []
   /assetfiles/createZipFile/{institution}/{collection}/{assetGuid}:
@@ -212,6 +199,23 @@ paths:
         required: true
         schema:
           type: string
+      responses:
+        "204":
+          description: No Content. File has been deleted.
+        "400-599":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DaSSCoError'
+      security:
+      - dassco-idp: []
+  /assetfiles/deleteTempFolder:
+    delete:
+      tags:
+      - Asset Files
+      summary: "Deletes the temp folder, which contains .csv and .zip files from the\
+        \ Query Page and Detailed View"
+      operationId: deleteTempFolder
       responses:
         "204":
           description: No Content. File has been deleted.
@@ -377,6 +381,27 @@ paths:
                 $ref: '#/components/schemas/DaSSCoError'
       security:
       - dassco-idp: []
+  /assetfiles/getTempFile/{fileName}:
+    get:
+      tags:
+      - Asset Files
+      summary: Get Temporary File
+      description: Gets a file from the Temp Folder (.csv or .zip for downloading
+        assets).
+      operationId: getTempFile
+      parameters:
+      - name: fileName
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        default:
+          description: default response
+          content:
+            '*/*': {}
+      security:
+      - dassco-idp: []
   /assets/{assetGuid}/files:
     get:
       tags:
@@ -403,160 +428,6 @@ paths:
                 $ref: '#/components/schemas/DaSSCoError'
       security:
       - dassco-idp: []
-  /files/createCsvFile:
-    post:
-      tags:
-      - Asset Files
-      summary: Create CSV File
-      description: Creates a CSV File with Asset metadata
-      operationId: createCsvFile_1
-      requestBody:
-        content:
-          application/json:
-            schema:
-              type: array
-              items:
-                type: string
-      responses:
-        "200":
-          content:
-            text/plain:
-              schema:
-                type: array
-                items:
-                  type: string
-              example: CSV File created successfully.
-        "400-599":
-          content:
-            text/plain:
-              schema:
-                type: array
-                items:
-                  type: string
-              example: "Error creating CSV file: User does not have access to Asset\
-                \ ['asset-1']"
-      security:
-      - dassco-idp: []
-  /files/{institutionName}/{collectionName}/{assetGuid}:
-    delete:
-      tags:
-      - Asset Files
-      summary: Delete Asset Files
-      description: "Deletes all files for an asset based on institution, collection\
-        \ and asset_guid"
-      operationId: deleteAsset_1
-      parameters:
-      - name: institutionName
-        in: path
-        required: true
-        schema:
-          type: string
-      - name: collectionName
-        in: path
-        required: true
-        schema:
-          type: string
-      - name: assetGuid
-        in: path
-        required: true
-        schema:
-          type: string
-      responses:
-        "204":
-          description: No Content. File has been deleted.
-        "400-599":
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/DaSSCoError'
-      security:
-      - dassco-idp: []
-  /files/deleteTempFolder:
-    delete:
-      tags:
-      - Asset Files
-      summary: "Deletes the temp folder, which contains .csv and .zip files from the\
-        \ Query Page and Detailed View"
-      operationId: deleteTempFolder
-      responses:
-        "204":
-          description: No Content. File has been deleted.
-        "400-599":
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/DaSSCoError'
-      security:
-      - dassco-idp: []
-  /files/{institutionName}/{collectionName}/{assetGuid}/{path}:
-    delete:
-      tags:
-      - Asset Files
-      summary: Delete Asset File by path
-      description: "Delete resource at the given path. If the resource is a directory,\
-        \ it will be deleted along its content. If the resource is the base directory\
-        \ for an asset the directory will not be deleted, only the content."
-      operationId: deletefile_1
-      parameters:
-      - name: institutionName
-        in: path
-        required: true
-        schema:
-          type: string
-      - name: collectionName
-        in: path
-        required: true
-        schema:
-          type: string
-      - name: assetGuid
-        in: path
-        required: true
-        schema:
-          type: string
-      responses:
-        "204":
-          description: No Content. File has been deleted.
-        "400-599":
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/DaSSCoError'
-      security:
-      - dassco-idp: []
-  /files/downloadZipFile/{institution}/{collection}/{assetGuid}:
-    get:
-      tags:
-      - Asset Files
-      summary: Download Zip File
-      description: "Downloads zip file associated to an asset_guid. The file needs\
-        \ to be created beforehand by calling /createZipFile/{asset_guid}"
-      operationId: downloadZip_1
-      parameters:
-      - name: institution
-        in: path
-        required: true
-        schema:
-          type: string
-      - name: collection
-        in: path
-        required: true
-        schema:
-          type: string
-      - name: assetGuid
-        in: path
-        required: true
-        schema:
-          type: string
-      responses:
-        "200":
-          description: Returns the .zip file.
-        "400-599":
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/DaSSCoError'
-      security:
-      - dassco-idp: []
   /files/assets/{institution}/{collection}/{assetGuid}/{path}:
     get:
       tags:
@@ -574,27 +445,6 @@ paths:
         schema:
           type: string
       - name: assetGuid
-        in: path
-        required: true
-        schema:
-          type: string
-      responses:
-        default:
-          description: default response
-          content:
-            '*/*': {}
-      security:
-      - dassco-idp: []
-  /files/getTempFile/{fileName}:
-    get:
-      tags:
-      - Asset Files
-      summary: Get Temporary File
-      description: Gets a file from the Temp Folder (.csv or .zip for downloading
-        assets).
-      operationId: getTempFile
-      parameters:
-      - name: fileName
         in: path
         required: true
         schema:
