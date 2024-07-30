@@ -249,6 +249,7 @@ public class Files {
         return Response.status(400).entity(new DaSSCoError("1.0", DaSSCoErrorCode.BAD_REQUEST, "Incorrect File or Path")).build();
     }
 
+    // EDITED
     @POST
     @Path("/createCsvFile")
     @Operation(summary = "Create CSV File", description = "Creates a CSV File with Asset metadata")
@@ -262,6 +263,7 @@ public class Files {
     return fileService.checkAccess(assets, UserMapper.from(securityContext));
     }
 
+    // NEW
     @GET
     @Path("/getTempFile/{fileName}")
     @Operation(summary = "Get Temporary File", description = "Gets a file from the Temp Folder (.csv or .zip for downloading assets).")
@@ -292,6 +294,7 @@ public class Files {
                 .build();
     }
 
+    // NEW
     @DELETE
     @Path("/deleteTempFolder")
     @Operation(summary = "Deletes the temp folder, which contains .csv and .zip files from the Query Page and Detailed View")
