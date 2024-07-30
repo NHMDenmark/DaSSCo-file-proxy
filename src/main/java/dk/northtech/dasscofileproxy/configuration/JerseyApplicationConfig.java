@@ -26,5 +26,6 @@ public class JerseyApplicationConfig extends ResourceConfig {
     register(Logs.class);
     register(DebugTools.class);
     register(AssetFiles.class);
+    register(Files.class);
   }
 }
