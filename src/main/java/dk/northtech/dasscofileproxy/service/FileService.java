@@ -84,7 +84,7 @@ public class FileService {
     }
 
     public Optional<FileResult> getFile(FileUploadData fileUploadData) {
-        File file = new File(shareConfig.mountFolder() + fileUploadData.getFilePath());
+        File file = new File(shareConfig.mountFolder() + fileUploadData.getAssetFilePath());
         if (file.exists()) {
             try {
                 return Optional.of(new FileResult(new FileInputStream(file), file.getName()));
@@ -128,6 +128,11 @@ public class FileService {
             fileRepository.setSynchronizedStatus(assetGuid);
             return h;
         });
+    }
+
+    public boolean deleteFile(String locationOnDisk) {
+        File file = new File(locationOnDisk);
+        return file.delete();
     }
 
     public record FileResult(InputStream is, String filename) {
@@ -290,12 +295,12 @@ public class FileService {
                 if (crc == value) {
                     if (markForDeletion) {
                         logger.info("Marking overwritten file for deletion upon sync");
-                        fileRepository.markForDeletion(fileUploadData.getFilePath());
+                        fileRepository.markForDeletion(fileUploadData.getPath());
                     }
                     long fileSize = tempFile.length();
                     // Move to actual location and overwrite existing file if present.
                     Files.move(tempFile.toPath(), file2.toPath(), StandardCopyOption.REPLACE_EXISTING);
-                    fileRepository.insertFile(new DasscoFile(null, fileUploadData.asset_guid(), fileUploadData.getFilePath(), fileSize, value, FileSyncStatus.NEW_FILE));
+                    fileRepository.insertFile(new DasscoFile(null, fileUploadData.asset_guid(), fileUploadData.getPath(), fileSize, value, FileSyncStatus.NEW_FILE));
                 }
 
             } catch (IOException e) {
@@ -339,7 +344,7 @@ public class FileService {
     }
 
     public boolean deleteFile(FileUploadData fileUploadData) {
-        File file = new File(shareConfig.mountFolder() + fileUploadData.getFilePath());
+        File file = new File(shareConfig.mountFolder() + fileUploadData.getAssetFilePath());
         jdbi.withHandle(h -> {
             DirectoryRepository directoryRepository = h.attach(DirectoryRepository.class);
             List<Directory> writeableDirectoriesByAsset = directoryRepository.getWriteableDirectoriesByAsset(fileUploadData.asset_guid());
@@ -364,12 +369,12 @@ public class FileService {
             throw new IllegalArgumentException("Collection must be present");
         }
         // Get all asset files so we can schedule the deleted files for deletion
-        Map<String, DasscoFile> collect = listFilesByAssetGuid(fileUploadData.asset_guid())
+        Map<String, DasscoFile> pathFileMap = listFilesByAssetGuid(fileUploadData.asset_guid())
                 .stream()
                 .filter(x -> !x.deleteAfterSync())
-                .collect(Collectors.toMap(x -> shareConfig.mountFolder() + x.path(), x -> x));
+                .collect(Collectors.toMap(dasscoFile -> shareConfig.mountFolder() + dasscoFile.getWorkDirFilePath(), x -> x));
         if (file.isDirectory()) {
-            try (var dirStream = Files.walk(Paths.get(shareConfig.mountFolder() + fileUploadData.getFilePath()))) {
+            try (var dirStream = Files.walk(Paths.get(shareConfig.mountFolder() + fileUploadData.getAssetFilePath()))) {
                 dirStream
                         .map(Path::toFile)
                         .sorted(Comparator.reverseOrder())
@@ -381,8 +386,8 @@ public class FileService {
                             file1.delete();
                             if (isFile) {
                                 String normalisedPath = file1.toString().replace('\\', '/');
-                                if (collect.containsKey(normalisedPath)) {
-                                    markDasscoFileToBeDeleted(collect.get(normalisedPath).path());
+                                if (pathFileMap.containsKey(normalisedPath)) {
+                                    markDasscoFileToBeDeleted(pathFileMap.get(normalisedPath).path());
                                 }
                             }
                         });
@@ -392,8 +397,8 @@ public class FileService {
         } else {
             file.delete();
             String normalisedPath = file.toString().replace('\\', '/');
-            if (collect.containsKey(normalisedPath)) {
-                markDasscoFileToBeDeleted(collect.get(normalisedPath).path());
+            if (pathFileMap.containsKey(normalisedPath)) {
+                markDasscoFileToBeDeleted(pathFileMap.get(normalisedPath).path());
             }
         }
         return true;

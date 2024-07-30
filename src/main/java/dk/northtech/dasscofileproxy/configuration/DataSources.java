@@ -2,10 +2,7 @@ package dk.northtech.dasscofileproxy.configuration;
 
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
-import dk.northtech.dasscofileproxy.domain.DasscoFile;
-import dk.northtech.dasscofileproxy.domain.Directory;
-import dk.northtech.dasscofileproxy.domain.SharedAsset;
-import dk.northtech.dasscofileproxy.domain.UserAccess;
+import dk.northtech.dasscofileproxy.domain.*;
 import org.jdbi.v3.core.Jdbi;
 import org.jdbi.v3.core.mapper.reflect.ConstructorMapper;
 import org.jdbi.v3.postgres.PostgresPlugin;
@@ -40,7 +37,8 @@ public class DataSources {
             .registerRowMapper(ConstructorMapper.factory(Directory.class))
             .registerRowMapper(ConstructorMapper.factory(UserAccess.class))
             .registerRowMapper(ConstructorMapper.factory(SharedAsset.class))
-            .registerRowMapper(ConstructorMapper.factory(DasscoFile.class));
+            .registerRowMapper(ConstructorMapper.factory(DasscoFile.class))
+            .registerRowMapper(ConstructorMapper.factory(CacheInfo.class));
 
   }
 }

@@ -22,7 +22,7 @@ public interface FileRepository {
     List<DasscoFile> getFilesByAssetGuid(@Bind String assetGuid);
 
     @SqlQuery("SELECT * FROM files WHERE path = :path AND delete_after_sync = FALSE ")
-    List<DasscoFile> getFilesByAssetPath(@Bind String path);
+    DasscoFile getFilesByAssetPath(@Bind String path);
 
     @SqlUpdate("DELETE FROM files WHERE asset_guid = :assetGuid")
     void deleteFilesByAssetGuid(@Bind String assetGuid);

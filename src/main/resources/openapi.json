@@ -10,14 +10,14 @@
     "variables" : { }
   } ],
   "tags" : [ {
+    "name" : "Asset Files",
+    "description" : "Endpoints related to assets' files."
+  }, {
     "name" : "Assets",
     "description" : "Endpoints related to assets"
   }, {
     "name" : "Debug tools",
     "description" : "Endpoints for debugging"
-  }, {
-    "name" : "Asset Files",
-    "description" : "Endpoints related to assets' files."
   }, {
     "name" : "Shares",
     "description" : "Endpoints related to assets' allocation"
@@ -26,13 +26,27 @@
     "description" : "Endpoints for getting log files"
   } ],
   "paths" : {
-    "/assets/{assetGuid}/files" : {
-      "get" : {
-        "tags" : [ "Assets" ],
-        "summary" : "Get List of Asset Files Metadata",
-        "description" : "Get a list of file metadata associated with an asset",
-        "operationId" : "listFiles",
+    "/assetfiles/createCsvFile/{institution}/{collection}/{assetGuid}" : {
+      "post" : {
+        "tags" : [ "Asset Files" ],
+        "summary" : "Create CSV File",
+        "description" : "Creates a CSV File with Asset metadata",
+        "operationId" : "createCsvFile",
         "parameters" : [ {
+          "name" : "institution",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "collection",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
           "name" : "assetGuid",
           "in" : "path",
           "required" : true,
@@ -40,45 +54,11 @@
             "type" : "string"
           }
         } ],
-        "responses" : {
-          "200" : {
-            "content" : {
-              "application/json" : {
-                "schema" : {
-                  "$ref" : "#/components/schemas/DasscoFile"
-                }
-              }
-            }
-          },
-          "400-599" : {
-            "content" : {
-              "application/json" : {
-                "schema" : {
-                  "$ref" : "#/components/schemas/DaSSCoError"
-                }
-              }
-            }
-          }
-        },
-        "security" : [ {
-          "dassco-idp" : [ ]
-        } ]
-      }
-    },
-    "/assetfiles/createCsvFile" : {
-      "post" : {
-        "tags" : [ "Asset Files" ],
-        "summary" : "Create CSV File",
-        "description" : "Creates a CSV File with Asset metadata",
-        "operationId" : "createCsvFile",
         "requestBody" : {
           "content" : {
-            "application/json" : {
+            "text/plain" : {
               "schema" : {
-                "type" : "array",
-                "items" : {
-                  "type" : "string"
-                }
+                "type" : "string"
               }
             }
           }
@@ -106,7 +86,7 @@
                     "type" : "string"
                   }
                 },
-                "example" : "Error creating CSV file: User does not have access to Asset ['asset-1']"
+                "example" : "Error creating CSV file."
               }
             }
           }
@@ -182,7 +162,7 @@
         "tags" : [ "Asset Files" ],
         "summary" : "Get List of Asset Files",
         "description" : "Get a list of files based on institution, collection and asset_guid",
-        "operationId" : "listFiles_1",
+        "operationId" : "listFiles",
         "parameters" : [ {
           "name" : "institutionName",
           "in" : "path",
@@ -314,30 +294,6 @@
             "type" : "string"
           }
         } ],
-        "responses" : {
-          "204" : {
-            "description" : "No Content. File has been deleted."
-          },
-          "400-599" : {
-            "content" : {
-              "application/json" : {
-                "schema" : {
-                  "$ref" : "#/components/schemas/DaSSCoError"
-                }
-              }
-            }
-          }
-        },
-        "security" : [ {
-          "dassco-idp" : [ ]
-        } ]
-      }
-    },
-    "/assetfiles/deleteTempFolder" : {
-      "delete" : {
-        "tags" : [ "Asset Files" ],
-        "summary" : "Deletes the temp folder, which contains .csv and .zip files from the Query Page and Detailed View",
-        "operationId" : "deleteTempFolder",
         "responses" : {
           "204" : {
             "description" : "No Content. File has been deleted."
@@ -570,7 +526,301 @@
         } ]
       }
     },
-    "/assetfiles/getTempFile/{fileName}" : {
+    "/assets/{assetGuid}/files" : {
+      "get" : {
+        "tags" : [ "Assets" ],
+        "summary" : "Get List of Asset Files Metadata",
+        "description" : "Get a list of file metadata associated with an asset",
+        "operationId" : "listFiles_1",
+        "parameters" : [ {
+          "name" : "assetGuid",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/DasscoFile"
+                }
+              }
+            }
+          },
+          "400-599" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/DaSSCoError"
+                }
+              }
+            }
+          }
+        },
+        "security" : [ {
+          "dassco-idp" : [ ]
+        } ]
+      }
+    },
+    "/files/createCsvFile" : {
+      "post" : {
+        "tags" : [ "Asset Files" ],
+        "summary" : "Create CSV File",
+        "description" : "Creates a CSV File with Asset metadata",
+        "operationId" : "createCsvFile_1",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "type" : "array",
+                "items" : {
+                  "type" : "string"
+                }
+              }
+            }
+          }
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "text/plain" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "type" : "string"
+                  }
+                },
+                "example" : "CSV File created successfully."
+              }
+            }
+          },
+          "400-599" : {
+            "content" : {
+              "text/plain" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "type" : "string"
+                  }
+                },
+                "example" : "Error creating CSV file: User does not have access to Asset ['asset-1']"
+              }
+            }
+          }
+        },
+        "security" : [ {
+          "dassco-idp" : [ ]
+        } ]
+      }
+    },
+    "/files/{institutionName}/{collectionName}/{assetGuid}" : {
+      "delete" : {
+        "tags" : [ "Asset Files" ],
+        "summary" : "Delete Asset Files",
+        "description" : "Deletes all files for an asset based on institution, collection and asset_guid",
+        "operationId" : "deleteAsset_1",
+        "parameters" : [ {
+          "name" : "institutionName",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "collectionName",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "assetGuid",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "204" : {
+            "description" : "No Content. File has been deleted."
+          },
+          "400-599" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/DaSSCoError"
+                }
+              }
+            }
+          }
+        },
+        "security" : [ {
+          "dassco-idp" : [ ]
+        } ]
+      }
+    },
+    "/files/deleteTempFolder" : {
+      "delete" : {
+        "tags" : [ "Asset Files" ],
+        "summary" : "Deletes the temp folder, which contains .csv and .zip files from the Query Page and Detailed View",
+        "operationId" : "deleteTempFolder",
+        "responses" : {
+          "204" : {
+            "description" : "No Content. File has been deleted."
+          },
+          "400-599" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/DaSSCoError"
+                }
+              }
+            }
+          }
+        },
+        "security" : [ {
+          "dassco-idp" : [ ]
+        } ]
+      }
+    },
+    "/files/{institutionName}/{collectionName}/{assetGuid}/{path}" : {
+      "delete" : {
+        "tags" : [ "Asset Files" ],
+        "summary" : "Delete Asset File by path",
+        "description" : "Delete resource at the given path. If the resource is a directory, it will be deleted along its content. If the resource is the base directory for an asset the directory will not be deleted, only the content.",
+        "operationId" : "deletefile_1",
+        "parameters" : [ {
+          "name" : "institutionName",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "collectionName",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "assetGuid",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "204" : {
+            "description" : "No Content. File has been deleted."
+          },
+          "400-599" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/DaSSCoError"
+                }
+              }
+            }
+          }
+        },
+        "security" : [ {
+          "dassco-idp" : [ ]
+        } ]
+      }
+    },
+    "/files/downloadZipFile/{institution}/{collection}/{assetGuid}" : {
+      "get" : {
+        "tags" : [ "Asset Files" ],
+        "summary" : "Download Zip File",
+        "description" : "Downloads zip file associated to an asset_guid. The file needs to be created beforehand by calling /createZipFile/{asset_guid}",
+        "operationId" : "downloadZip_1",
+        "parameters" : [ {
+          "name" : "institution",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "collection",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "assetGuid",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "Returns the .zip file."
+          },
+          "400-599" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/DaSSCoError"
+                }
+              }
+            }
+          }
+        },
+        "security" : [ {
+          "dassco-idp" : [ ]
+        } ]
+      }
+    },
+    "/files/assets/{institution}/{collection}/{assetGuid}/{path}" : {
+      "get" : {
+        "tags" : [ "Asset Files" ],
+        "operationId" : "getFile_1",
+        "parameters" : [ {
+          "name" : "institution",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "collection",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "assetGuid",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "*/*" : { }
+            }
+          }
+        },
+        "security" : [ {
+          "dassco-idp" : [ ]
+        } ]
+      }
+    },
+    "/files/getTempFile/{fileName}" : {
       "get" : {
         "tags" : [ "Asset Files" ],
         "summary" : "Get Temporary File",
@@ -813,7 +1063,7 @@
         "tags" : [ "Log Files" ],
         "summary" : "Get a log file",
         "description" : "Get a log file by name, use list endpoint to see names.",
-        "operationId" : "getFile_1",
+        "operationId" : "getFile_2",
         "parameters" : [ {
           "name" : "fileName",
           "in" : "path",
@@ -869,6 +1119,45 @@
   },
   "components" : {
     "schemas" : {
+      "DaSSCoError" : {
+        "type" : "object",
+        "properties" : {
+          "type" : {
+            "type" : "string"
+          },
+          "protocolVersion" : {
+            "type" : "string"
+          },
+          "errorCode" : {
+            "type" : "string",
+            "enum" : [ "BAD_REQUEST", "UPSTREAM_ERROR", "INTERNAL_ERROR", "FORBIDDEN", "NOT_FOUND" ]
+          },
+          "errorMessage" : {
+            "type" : "string"
+          }
+        }
+      },
+      "FileUploadResult" : {
+        "type" : "object",
+        "properties" : {
+          "expected_crc" : {
+            "type" : "integer",
+            "description" : "Expected CRC for the File",
+            "format" : "int64",
+            "example" : 123
+          },
+          "actual_crc" : {
+            "type" : "integer",
+            "description" : "Actual CRC for the File",
+            "format" : "int64",
+            "example" : 123
+          },
+          "responseCode" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        }
+      },
       "DasscoFile" : {
         "type" : "object",
         "properties" : {
@@ -909,45 +1198,9 @@
             "description" : "Sync status of the file",
             "example" : "SYNCHRONIZED",
             "enum" : [ "NEW_FILE", "SYNCHRONIZED" ]
-          }
-        }
-      },
-      "DaSSCoError" : {
-        "type" : "object",
-        "properties" : {
-          "type" : {
+          },
+          "workDirFilePath" : {
             "type" : "string"
-          },
-          "protocolVersion" : {
-            "type" : "string"
-          },
-          "errorCode" : {
-            "type" : "string",
-            "enum" : [ "BAD_REQUEST", "UPSTREAM_ERROR", "INTERNAL_ERROR", "FORBIDDEN" ]
-          },
-          "errorMessage" : {
-            "type" : "string"
-          }
-        }
-      },
-      "FileUploadResult" : {
-        "type" : "object",
-        "properties" : {
-          "expected_crc" : {
-            "type" : "integer",
-            "description" : "Expected CRC for the File",
-            "format" : "int64",
-            "example" : 123
-          },
-          "actual_crc" : {
-            "type" : "integer",
-            "description" : "Actual CRC for the File",
-            "format" : "int64",
-            "example" : 123
-          },
-          "responseCode" : {
-            "type" : "integer",
-            "format" : "int32"
           }
         }
       },

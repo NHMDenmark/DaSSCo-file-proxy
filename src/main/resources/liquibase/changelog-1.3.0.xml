@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.4.xsd">
+
+<!--  <changeSet id="1.3.0:REFACTOR_ASSET_CACHES" author="">-->
+<!--    <dropColumn tableName=""-->
+<!--  </changeSet>-->
+  <changeSet id="1.3.0:CREATE_TABLE FILE_CACHE" author="Thomas Skov Bornerup">
+    <createTable tableName="FILE_CACHE">
+      <column name="FILE_CACHE_ID"
+              type="bigint"
+              autoIncrement="true"
+              generationType="always">
+        <constraints primaryKey="true"
+                     primaryKeyName="pk_file_cache"
+                     nullable="false"
+        />
+      </column>
+      <column name="FILE_ID" type="bigint">
+        <constraints nullable="false"
+                     foreignKeyName="fk_file_cache__file"
+                     referencedTableName="files"
+                     referencedColumnNames="file_id"/>
+      </column>
+      <column name="expiration_datetime" type="datetime"></column>
+      <column name="creation_datetime" type="datetime">
+        <constraints nullable="false"/>
+      </column>
+    </createTable>
+  </changeSet>
+  <changeSet id="1.3.0:DROP_TABLE CACHE_CONSTRAINTS" author="Thomas Skov bornerup" context="default">
+    <comment>We can add this again when we actually know what it is for</comment>
+    <dropTable tableName="cache_restrictions"></dropTable>
+  </changeSet>
+
+<!--  <changeSet id="1.3.0:DROP_TABLE ASSET_CACHES" author="Thomas Skov bornerup" context="default">-->
+<!--    <comment>We can add this again when we actually know what it is for</comment>-->
+<!--    <dropTable tableName="asset_caches"></dropTable>-->
+<!--  </changeSet>-->
+  <changeSet id="1.3.0:ADD_INDEX" author="Thomas Skov Bornerup">
+    <createIndex tableName="files" indexName="path_idx">
+      <column name="path"></column>
+    </createIndex>
+    <createIndex tableName="file_cache" indexName="file_cache_expiration_datetime_idx">
+      <column name="expiration_datetime"></column>
+    </createIndex>
+  </changeSet>
+  <changeSet id="1.3.0:REMOVE_PATH_PREFIX" author="Thomas Skov Bornerup">
+    <sql>
+      UPDATE public.files f SET PATH = substring(PATH, 12)
+      WHERE f.PATH LIKE '/assetfiles%'
+    </sql>
+  </changeSet>
+
+  <changeSet id="VERSION-1.3.0" author="Thomas Skov Bornerup" context="default">
+    <tagDatabase tag="VERSION-1.3.0" />
+  </changeSet>
+
+</databaseChangeLog>
