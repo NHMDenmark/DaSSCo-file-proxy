@@ -13,6 +13,8 @@ import dk.northtech.dasscofileproxy.repository.DirectoryRepository;
 import dk.northtech.dasscofileproxy.repository.FileRepository;
 import dk.northtech.dasscofileproxy.repository.SharedAssetList;
 import dk.northtech.dasscofileproxy.repository.UserAccessList;
+import dk.northtech.dasscofileproxy.webapi.exceptionmappers.DaSSCoError;
+import dk.northtech.dasscofileproxy.webapi.exceptionmappers.DaSSCoErrorCode;
 import dk.northtech.dasscofileproxy.webapi.model.FileUploadData;
 import dk.northtech.dasscofileproxy.webapi.model.FileUploadResult;
 import jakarta.inject.Inject;
@@ -22,6 +24,7 @@ import jakarta.ws.rs.core.Response;
 import org.jdbi.v3.core.Jdbi;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.security.core.parameters.P;
 import org.springframework.stereotype.Service;
 
 import java.io.*;
@@ -519,7 +522,7 @@ public class FileService {
     }
 
     // Overloaded, for checking multiple assets:
-    public void checkAccess(List<String> assets, User user){
+    public Response checkAccess(List<String> assets, User user){
 
         Gson gson = new Gson();
         String requestBody = gson.toJson(assets);
@@ -538,14 +541,19 @@ public class FileService {
 
             if (response.statusCode() == 403){
                 // IDK!
+                return Response.status(403).entity(response.body()).build();
             } else if (response.statusCode() == 200){
                 // Create the CSV file:
                 createCsvFile(response.body());
+                return Response.status(200).entity("CSV CREATED").build();
+            } else {
+                return Response.status(500).entity(response.body()).build();
             }
 
         } catch (Exception e){
             e.printStackTrace();
         }
+        return Response.status(500).build();
     }
 
     public void createCsvFile(String csvString){

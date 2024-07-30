@@ -84,10 +84,30 @@
           }
         },
         "responses" : {
-          "default" : {
-            "description" : "default response",
+          "200" : {
             "content" : {
-              "application/json" : { }
+              "text/plain" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "type" : "string"
+                  }
+                },
+                "example" : "CSV File created successfully."
+              }
+            }
+          },
+          "400-599" : {
+            "content" : {
+              "text/plain" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "type" : "string"
+                  }
+                },
+                "example" : "Error creating CSV file: User does not have access to Asset ['asset-1']"
+              }
             }
           }
         },
@@ -518,6 +538,33 @@
                   "$ref" : "#/components/schemas/DaSSCoError"
                 }
               }
+            }
+          }
+        },
+        "security" : [ {
+          "dassco-idp" : [ ]
+        } ]
+      }
+    },
+    "/assetfiles/getTempFile/{fileName}" : {
+      "get" : {
+        "tags" : [ "Asset Files" ],
+        "summary" : "Get Temporary File",
+        "description" : "Gets a file from the Temp Folder (.csv or .zip for downloading assets).",
+        "operationId" : "getTempFile",
+        "parameters" : [ {
+          "name" : "fileName",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "*/*" : { }
             }
           }
         },

@@ -33,6 +33,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.http.HttpResponse;
+import java.nio.file.Paths;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -247,34 +248,46 @@ public class Files {
     }
 
     @POST
-    // Return Responses accordingly:
-    // Create CSV file (then it can be reused for list of assets).
     @Path("/createCsvFile")
     @Operation(summary = "Create CSV File", description = "Creates a CSV File with Asset metadata")
-    @Produces(APPLICATION_JSON)
+    @Produces(MediaType.TEXT_PLAIN)
     @Consumes(APPLICATION_JSON)
-    //@ApiResponse(responseCode = "200", content = @Content(mediaType = MediaType.TEXT_PLAIN, array = @ArraySchema(schema = @Schema(implementation = String.class)), examples = { @ExampleObject("CSV File created successfully.")}))
-    //@ApiResponse(responseCode = "400-599", content = @Content(mediaType = MediaType.TEXT_PLAIN, array = @ArraySchema(schema = @Schema(implementation = String.class)), examples = { @ExampleObject("Error creating CSV file.")}))
-    public void createCsvFile(@Context SecurityContext securityContext,
+    @ApiResponse(responseCode = "200", content = @Content(mediaType = MediaType.TEXT_PLAIN, array = @ArraySchema(schema = @Schema(implementation = String.class)), examples = { @ExampleObject("CSV File created successfully.")}))
+    @ApiResponse(responseCode = "400-599", content = @Content(mediaType = MediaType.TEXT_PLAIN, array = @ArraySchema(schema = @Schema(implementation = String.class)), examples = { @ExampleObject("Error creating CSV file: User does not have access to Asset ['asset-1']")}))
+    public Response createCsvFile(@Context SecurityContext securityContext,
                               List<String> assets) {
 
-    fileService.checkAccess(assets, UserMapper.from(securityContext));
+    return fileService.checkAccess(assets, UserMapper.from(securityContext));
+    }
 
-/*
+    @GET
+    @Path("/getTempFile/{fileName}")
+    @Operation(summary = "Get Temporary File", description = "Gets a file from the Temp Folder (.csv or .zip for downloading assets).")
+    public Response getTempFile(@PathParam("fileName") String fileName){
+        String projectDir = System.getProperty("user.dir");
+        java.nio.file.Path tempDir = Paths.get(projectDir, "target", "temp");
+        java.nio.file.Path filePath = tempDir.resolve(fileName);
 
-        if (!hasAccess){
-            return Response.status(400).entity(new DaSSCoError("1.0", DaSSCoErrorCode.FORBIDDEN, "User does not have access to create this CSV file")).build();
+        if (java.nio.file.Files.notExists(filePath)){
+            // We'll see:
         }
-        FileUploadData fileUploadData = new FileUploadData(assetGuid, institution, collection, assetGuid + ".csv", 0);
 
-        try {
-            fileService.createCsvFile(fileUploadData.getFilePath(), csv);
-            return Response.ok().entity("CSV file created successfully").build();
-        } catch (IOException e){
-            return Response.status(400).entity(new DaSSCoError("1.0", DaSSCoErrorCode.BAD_REQUEST, e.getMessage())).build();
+        if (java.nio.file.Files.notExists(tempDir)){
+            // We'll see:
         }
 
- */
+        StreamingOutput streamingOutput = output -> {
+            try (InputStream is = java.nio.file.Files.newInputStream(filePath)) {
+                is.transferTo(output);
+                output.flush();
+            } catch (IOException e) {
+                throw new RuntimeException("Error reading file", e);
+            }
+        };
+
+        return Response.ok(streamingOutput)
+                .header("Content-Disposition", "attachment; filename=\"" + fileName + "\"")
+                .build();
     }
 
     @DELETE
@@ -295,4 +308,6 @@ public class Files {
             return Response.status(400).entity(new DaSSCoError("1.0", DaSSCoErrorCode.BAD_REQUEST, "Incorrect File or Path")).build();
         }
     }
+
+
 }
