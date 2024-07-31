@@ -526,8 +526,56 @@ public class FileService {
         return false;
     }
 
-    // Overloaded, for checking multiple assets:
-    public Response checkAccess(List<String> assets, User user){
+    public Response checkAccessCreateZip(List<String> assets, User user){
+        Gson gson = new Gson();
+        String requestBody = gson.toJson(assets);
+
+        ObjectMapper objectMapper = new ObjectMapper();
+
+        HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create(assetServiceProperties.rootUrl() + "/api/v1/assets/readaccessforzip"))
+                .header("Authorization", "Bearer " + user.token)
+                .header("Content-Type", "application/json")
+                .POST(HttpRequest.BodyPublishers.ofString(requestBody))
+                .build();
+
+        HttpClient httpClient = HttpClient.newHttpClient();
+
+        try {
+            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+
+            if (response.statusCode() == 403){
+                return Response.status(403).entity(response.body()).build();
+            } else if (response.statusCode() == 200){
+                try {
+                    // GET FILE LOCATION FROM THE DB:
+                    List<String> assetGuids = objectMapper.readValue(response.body(), new TypeReference<List<String>>() {});
+                    List<String> assetFiles = new ArrayList<>();
+                    for (String asset : assetGuids){
+                        List<DasscoFile> foundFiles = jdbi.onDemand(FileRepository.class).getSyncFilesByAssetGuid(asset);
+                        for (DasscoFile dasscoFile : foundFiles){
+                            assetFiles.add(dasscoFile.path());
+                        }
+                    }
+                    if (!assetFiles.isEmpty()){
+                        saveFilesTempFolder(assetFiles, user);
+                        return Response.status(200).entity("Files saved to Temp File").build();
+                    } else {
+                        return Response.status(500).entity("There was no files to download").build();
+                    }
+                } catch (Exception e){
+                    e.printStackTrace();
+                }
+            } else {
+                return Response.status(500).entity(response.body()).build();
+            }
+        } catch (Exception e){
+            e.printStackTrace();
+        }
+        return Response.status(500).entity("There was an error downloading the files").build();
+    }
+
+    public Response checkAccessCreateCSV(List<String> assets, User user){
 
         Gson gson = new Gson();
         String requestBody = gson.toJson(assets);
@@ -545,7 +593,6 @@ public class FileService {
             HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
 
             if (response.statusCode() == 403){
-                // IDK!
                 return Response.status(403).entity(response.body()).build();
             } else if (response.statusCode() == 200){
                 // Create the CSV file:
@@ -574,6 +621,51 @@ public class FileService {
             }
         } catch (IOException e) {
             e.printStackTrace();
+        }
+    }
+
+    public void saveFilesTempFolder(List<String> paths, User user) throws IOException, InterruptedException {
+
+        String projectDir = System.getProperty("user.dir");
+        Path tempDir = Paths.get(projectDir, "target", "temp");
+
+        HttpClient httpClient = HttpClient.newHttpClient();
+
+        try {
+            Files.createDirectories(tempDir);
+        } catch (IOException e) {
+            e.printStackTrace();
+            return;
+        }
+
+        for (String path : paths) {
+            String[] parts = path.split("/");
+            String folderName = parts[parts.length - 2];
+            String fileName = parts[parts.length - 1];
+
+            Path outputDir = tempDir.resolve(folderName);
+            Files.createDirectories(outputDir);
+
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create(shareConfig.nodeHost() + "/files/assets" + path))
+                    .header("Authorization", "Bearer " + user.token)
+                    .header("Content-Type", "application/json")
+                    .GET()
+                    .build();
+            try {
+                System.out.println(request);
+                HttpResponse<InputStream> response = httpClient.send(request, HttpResponse.BodyHandlers.ofInputStream());
+                if (response.statusCode() == 200){
+                    Path outputPath = outputDir.resolve(fileName);
+                    try (InputStream inputStream = response.body()){
+                        Files.copy(inputStream, outputPath, StandardCopyOption.REPLACE_EXISTING);
+                    }
+                } else {
+                    throw new FileNotFoundException("Failed to download image: " + path);
+                }
+            } catch (Exception e){
+                throw new FileNotFoundException(e.getMessage());
+            }
         }
     }
 }

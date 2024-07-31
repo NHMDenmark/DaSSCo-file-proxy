@@ -21,6 +21,9 @@ public interface FileRepository {
     @SqlQuery("SELECT * FROM files WHERE asset_guid = :assetGuid")
     List<DasscoFile> getFilesByAssetGuid(@Bind String assetGuid);
 
+    @SqlQuery("SELECT * FROM files WHERE asset_guid = :assetGuid AND sync_status = 'SYNCHRONIZED'")
+    List<DasscoFile> getSyncFilesByAssetGuid(@Bind String assetGuid);
+
     @SqlQuery("SELECT * FROM files WHERE path = :path AND delete_after_sync = FALSE ")
     DasscoFile getFilesByAssetPath(@Bind String path);
 

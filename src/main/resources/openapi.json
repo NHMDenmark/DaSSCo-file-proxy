@@ -77,34 +77,24 @@
         } ]
       }
     },
-    "/assetfiles/createZipFile/{institution}/{collection}/{assetGuid}" : {
+    "/assetfiles/createZipFile" : {
       "post" : {
         "tags" : [ "Asset Files" ],
         "summary" : "Create Zip File",
         "description" : "Creates a Zip File with Asset metadata in CSV format and its associated files",
         "operationId" : "createZip",
-        "parameters" : [ {
-          "name" : "institution",
-          "in" : "path",
-          "required" : true,
-          "schema" : {
-            "type" : "string"
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "type" : "array",
+                "items" : {
+                  "type" : "string"
+                }
+              }
+            }
           }
-        }, {
-          "name" : "collection",
-          "in" : "path",
-          "required" : true,
-          "schema" : {
-            "type" : "string"
-          }
-        }, {
-          "name" : "assetGuid",
-          "in" : "path",
-          "required" : true,
-          "schema" : {
-            "type" : "string"
-          }
-        } ],
+        },
         "responses" : {
           "200" : {
             "content" : {

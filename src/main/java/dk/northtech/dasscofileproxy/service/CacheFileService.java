@@ -205,7 +205,6 @@ public class CacheFileService {
                     .POST(HttpRequest.BodyPublishers.noBody())
                     .build();
             HttpResponse<String> send = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
-
             if (send.statusCode() > 199 && send.statusCode() < 300) {
                 return true;
             }

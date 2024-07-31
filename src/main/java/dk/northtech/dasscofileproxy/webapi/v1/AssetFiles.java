@@ -177,16 +177,17 @@ public class AssetFiles {
     }
 
     @POST
-    @Path("/createZipFile/{institution}/{collection}/{assetGuid}")
+    @Path("/createZipFile")
     @Operation(summary = "Create Zip File", description = "Creates a Zip File with Asset metadata in CSV format and its associated files")
-    @Produces(APPLICATION_JSON)
+    @Consumes(APPLICATION_JSON)
+    @Produces(MediaType.TEXT_PLAIN)
     @ApiResponse(responseCode = "200", content = @Content(mediaType = MediaType.TEXT_PLAIN, array = @ArraySchema(schema = @Schema(implementation = String.class)), examples = { @ExampleObject("ZIP File created successfully.")}))
     @ApiResponse(responseCode = "400-599", content = @Content(mediaType = MediaType.TEXT_PLAIN, array = @ArraySchema(schema = @Schema(implementation = String.class)), examples = { @ExampleObject("Error creating ZIP file.")}))
-            public Response createZip(@PathParam("institution") String institution,
-                            @PathParam("collection") String collection,
-                            @PathParam("assetGuid") String assetGuid,
-                                      @Context SecurityContext securityContext){
+    public Response createZip(@Context SecurityContext securityContext,
+                                      List<String> assets){
 
+        return fileService.checkAccessCreateZip(assets, UserMapper.from(securityContext));
+    /*
         boolean hasAccess = fileService.checkAccess(assetGuid, UserMapper.from(securityContext));
 
         if (!hasAccess){
@@ -201,6 +202,8 @@ public class AssetFiles {
         } catch (IOException e) {
             return Response.status(400).entity(new DaSSCoError("1.0", DaSSCoErrorCode.BAD_REQUEST, e.getMessage())).build();
         }
+
+     */
     }
 
     @GET
@@ -249,7 +252,7 @@ public class AssetFiles {
     public Response createCsvFile(@Context SecurityContext securityContext,
                                   List<String> assets) {
 
-        return fileService.checkAccess(assets, UserMapper.from(securityContext));
+        return fileService.checkAccessCreateCSV(assets, UserMapper.from(securityContext));
     }
 
     @DELETE
