@@ -183,114 +183,26 @@ public class FileServiceTest {
             return h;
         }).close();
     }
-/*
+
     @Test
     public void testCreateCsvFile(){
         String projectDir = System.getProperty("user.dir");
-        String relativePath = "test.csv";
+        String relativePath = "assets.csv";
         String csvContent = "header1,header2,header3\nvalue1,value2,value3";
 
-        try {
-            fileService.createCsvFile(relativePath, csvContent);
-        } catch (IOException e) {
-            Assertions.fail("IOException shouldn't have been thrown");
-        }
 
-        Path csvFilePath = Paths.get(projectDir, "target", relativePath);
+        fileService.createCsvFile(csvContent);
+
+        Path csvFilePath = Paths.get(projectDir, "target", "temp", relativePath);
+        System.out.println(csvFilePath);
         assertThat(Files.exists(csvFilePath)).isTrue();
 
         try {
             String content = Files.readString(csvFilePath);
-            assertThat(content).isEqualTo(csvContent);
+            assertThat(content).isEqualTo("sep=,\r\n" + csvContent);
             Files.deleteIfExists(csvFilePath);
         } catch (IOException e) {
             Assertions.fail("IOException should not have been thrown while reading the file");
         }
     }
-
-    @Test
-    public void testFailCreateCsvFile(){
-        String relativePath = "path/does/not/exist/test.csv";
-        String csvContent = "header1,header2,header3\nvalue1,value2,value3";
-
-        String projectDir = System.getProperty("user.dir");
-        Path csvFilePath = Paths.get(projectDir, "target", relativePath);
-
-        IOException ioException = assertThrows(IOException.class, () -> fileService.createCsvFile(relativePath, csvContent));
-        assertThat(ioException.getMessage()).isEqualTo("Target directory does not exist: " + csvFilePath.getParent());
-    }
-
-    @Test
-    public void testCreateAndPopulateZipFile(){
-        String projectDir = System.getProperty("user.dir");
-        String relativePath = "test.zip";
-        String testDirName = "testDirectory";
-        String[] fileNames = {"test-1.csv", "test-2.txt"};
-        String[] fileContents = {"header1,header2\nvalue1,value2", "This is a test file."};
-
-        Path testDirPath = Paths.get(projectDir, "target", testDirName);
-        try {
-            Files.createDirectories(testDirPath);
-            for (int i = 0; i < fileNames.length; i++){
-                Path filePath = testDirPath.resolve(fileNames[i]);
-                Files.writeString(filePath, fileContents[i]);
-            }
-
-            String zipFilePath = fileService.createZipFile(testDirName + "/" + relativePath);
-
-            // Assert Zip File is created:
-            Path createdZipPath = Paths.get(zipFilePath);
-            assertThat(Files.exists(createdZipPath)).isTrue();
-
-            try (FileOutputStream fos = new FileOutputStream(zipFilePath);
-                 ZipOutputStream zos = new ZipOutputStream(fos)) {
-
-                File sourceFolder = new File(testDirPath.toString());
-                File[] files = sourceFolder.listFiles();
-
-                for (File file : files){
-                    if(file.getName().endsWith(".csv")){
-                        fileService.addCsvToZip(zos, file);
-                    } else {
-                        fileService.addToZip(zos, file, "");
-                    }
-                }
-
-                // Assert files are inside the Zip File.
-                try (ZipInputStream zis = new ZipInputStream(new FileInputStream(createdZipPath.toFile()))) {
-                    for (int i = 0; i < fileNames.length; i++){
-                        ZipEntry entry = zis.getNextEntry();
-                        assertThat(entry).isNotNull();
-                        assertThat(entry.getName()).isEqualTo(fileNames[i]);
-
-                        // Read Files:
-                        ByteArrayOutputStream baos = new ByteArrayOutputStream();
-                        byte[] buffer = new byte[1024];
-                        int len;
-                        while ((len = zis.read(buffer)) > 0) {
-                            baos.write(buffer, 0, len);
-                        }
-
-                        // Compare with original
-                        String expectedContent = fileContents[i];
-                        assertThat(baos.toString()).isEqualTo(expectedContent);
-                        zis.closeEntry();
-                    }
-
-                    ZipEntry finalEntry = zis.getNextEntry();
-                    assertThat(finalEntry).isNull();
-                }
-            }
-
-            // Delete files:
-            Assertions.assertTrue(fileService.deleteLocalFiles(testDirName + "/test.zip", "test.zip"));
-            Assertions.assertTrue(fileService.deleteLocalFiles(testDirName + "/test-1.csv", "test-1.csv"));
-            Assertions.assertTrue(fileService.deleteLocalFiles(testDirName + "/test-2.txt", "test-2.txt"));
-
-            Files.delete(testDirPath);
-
-        } catch (IOException e){
-            Assertions.fail("IOException should not have been thrown");
-        }
-    }*/
 }
