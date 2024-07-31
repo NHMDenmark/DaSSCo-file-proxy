@@ -178,7 +178,7 @@ public class AssetFiles {
 
     @POST
     @Path("/createZipFile")
-    @Operation(summary = "Create Zip File", description = "Creates a Zip File with Asset metadata in CSV format and its associated files")
+    @Operation(summary = "Create Zip File", description = "Takes a list of Asset Guids, saves the associated files in the temp folder and zips both the images and the .csv with metadata.")
     @Consumes(APPLICATION_JSON)
     @Produces(MediaType.TEXT_PLAIN)
     @ApiResponse(responseCode = "200", content = @Content(mediaType = MediaType.TEXT_PLAIN, array = @ArraySchema(schema = @Schema(implementation = String.class)), examples = { @ExampleObject("ZIP File created successfully.")}))
@@ -187,64 +187,12 @@ public class AssetFiles {
                                       List<String> assets){
 
         return fileService.checkAccessCreateZip(assets, UserMapper.from(securityContext));
-    /*
-        boolean hasAccess = fileService.checkAccess(assetGuid, UserMapper.from(securityContext));
-
-        if (!hasAccess){
-            return Response.status(400).entity(new DaSSCoError("1.0", DaSSCoErrorCode.FORBIDDEN, "User does not have access to create this Zip file")).build();
-        }
-
-        FileUploadData fileUploadData = new FileUploadData(assetGuid, institution, collection, assetGuid + ".zip", 0);
-
-        try {
-            fileService.createZipFile(fileUploadData.getAssetFilePath());
-            return Response.ok().entity("ZIP file created successfully").build();
-        } catch (IOException e) {
-            return Response.status(400).entity(new DaSSCoError("1.0", DaSSCoErrorCode.BAD_REQUEST, e.getMessage())).build();
-        }
-
-     */
-    }
-
-    @GET
-    @Path("/downloadZipFile/{institution}/{collection}/{assetGuid}")
-    @Operation(summary = "Download Zip File", description = "Downloads zip file associated to an asset_guid. The file needs to be created beforehand by calling /createZipFile/{asset_guid}")
-    @ApiResponse(responseCode = "200", description = "Returns the .zip file.")
-    @ApiResponse(responseCode = "400-599", content = @Content(mediaType = APPLICATION_JSON, schema = @Schema(implementation = DaSSCoError.class)))
-    public Response downloadZip(@PathParam("institution") String institution,
-                                @PathParam("collection") String collection,
-                                @PathParam("assetGuid") String assetGuid,
-                                @Context SecurityContext securityContext){
-
-        boolean hasAccess = fileService.checkAccess(assetGuid, UserMapper.from(securityContext));
-
-        if (!hasAccess){
-            return Response.status(400).entity(new DaSSCoError("1.0", DaSSCoErrorCode.FORBIDDEN, "User does not have access to download this Zip file")).build();
-        }
-
-        FileUploadData fileUploadData = new FileUploadData(assetGuid, institution, collection, assetGuid + ".zip", 0);
-        Optional<FileService.FileResult> getFileResult = fileService.getFile(fileUploadData);
-        if (getFileResult.isPresent()){
-            FileService.FileResult fileResult = getFileResult.get();
-            StreamingOutput streamingOutput = output -> {
-                try (InputStream is = fileResult.is()) {
-                    is.transferTo(output);
-                    output.flush();
-                }
-            };
-
-            return Response.status(200)
-                    .header("Content-Disposition", "attachment; filename=" + fileResult.filename())
-                    .header("Content-Type", new Tika().detect(fileResult.filename())).entity(streamingOutput).build();
-        }
-
-        return Response.status(400).entity(new DaSSCoError("1.0", DaSSCoErrorCode.BAD_REQUEST, "Incorrect File or Path")).build();
     }
 
     // EDITED
     @POST
     @Path("/createCsvFile")
-    @Operation(summary = "Create CSV File", description = "Creates a CSV File with Asset metadata")
+    @Operation(summary = "Create CSV File", description = "Creates a CSV File with Asset metadata in the Temp folder")
     @Produces(MediaType.TEXT_PLAIN)
     @Consumes(APPLICATION_JSON)
     @ApiResponse(responseCode = "200", content = @Content(mediaType = MediaType.TEXT_PLAIN, array = @ArraySchema(schema = @Schema(implementation = String.class)), examples = { @ExampleObject("CSV File created successfully.")}))
@@ -284,11 +232,11 @@ public class AssetFiles {
         java.nio.file.Path filePath = tempDir.resolve(fileName);
 
         if (java.nio.file.Files.notExists(filePath)){
-            // We'll see:
+            return Response.status(404).entity("File does not exist").build();
         }
 
         if (java.nio.file.Files.notExists(tempDir)){
-            // We'll see:
+            return Response.status(404).entity("Directory does not exist").build();
         }
 
         StreamingOutput streamingOutput = output -> {
@@ -308,7 +256,7 @@ public class AssetFiles {
     // NEW
     @DELETE
     @Path("/deleteTempFolder")
-    @Operation(summary = "Deletes the temp folder, which contains .csv and .zip files from the Query Page and Detailed View")
+    @Operation(summary = "Delete Temp Folder", description = "Deletes the temp folder, which contains .csv and .zip files from the Query Page and Detailed View")
     @ApiResponse(responseCode = "204", description = "No Content. File has been deleted.")
     @ApiResponse(responseCode = "400-599", content = @Content(mediaType = APPLICATION_JSON, schema = @Schema(implementation = DaSSCoError.class)))
     public Response deleteTempFolder(){

@@ -33,6 +33,7 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.file.*;
+import java.nio.file.attribute.BasicFileAttributes;
 import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -404,54 +405,6 @@ public class FileService {
         return true;
     }
 
-    public String createZipFile(String relativePath) throws IOException {
-
-        String projectDir = System.getProperty("user.dir");
-        String zipFilePath = Paths.get(projectDir, "target", relativePath).toString();
-        String directoryPath = Paths.get(projectDir, "target", relativePath.substring(0, relativePath.lastIndexOf("/") + 1)).toString();
-
-        File sourceFolder = new File(directoryPath);
-        File[] files = sourceFolder.listFiles();
-
-        try (FileOutputStream fos = new FileOutputStream(zipFilePath);
-             ZipOutputStream zos = new ZipOutputStream(fos)) {
-
-            // Add Folder with asset_guid name:
-            String folderName = sourceFolder.getName();
-            ZipEntry folderEntry = new ZipEntry(folderName + "/");
-            zos.putNextEntry(folderEntry);
-            zos.closeEntry();
-
-            for (File file : files){
-                if (file.isFile()) {
-                    if(file.getName().endsWith(".csv")){
-                        addCsvToZip(zos, file);
-                    } else {
-                        addToZip(zos, file, folderName + "/");
-                    }
-
-                }
-            }
-        }
-
-        return zipFilePath;
-    }
-
-    public void createCsvFile(String relativePath, String csv) throws IOException {
-
-        String projectDir = System.getProperty("user.dir");
-        Path csvFilePath = Paths.get(projectDir, "target", relativePath);
-
-        if (!Files.exists(csvFilePath.getParent())){
-            throw new IOException("Target directory does not exist: " + csvFilePath.getParent());
-        }
-
-        File file = new File(csvFilePath.toString());
-        try (FileWriter writer = new FileWriter(file)) {
-            writer.write(csv);
-        }
-    }
-
     public boolean deleteLocalFiles(String relativePath, String fileName){
         String projectDir = System.getProperty("user.dir");
         Path filePath = Paths.get(projectDir, "target", relativePath);
@@ -470,36 +423,38 @@ public class FileService {
         }
     }
 
-    public void addToZip(ZipOutputStream zos, File file, String folderName) throws IOException {
-        if (file.getName().toLowerCase().endsWith(".zip")){
-            return;
-        }
-        try (FileInputStream fis = new FileInputStream(file)){
-            ZipEntry zipEntry = new ZipEntry(folderName + file.getName());
-            zos.putNextEntry(zipEntry);
+    public void createZipFile() throws IOException {
 
-            byte[] bytes = new byte[1024];
-            int length;
-            while ((length = fis.read(bytes)) > 0) {
-                zos.write(bytes, 0, length);
-            }
+        String projectDir = System.getProperty("user.dir");
+        Path tempDir = Paths.get(projectDir, "target", "temp");
+        Path zipFilePath = tempDir.resolve("assets.zip");
 
-            zos.closeEntry();
-        }
-    }
+        try (FileOutputStream fos = new FileOutputStream(zipFilePath.toFile());
+             ZipOutputStream zos = new ZipOutputStream(fos)) {
 
-    public void addCsvToZip(ZipOutputStream zos, File file) throws IOException {
-        try (FileInputStream fis = new FileInputStream(file)){
-            ZipEntry zipEntry = new ZipEntry(file.getName());
-            zos.putNextEntry(zipEntry);
-
-            byte[] bytes = new byte[1024];
-            int length;
-            while ((length = fis.read(bytes)) > 0) {
-                zos.write(bytes, 0, length);
-            }
-
-            zos.closeEntry();
+            Files.walk(tempDir)
+                    .filter(path -> !path.equals(zipFilePath))
+                    .forEach(path -> {
+                        String entryName = tempDir.relativize(path).toString();
+                        System.out.println(entryName);
+                        if (Files.isDirectory(path)) {
+                            try {
+                                zos.putNextEntry(new ZipEntry(entryName + "/"));
+                                zos.closeEntry();
+                            } catch (IOException e) {
+                                e.printStackTrace();
+                            }
+                        } else {
+                            try {
+                                ZipEntry zipEntry = new ZipEntry(entryName);
+                                zos.putNextEntry(zipEntry);
+                                Files.copy(path, zos);
+                                zos.closeEntry();
+                            } catch (Exception e) {
+                                e.printStackTrace();
+                            }
+                        }
+                    });
         }
     }
 
@@ -559,10 +514,9 @@ public class FileService {
                     }
                     if (!assetFiles.isEmpty()){
                         saveFilesTempFolder(assetFiles, user);
-                        return Response.status(200).entity("Files saved to Temp File").build();
-                    } else {
-                        return Response.status(500).entity("There was no files to download").build();
                     }
+                    this.createZipFile();
+                    return Response.status(200).entity("Files saved to Temp File").build();
                 } catch (Exception e){
                     e.printStackTrace();
                 }
@@ -626,6 +580,8 @@ public class FileService {
 
     public void saveFilesTempFolder(List<String> paths, User user) throws IOException, InterruptedException {
 
+        this.cleanTempFolder();
+
         String projectDir = System.getProperty("user.dir");
         Path tempDir = Paths.get(projectDir, "target", "temp");
 
@@ -653,7 +609,6 @@ public class FileService {
                     .GET()
                     .build();
             try {
-                System.out.println(request);
                 HttpResponse<InputStream> response = httpClient.send(request, HttpResponse.BodyHandlers.ofInputStream());
                 if (response.statusCode() == 200){
                     Path outputPath = outputDir.resolve(fileName);
@@ -665,6 +620,42 @@ public class FileService {
                 }
             } catch (Exception e){
                 throw new FileNotFoundException(e.getMessage());
+            }
+        }
+    }
+
+    // Clean the temp folder (if it exists) from .zip and folders.
+    public void cleanTempFolder() {
+        String projectDir = System.getProperty("user.dir");
+        Path tempDir = Paths.get(projectDir, "target", "temp");
+
+        if (Files.exists(tempDir)){
+            try {
+                try (var stream = Files.list(tempDir)){
+                    stream.filter(path -> path.toString().endsWith(".zip"))
+                            .forEach(path -> {
+                                try {
+                                    Files.deleteIfExists(path);
+                                } catch (IOException e){
+                                    e.printStackTrace();
+                                }
+                            });
+                }
+
+                try (var stream = Files.walk(tempDir)){
+                    stream.sorted(Comparator.reverseOrder())
+                            .filter(path -> !path.equals(tempDir))
+                            .filter(path -> Files.isDirectory(path) || !path.toString().endsWith(".csv"))
+                            .forEach(path -> {
+                                try {
+                                    Files.deleteIfExists(path);
+                                } catch (IOException e){
+                                    e.printStackTrace();
+                                }
+                            });
+                }
+            } catch (IOException e){
+                e.printStackTrace();
             }
         }
     }

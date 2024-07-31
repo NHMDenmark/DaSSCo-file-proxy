@@ -24,7 +24,7 @@ paths:
       tags:
       - Asset Files
       summary: Create CSV File
-      description: Creates a CSV File with Asset metadata
+      description: Creates a CSV File with Asset metadata in the Temp folder
       operationId: createCsvFile
       requestBody:
         content:
@@ -58,8 +58,8 @@ paths:
       tags:
       - Asset Files
       summary: Create Zip File
-      description: Creates a Zip File with Asset metadata in CSV format and its associated
-        files
+      description: "Takes a list of Asset Guids, saves the associated files in the\
+        \ temp folder and zips both the images and the .csv with metadata."
       operationId: createZip
       requestBody:
         content:
@@ -204,8 +204,9 @@ paths:
     delete:
       tags:
       - Asset Files
-      summary: "Deletes the temp folder, which contains .csv and .zip files from the\
-        \ Query Page and Detailed View"
+      summary: Delete Temp Folder
+      description: "Deletes the temp folder, which contains .csv and .zip files from\
+        \ the Query Page and Detailed View"
       operationId: deleteTempFolder
       responses:
         "204":
@@ -331,40 +332,6 @@ paths:
       responses:
         "204":
           description: No Content. File has been deleted.
-        "400-599":
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/DaSSCoError'
-      security:
-      - dassco-idp: []
-  /assetfiles/downloadZipFile/{institution}/{collection}/{assetGuid}:
-    get:
-      tags:
-      - Asset Files
-      summary: Download Zip File
-      description: "Downloads zip file associated to an asset_guid. The file needs\
-        \ to be created beforehand by calling /createZipFile/{asset_guid}"
-      operationId: downloadZip
-      parameters:
-      - name: institution
-        in: path
-        required: true
-        schema:
-          type: string
-      - name: collection
-        in: path
-        required: true
-        schema:
-          type: string
-      - name: assetGuid
-        in: path
-        required: true
-        schema:
-          type: string
-      responses:
-        "200":
-          description: Returns the .zip file.
         "400-599":
           content:
             application/json:
