@@ -436,7 +436,6 @@ public class FileService {
                     .filter(path -> !path.equals(zipFilePath))
                     .forEach(path -> {
                         String entryName = tempDir.relativize(path).toString();
-                        System.out.println(entryName);
                         if (Files.isDirectory(path)) {
                             try {
                                 zos.putNextEntry(new ZipEntry(entryName + "/"));
@@ -658,5 +657,10 @@ public class FileService {
                 e.printStackTrace();
             }
         }
+    }
+
+    public List<String> listFilesInErda(String assetGuid){
+        List<DasscoFile> files = jdbi.onDemand(FileRepository.class).getSyncFilesByAssetGuid(assetGuid);
+        return files.stream().map(DasscoFile::getWorkDirFilePath).toList();
     }
 }

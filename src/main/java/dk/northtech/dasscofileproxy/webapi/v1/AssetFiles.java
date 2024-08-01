@@ -26,6 +26,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
@@ -272,5 +273,19 @@ public class AssetFiles {
         } catch (IOException e) {
             throw new RuntimeException("Error deleting temporary folder" + e.getMessage());
         }
+    }
+
+    @GET
+    @Path("/listfiles/{assetGuid}")
+    @Operation(summary = "Get List of Asset Files in ERDA", description = "Get a list of files in ERDA by Asset Guid.")
+    @Produces(APPLICATION_JSON)
+    @Consumes(APPLICATION_JSON)
+    @ApiResponse(responseCode = "200", content = @Content(mediaType = APPLICATION_JSON, array = @ArraySchema(schema = @Schema(implementation = String.class)), examples = { @ExampleObject("[\"test-institution/test-collection/nt_asset_19/example.jpg\", \"test-institution/test-collection/nt_asset_19/example2.jpg\"]")}))
+    @ApiResponse(responseCode = "400-599", content = @Content(mediaType = APPLICATION_JSON, schema = @Schema(implementation = DaSSCoError.class)))
+    public List<String> listFilesInErda(
+            @PathParam("assetGuid") String assetGuid
+            , @Context SecurityContext securityContext
+    ) {
+        return fileService.listFilesInErda(assetGuid);
     }
 }

@@ -360,6 +360,37 @@ paths:
             '*/*': {}
       security:
       - dassco-idp: []
+  /assetfiles/listfiles/{assetGuid}:
+    get:
+      tags:
+      - Asset Files
+      summary: Get List of Asset Files in ERDA
+      description: Get a list of files in ERDA by Asset Guid.
+      operationId: listFilesInErda
+      parameters:
+      - name: assetGuid
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: string
+              example:
+              - test-institution/test-collection/nt_asset_19/example.jpg
+              - test-institution/test-collection/nt_asset_19/example2.jpg
+        "400-599":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DaSSCoError'
+      security:
+      - dassco-idp: []
   /assets/{assetGuid}/files:
     get:
       tags:
