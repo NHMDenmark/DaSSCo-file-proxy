@@ -189,7 +189,6 @@ public class AssetFiles {
         return fileService.checkAccessCreateZip(assets, UserMapper.from(securityContext));
     }
 
-    // EDITED
     @POST
     @Path("/createCsvFile")
     @Operation(summary = "Create CSV File", description = "Creates a CSV File with Asset metadata in the Temp folder")
@@ -222,7 +221,6 @@ public class AssetFiles {
         }
     }
 
-    // NEW
     @GET
     @Path("/getTempFile/{fileName}")
     @Operation(summary = "Get Temporary File", description = "Gets a file from the Temp Folder (.csv or .zip for downloading assets).")

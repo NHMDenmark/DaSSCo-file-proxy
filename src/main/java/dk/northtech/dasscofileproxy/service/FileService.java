@@ -535,7 +535,7 @@ public class FileService {
         String requestBody = gson.toJson(assets);
 
         HttpRequest request = HttpRequest.newBuilder()
-                .uri(URI.create(assetServiceProperties.rootUrl() + "/api/v1/assets/readaccessmultiple"))
+                .uri(URI.create(assetServiceProperties.rootUrl() + "/api/v1/assets/readaccessforcsv"))
                 .header("Authorization", "Bearer " + user.token)
                 .header("Content-Type", "application/json")
                 .POST(HttpRequest.BodyPublishers.ofString(requestBody))
