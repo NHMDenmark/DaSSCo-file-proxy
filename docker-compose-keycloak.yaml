@@ -7,10 +7,11 @@ services:
       KEYCLOAK_ADMIN: admin
       KEYCLOAK_ADMIN_PASSWORD: admin
     volumes:
-      #- ./keycloak/configuration:/opt/keycloak/standalone/configuration:rw
       - ./keycloak/data:/opt/keycloak/data:rw
       - ./keycloak/themes:/opt/keycloak/themes:rw
+      - ./keycloak/certs:/opt/keycloak/certs:rw
     ports:
       - 8083:8080
+      - 8443:8443
     command:
-      - start-dev --spi-theme-static-max-age=-1 --spi-theme-cache-themes=false --spi-theme-cache-templates=false
+      - start-dev --spi-theme-static-max-age=-1 --spi-theme-cache-themes=false --spi-theme-cache-templates=false --https-certificate-file=/opt/keycloak/certs/server_keycloak_certificate.pem --https-certificate-key-file=/opt/keycloak/certs/server_keycloak_key.pem
