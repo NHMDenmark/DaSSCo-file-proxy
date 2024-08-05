@@ -13,6 +13,10 @@ src/main/resources/static/*
 *.pem.pub
 *.pem
 
+!keycloak/certs/ca_certificate.pem
+!keycloak/certs/server_keycloak_certificate.pem
+!keycloak/certs/server_keycloak_key.pem
+
 ### STS ###
 .apt_generated
 .classpath
