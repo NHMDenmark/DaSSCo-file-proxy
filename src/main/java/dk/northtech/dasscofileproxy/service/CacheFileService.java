@@ -18,8 +18,10 @@ import dk.northtech.dasscofileproxy.webapi.exceptionmappers.DaSSCoError;
 import dk.northtech.dasscofileproxy.webapi.exceptionmappers.DaSSCoErrorCode;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.WebApplicationException;
+import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.core.StreamingOutput;
 import joptsimple.internal.Strings;
+import org.apache.tika.Tika;
 import org.jdbi.v3.core.Jdbi;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -110,6 +112,46 @@ public class CacheFileService {
             logger.error("error", e);
             throw new RuntimeException(e);
         }
+    }
+
+    public Response streamFile(String institution, String collection, String assetGuid, String filePath, User user){
+        logger.info("validating access");
+        if (!validateAccess(user, assetGuid)) {
+            throw new DasscoIllegalActionException("User does not have access");
+        }
+        logger.info("finished validating access");
+
+        String assetPath = "/" + Strings.join(new String[]{institution, collection, assetGuid, filePath}, "/");
+        FileRepository fileRepository = jdbi.onDemand(FileRepository.class);
+        DasscoFile filesByAssetPath = fileRepository.getFilesByAssetPath(assetPath);
+        if (filesByAssetPath == null) {
+            throw new DasscoNotFoundException("The asset does not have this file");
+        }
+        if (filesByAssetPath.syncStatus() != FileSyncStatus.SYNCHRONIZED || filesByAssetPath.deleteAfterSync()) {
+            throw new DasscoIllegalActionException("File is being edited");
+        }
+        String erdaLocation = Strings.join(new String[]{erdaProperties.httpURL(), institution, collection, assetGuid, filePath}, "/");
+        logger.info("ERDA location: {}", erdaLocation);
+
+        try (InputStream inputStream = fetchFromERDA(erdaLocation)){
+            if (inputStream != null){
+                StreamingOutput streamingOutput = output -> {
+                    byte[] buffer = new byte[4096];
+                    int bytesRead;
+                    while ((bytesRead = inputStream.read(buffer)) != 1){
+                        output.write(buffer, 0, bytesRead);
+                    }
+                    output.flush();
+                };
+
+                return Response.status(200)
+                        .header("Content-Disposition", "attachment; filename=" + filePath)
+                        .header("Content-Type", new Tika().detect(filePath)).entity(streamingOutput).build();
+            }
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+        return Response.status(500).entity("There was an error streaming the file").build();
     }
 
     public void cacheFile(DasscoFile dasscoFile) {

@@ -39,26 +39,29 @@ public class Files {
             , @PathParam("collection") String collection
             , @PathParam("assetGuid") String guid
             , @Context SecurityContext securityContext
+            , @QueryParam("no-cache") @DefaultValue("false") boolean noCache
     ) {
         final String path = uriInfo.getPathParameters().getFirst("path");
         logger.info("Getting file");
         if (securityContext == null) {
             return Response.status(401).build();
         }
-        Optional<FileService.FileResult> file = cacheFileService.getFile(institution, collection, guid, path, UserMapper.from(securityContext));
-        logger.info("got file");
 
-        if (file.isPresent()) {
+        if (!noCache){
+            Optional<FileService.FileResult> file = cacheFileService.getFile(institution, collection, guid, path, UserMapper.from(securityContext));
+            logger.info("got file");
+
+            if (file.isPresent()) {
 //            try {
-            FileService.FileResult fileResult = file.get();
-            StreamingOutput streamingOutput = output -> {
-                fileResult.is().transferTo(output);
-                output.flush();
-            };
+                FileService.FileResult fileResult = file.get();
+                StreamingOutput streamingOutput = output -> {
+                    fileResult.is().transferTo(output);
+                    output.flush();
+                };
 
-            return Response.status(200)
-                    .header("Content-Disposition", "attachment; filename=" + fileResult.filename())
-                    .header("Content-Type", new Tika().detect(fileResult.filename())).entity(streamingOutput).build();
+                return Response.status(200)
+                        .header("Content-Disposition", "attachment; filename=" + fileResult.filename())
+                        .header("Content-Type", new Tika().detect(fileResult.filename())).entity(streamingOutput).build();
 //            }
 //            finally {
 //                try {
@@ -67,8 +70,11 @@ public class Files {
 //                    throw new RuntimeException(e);
 //                }
 //            }
+            } else {
+                return Response.status(404).build();
+            }
         } else {
-            return Response.status(404).build();
+            return cacheFileService.streamFile(institution, collection, guid, path, UserMapper.from(securityContext));
         }
     }
 }

@@ -609,6 +609,13 @@
           "schema" : {
             "type" : "string"
           }
+        }, {
+          "name" : "no-cache",
+          "in" : "query",
+          "schema" : {
+            "type" : "boolean",
+            "default" : false
+          }
         } ],
         "responses" : {
           "default" : {

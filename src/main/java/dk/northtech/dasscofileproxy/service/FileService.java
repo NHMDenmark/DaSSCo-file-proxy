@@ -481,6 +481,11 @@ public class FileService {
     }
 
     public Response checkAccessCreateZip(List<String> assets, User user){
+
+        if (assets == null || assets.isEmpty()){
+            return Response.status(500).entity("Need to pass a list of assets").build();
+        }
+
         Gson gson = new Gson();
         String requestBody = gson.toJson(assets);
 
@@ -529,6 +534,10 @@ public class FileService {
     }
 
     public Response checkAccessCreateCSV(List<String> assets, User user){
+
+        if (assets == null || assets.isEmpty()){
+            return Response.status(500).entity("Need to pass a list of assets").build();
+        }
 
         Gson gson = new Gson();
         String requestBody = gson.toJson(assets);
