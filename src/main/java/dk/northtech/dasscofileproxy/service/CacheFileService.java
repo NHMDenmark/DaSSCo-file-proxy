@@ -16,6 +16,7 @@ import dk.northtech.dasscofileproxy.repository.FileCacheRepository;
 import dk.northtech.dasscofileproxy.repository.FileRepository;
 import dk.northtech.dasscofileproxy.webapi.exceptionmappers.DaSSCoError;
 import dk.northtech.dasscofileproxy.webapi.exceptionmappers.DaSSCoErrorCode;
+import dk.northtech.dasscofileproxy.webapi.model.FileUploadData;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.WebApplicationException;
 import jakarta.ws.rs.core.Response;
@@ -135,18 +136,21 @@ public class CacheFileService {
 
         try (InputStream inputStream = fetchFromERDA(erdaLocation)){
             if (inputStream != null){
+
+                FileUploadData fileUploadData = new FileUploadData(assetGuid, institution, collection, filePath, 0);
+                Optional<FileService.FileResult> getFileResult = fileService.getFile(fileUploadData);
+
+                FileService.FileResult fileResult = getFileResult.get();
                 StreamingOutput streamingOutput = output -> {
-                    byte[] buffer = new byte[4096];
-                    int bytesRead;
-                    while ((bytesRead = inputStream.read(buffer)) != 1){
-                        output.write(buffer, 0, bytesRead);
+                    try (InputStream is = fileResult.is()) {
+                        is.transferTo(output);
+                        output.flush();
                     }
-                    output.flush();
                 };
 
                 return Response.status(200)
-                        .header("Content-Disposition", "attachment; filename=" + filePath)
-                        .header("Content-Type", new Tika().detect(filePath)).entity(streamingOutput).build();
+                        .header("Content-Disposition", "attachment; filename=" + filePath + "/")
+                        .header("Content-Type", new Tika().detect(fileResult.filename())).entity(streamingOutput).build();
             }
         } catch (IOException e) {
             throw new RuntimeException(e);
