@@ -611,7 +611,7 @@ public class FileService {
             Files.createDirectories(outputDir);
 
             HttpRequest request = HttpRequest.newBuilder()
-                    .uri(URI.create(shareConfig.nodeHost() + "/files/assets" + path))
+                    .uri(URI.create(shareConfig.nodeHost() + "/file_proxy/api/files/assets" + path))
                     .header("Authorization", "Bearer " + user.token)
                     .header("Content-Type", "application/json")
                     .GET()
