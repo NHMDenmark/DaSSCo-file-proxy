@@ -217,6 +217,7 @@ public class CacheFileService {
     }
 
     public InputStream fetchFromERDA(String path) {
+        System.out.println(path);
         HttpClient httpClient = HttpClient.newBuilder().build();
         try {
             HttpRequest request = HttpRequest.newBuilder()
