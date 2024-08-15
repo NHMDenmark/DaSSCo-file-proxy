@@ -116,13 +116,16 @@ public class ERDAClient implements AutoCloseable {
     public Collection<String> listFiles(String path) throws JSchException, SftpException {
         List<String> fileList = new ArrayList<>();
         ChannelSftp channel = startChannelSftp();
-        Vector<ChannelSftp.LsEntry> files = channel.ls(path);
-        for (ChannelSftp.LsEntry entry : files) {
-            if (!entry.getAttrs().isDir()) {
-                fileList.add(entry.getFilename());
+        try {
+            Vector<ChannelSftp.LsEntry> files = channel.ls(path);
+            for (ChannelSftp.LsEntry entry : files) {
+                if (!entry.getAttrs().isDir()) {
+                    fileList.add(entry.getFilename());
+                }
             }
+        } finally {
+            disconnect(channel);
         }
-        disconnect(channel);
 
         return fileList;
     }
@@ -215,8 +218,9 @@ public class ERDAClient implements AutoCloseable {
             channel.disconnect();
             // File or folder does not exist
             return false;
+        } finally {
+            channel.exit();
         }
-
         return false;
     }
 
@@ -282,8 +286,11 @@ public class ERDAClient implements AutoCloseable {
 
     public void downloadFile(String path, String destination) throws IOException, SftpException {
         ChannelSftp channel = startChannelSftp();
-        channel.get(path, destination);
-        disconnect(channel);
+        try {
+            channel.get(path, destination);
+        } finally {
+            disconnect(channel);
+        }
     }
 
     public void testAndRestore() {
