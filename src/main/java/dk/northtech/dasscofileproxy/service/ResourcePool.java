@@ -84,7 +84,10 @@ public abstract class ResourcePool<Resource> {
     }
 
     boolean checkAndAddCreationTime() {
-        if(creationTimes.size() == 3 && creationTimes.getLast().plusSeconds(300).isBefore(Instant.now())) {
+        logger.info("creation times size {}", creationTimes.size());
+        logger.info("last time: {}", creationTimes.size() > 0 ? creationTimes.getLast(): null);
+
+        if(creationTimes.size() == 3 && creationTimes.getLast().plusSeconds(300).isAfter(Instant.now())) {
             return false;
         }
         synchronized (lock) {
