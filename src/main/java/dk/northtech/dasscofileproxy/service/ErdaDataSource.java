@@ -14,8 +14,10 @@ public class ErdaDataSource extends ResourcePool<ERDAClient> {
     private final SFTPConfig sftpConfig;
     private static final Logger logger = LoggerFactory.getLogger(ErdaDataSource.class);
     Instant lastFailure = null;
-    public ErdaDataSource(int size, Boolean dynamicCreation, SFTPConfig sftpConfig) {
-        super(size, dynamicCreation);
+
+
+    public ErdaDataSource(Boolean dynamicCreation, SFTPConfig sftpConfig) {
+        super(sftpConfig.erdaConnectionPoolSize(), dynamicCreation);
         this.sftpConfig = sftpConfig;
     }
 
@@ -29,11 +31,14 @@ public class ErdaDataSource extends ResourcePool<ERDAClient> {
 
 
     @Override
-    public ERDAClient acquire() {
+    public ERDAClient acquire(int maxSeconds) {
         try {
-            ERDAClient acquire = super.acquire();
+            ERDAClient acquire = super.acquire(maxSeconds);
+            if(acquire == null) {
+              throw new RuntimeException("No available ERDA connections");
+            }
             try {
-                acquire.testAndRestore();
+                acquire.testAndThrow();
                 return acquire;
             } catch (Exception e) {
                 logger.warn("Failed to get ERDAClient, maybe ERDA is down?");
@@ -41,7 +46,7 @@ public class ErdaDataSource extends ResourcePool<ERDAClient> {
                     deadClients.add(acquire);
                 }
                 // Don't reset last failure if it happened within the last 5 minutes (ERDA failure typically lasts 5 minutes).
-                if(lastFailure == null || Instant.now().minusSeconds(310).isBefore(lastFailure)) {
+                if (lastFailure == null || Instant.now().minusSeconds(310).isBefore(lastFailure)) {
                     lastFailure = Instant.now();
                 }
                 throw e;
@@ -49,30 +54,41 @@ public class ErdaDataSource extends ResourcePool<ERDAClient> {
         } catch (Exception e) {
             throw new RuntimeException("Failed to get ERDA client: unknown error", e);
         }
-//        throw new RuntimeException("Failed to get ERDA client: unknown error", e);
 
     }
+
+    ERDAClient acquire() throws Exception {
+        return this.acquire(30);
+    }
+
 
     //At random second to prevent other timed tasks to overlap and attempt to get Clients.
     @Scheduled(cron = "33 */1 * * * *")
     public void reviveClients() {
 //        logger.info("checking for failed ERDAClients");
-        if (!deadClients.isEmpty() && lastFailure != null && Instant.now().minusSeconds(310).isBefore(lastFailure)) {
+        logger.warn("There are {} failed ERDAClients", deadClients.size());
+        logger.info("last failure {}", lastFailure);
+        if (!deadClients.isEmpty() && lastFailure != null && Instant.now().minusSeconds(310).isAfter(lastFailure)) {
             ArrayList<ERDAClient> erdaClients;
+            logger.warn("Trying to restore ERDAClients");
             synchronized (lock) {
                 erdaClients = new ArrayList<>(deadClients);
                 this.deadClients = new ArrayList<>();
             }
             logger.warn("There are {} failed ERDAClients", erdaClients.size());
             for (ERDAClient erdaClient : erdaClients) {
-                try {
-                    erdaClient.testAndRestore();
-                    logger.info("Restored one ERDAClient");
-                    recycle(erdaClient);
-                } catch (Exception e) {
-                    // If it is still impossible to add
-                    logger.info("Failed to restore an ERDAClient");
-                    this.deadClients.add(erdaClient);
+                if (checkAndAddCreationTime()) {
+                    try {
+                        erdaClient.testAndRestore();
+                        logger.info("Restored one ERDAClient");
+                        recycle(erdaClient);
+                    } catch (Exception e) {
+                        // If it is still impossible to add
+                        logger.info("Failed to restore an ERDAClient");
+                        this.deadClients.add(erdaClient);
+                    }
+                } else {
+                    deadClients.add(erdaClient);
                 }
             }
         }

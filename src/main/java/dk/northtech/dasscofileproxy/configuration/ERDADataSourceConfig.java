@@ -17,7 +17,7 @@ public class ERDADataSourceConfig {
     
     @Bean
     public ErdaDataSource erdaDataSource() {
-        return new ErdaDataSource(3, true, sftpConfig);
+        return new ErdaDataSource( true, sftpConfig);
     }
 
     @Bean
