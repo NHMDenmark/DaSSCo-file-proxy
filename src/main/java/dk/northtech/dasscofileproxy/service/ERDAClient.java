@@ -309,4 +309,13 @@ public class ERDAClient implements AutoCloseable {
             }
         }
     }
+
+    public void testAndThrow() {
+        try {
+//            logger.info("Verifying that ERDA connection works");
+            Collection<String> strings = listFiles("healthcheck/");
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
 }
