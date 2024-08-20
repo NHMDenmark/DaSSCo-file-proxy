@@ -22,6 +22,7 @@ import jakarta.ws.rs.WebApplicationException;
 import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.core.StreamingOutput;
 import joptsimple.internal.Strings;
+import org.apache.commons.io.IOUtils;
 import org.apache.tika.Tika;
 import org.jdbi.v3.core.Jdbi;
 import org.slf4j.Logger;
@@ -134,28 +135,24 @@ public class CacheFileService {
         String erdaLocation = Strings.join(new String[]{erdaProperties.httpURL(), institution, collection, assetGuid, filePath}, "/");
         logger.info("ERDA location: {}", erdaLocation);
 
-        try (InputStream inputStream = fetchFromERDA(erdaLocation)){
-            if (inputStream != null){
+        try {
+            StreamingOutput streamingOutput = output -> {
+                try (BufferedInputStream bufferedInputStream = new BufferedInputStream(fetchFromERDA(erdaLocation))) {
+                    IOUtils.copy(bufferedInputStream, output);
+                    output.flush();
+                } catch (IOException e) {
+                    throw new RuntimeException("Error while transferring data", e);
+                }
+            };
 
-                FileUploadData fileUploadData = new FileUploadData(assetGuid, institution, collection, filePath, 0);
-                Optional<FileService.FileResult> getFileResult = fileService.getFile(fileUploadData);
+            return Response.ok(streamingOutput)
+                    .header("Content-Disposition", "attachment; filename=" + filePath + "/")
+                    .header("Content-Type", "image/png")
+                    .build();
 
-                FileService.FileResult fileResult = getFileResult.get();
-                StreamingOutput streamingOutput = output -> {
-                    try (InputStream is = fileResult.is()) {
-                        is.transferTo(output);
-                        output.flush();
-                    }
-                };
-
-                return Response.status(200)
-                        .header("Content-Disposition", "attachment; filename=" + filePath + "/")
-                        .header("Content-Type", new Tika().detect(fileResult.filename())).entity(streamingOutput).build();
-            }
-        } catch (IOException e) {
+        } catch (Exception e) {
             throw new RuntimeException(e);
         }
-        return Response.status(500).entity("There was an error streaming the file").build();
     }
 
     public void cacheFile(DasscoFile dasscoFile) {
@@ -217,7 +214,6 @@ public class CacheFileService {
     }
 
     public InputStream fetchFromERDA(String path) {
-        System.out.println(path);
         HttpClient httpClient = HttpClient.newBuilder().build();
         try {
             HttpRequest request = HttpRequest.newBuilder()
