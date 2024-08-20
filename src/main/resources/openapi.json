@@ -669,8 +669,8 @@
         } ]
       }
     },
-    "/shares" : {
-      "get" : {
+    "/shares/assets/{assetGuid}/createShare" : {
+      "post" : {
         "tags" : [ "Shares" ],
         "summary" : "Open Share",
         "description" : "Here you can open a share of an existing asset. The post body consists of a list of assets to be shared and a list of usernames of users that should have access to the share. The amount of space needed to be allocated also needs to be specified. The list of assets can only contain one asset when using this endpoint.",
@@ -683,6 +683,15 @@
             "type" : "string"
           }
         } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/CreationObj"
+              }
+            }
+          }
+        },
         "responses" : {
           "200" : {
             "content" : {
@@ -708,29 +717,12 @@
         } ]
       }
     },
-    "/shares/assets/{assetGuid}/createShare" : {
-      "post" : {
+    "/shares" : {
+      "get" : {
         "tags" : [ "Shares" ],
         "summary" : "Open Share",
         "description" : "Here you can open a share of an existing asset. The post body consists of a list of assets to be shared and a list of usernames of users that should have access to the share. The amount of space needed to be allocated also needs to be specified. The list of assets can only contain one asset when using this endpoint.",
-        "operationId" : "createSambaServer_1",
-        "parameters" : [ {
-          "name" : "assetGuid",
-          "in" : "path",
-          "required" : true,
-          "schema" : {
-            "type" : "string"
-          }
-        } ],
-        "requestBody" : {
-          "content" : {
-            "application/json" : {
-              "schema" : {
-                "$ref" : "#/components/schemas/CreationObj"
-              }
-            }
-          }
-        },
+        "operationId" : "listShares",
         "responses" : {
           "200" : {
             "content" : {
@@ -1049,24 +1041,6 @@
           }
         }
       },
-      "Share" : {
-        "type" : "object",
-        "properties" : {
-          "path" : {
-            "type" : "string"
-          },
-          "id" : {
-            "type" : "integer",
-            "format" : "int64"
-          },
-          "assets" : {
-            "type" : "array",
-            "items" : {
-              "type" : "string"
-            }
-          }
-        }
-      },
       "CreationObj" : {
         "type" : "object",
         "properties" : {
@@ -1114,6 +1088,24 @@
             "type" : "string",
             "description" : "The collection name within the institution that holds the specimen",
             "example" : "test-collection"
+          }
+        }
+      },
+      "Share" : {
+        "type" : "object",
+        "properties" : {
+          "path" : {
+            "type" : "string"
+          },
+          "id" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "assets" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
           }
         }
       },
