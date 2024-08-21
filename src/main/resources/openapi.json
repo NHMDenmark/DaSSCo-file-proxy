@@ -77,12 +77,20 @@
         } ]
       }
     },
-    "/assetfiles/createZipFile" : {
+    "/assetfiles/createZipFile/{guid}" : {
       "post" : {
         "tags" : [ "Asset Files" ],
         "summary" : "Create Zip File",
         "description" : "Takes a list of Asset Guids, saves the associated files in the temp folder and zips both the images and the .csv with metadata.",
         "operationId" : "createZip",
+        "parameters" : [ {
+          "name" : "guid",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
         "requestBody" : {
           "content" : {
             "application/json" : {
@@ -284,12 +292,20 @@
         } ]
       }
     },
-    "/assetfiles/deleteTempFolder" : {
+    "/assetfiles/deleteTempFolder/{guid}" : {
       "delete" : {
         "tags" : [ "Asset Files" ],
         "summary" : "Delete Temp Folder",
         "description" : "Deletes the temp folder, which contains .csv and .zip files from the Query Page and Detailed View",
         "operationId" : "deleteTempFolder",
+        "parameters" : [ {
+          "name" : "guid",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
         "responses" : {
           "204" : {
             "description" : "No Content. File has been deleted."
@@ -475,13 +491,20 @@
         } ]
       }
     },
-    "/assetfiles/getTempFile/{fileName}" : {
+    "/assetfiles/getTempFile/{guid}/{fileName}" : {
       "get" : {
         "tags" : [ "Asset Files" ],
         "summary" : "Get Temporary File",
         "description" : "Gets a file from the Temp Folder (.csv or .zip for downloading assets).",
         "operationId" : "getTempFile",
         "parameters" : [ {
+          "name" : "guid",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
           "name" : "fileName",
           "in" : "path",
           "required" : true,

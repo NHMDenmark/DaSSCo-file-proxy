@@ -20,6 +20,7 @@ import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.*;
 import org.apache.commons.io.FileUtils;
 import org.apache.tika.Tika;
+import org.springframework.security.core.parameters.P;
 import org.springframework.web.bind.annotation.RequestBody;
 
 import java.io.File;
@@ -178,16 +179,17 @@ public class AssetFiles {
     }
 
     @POST
-    @Path("/createZipFile")
+    @Path("/createZipFile/{guid}")
     @Operation(summary = "Create Zip File", description = "Takes a list of Asset Guids, saves the associated files in the temp folder and zips both the images and the .csv with metadata.")
     @Consumes(APPLICATION_JSON)
     @Produces(MediaType.TEXT_PLAIN)
     @ApiResponse(responseCode = "200", content = @Content(mediaType = MediaType.TEXT_PLAIN, array = @ArraySchema(schema = @Schema(implementation = String.class)), examples = { @ExampleObject("ZIP File created successfully.")}))
     @ApiResponse(responseCode = "400-599", content = @Content(mediaType = MediaType.TEXT_PLAIN, array = @ArraySchema(schema = @Schema(implementation = String.class)), examples = { @ExampleObject("Error creating ZIP file.")}))
     public Response createZip(@Context SecurityContext securityContext,
-                                      List<String> assets){
+                                      List<String> assets,
+                              @PathParam("guid") String guid){
 
-        return fileService.checkAccessCreateZip(assets, UserMapper.from(securityContext));
+        return fileService.checkAccessCreateZip(assets, UserMapper.from(securityContext), guid);
     }
 
     @POST
@@ -223,11 +225,11 @@ public class AssetFiles {
     }
 
     @GET
-    @Path("/getTempFile/{fileName}")
+    @Path("/getTempFile/{guid}/{fileName}")
     @Operation(summary = "Get Temporary File", description = "Gets a file from the Temp Folder (.csv or .zip for downloading assets).")
-    public Response getTempFile(@PathParam("fileName") String fileName){
+    public Response getTempFile(@PathParam("guid") String guid, @PathParam("fileName") String fileName){
         String projectDir = System.getProperty("user.dir");
-        java.nio.file.Path tempDir = Paths.get(projectDir, "target", "temp");
+        java.nio.file.Path tempDir = Paths.get(projectDir, "target", "temp", guid);
         java.nio.file.Path filePath = tempDir.resolve(fileName);
 
         if (java.nio.file.Files.notExists(filePath)){
@@ -254,14 +256,14 @@ public class AssetFiles {
 
     // NEW
     @DELETE
-    @Path("/deleteTempFolder")
+    @Path("/deleteTempFolder/{guid}")
     @Operation(summary = "Delete Temp Folder", description = "Deletes the temp folder, which contains .csv and .zip files from the Query Page and Detailed View")
     @ApiResponse(responseCode = "204", description = "No Content. File has been deleted.")
     @ApiResponse(responseCode = "400-599", content = @Content(mediaType = APPLICATION_JSON, schema = @Schema(implementation = DaSSCoError.class)))
-    public Response deleteTempFolder(){
+    public Response deleteTempFolder(@PathParam("guid") String guid){
 
         String projectDir = System.getProperty("user.dir");
-        File tempDir = new File(projectDir, "target/temp");
+        File tempDir = new File(projectDir, "target/temp/" + guid);
 
         try {
             if (tempDir.exists()){

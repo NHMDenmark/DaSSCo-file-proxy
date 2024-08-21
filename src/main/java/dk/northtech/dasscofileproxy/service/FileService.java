@@ -35,6 +35,7 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.file.*;
 import java.nio.file.attribute.BasicFileAttributes;
+import java.security.SecureRandom;
 import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -424,10 +425,10 @@ public class FileService {
         }
     }
 
-    public void createZipFile() throws IOException {
+    public void createZipFile(String guid) throws IOException {
 
         String projectDir = System.getProperty("user.dir");
-        Path tempDir = Paths.get(projectDir, "target", "temp");
+        Path tempDir = Paths.get(projectDir, "target", "temp", guid);
         Path zipFilePath = tempDir.resolve("assets.zip");
 
         try (FileOutputStream fos = new FileOutputStream(zipFilePath.toFile());
@@ -481,7 +482,7 @@ public class FileService {
         return false;
     }
 
-    public Response checkAccessCreateZip(List<String> assets, User user){
+    public Response checkAccessCreateZip(List<String> assets, User user, String guid){
 
         if (assets == null || assets.isEmpty()){
             return Response.status(500).entity("Need to pass a list of assets").build();
@@ -518,10 +519,10 @@ public class FileService {
                         }
                     }
                     if (!assetFiles.isEmpty()){
-                        saveFilesTempFolder(assetFiles, user);
+                        saveFilesTempFolder(assetFiles, user, guid);
                     }
-                    this.createZipFile();
-                    return Response.status(200).entity("Files saved to Temp File").build();
+                    this.createZipFile(guid);
+                    return Response.status(200).entity(guid).build();
                 } catch (Exception e){
                     e.printStackTrace();
                 }
@@ -558,9 +559,11 @@ public class FileService {
             if (response.statusCode() == 403){
                 return Response.status(403).entity(response.body()).build();
             } else if (response.statusCode() == 200){
+                // Create a 20 digit guid
+                String guid = randomGuidGenerator(20);
                 // Create the CSV file:
-                createCsvFile(response.body());
-                return Response.status(200).entity("CSV CREATED").build();
+                createCsvFile(response.body(), guid);
+                return Response.status(200).entity(guid).build();
             } else {
                 return Response.status(500).entity(response.body()).build();
             }
@@ -571,11 +574,11 @@ public class FileService {
         return Response.status(500).build();
     }
 
-    public void createCsvFile(String csvString){
+    public void createCsvFile(String csvString, String guid){
         String separatorLine = "sep=,\r\n";
         String fullCsv = separatorLine + csvString;
         String projectDir = System.getProperty("user.dir");
-        Path tempDir = Paths.get(projectDir, "target", "temp");
+        Path tempDir = Paths.get(projectDir, "target", "temp", guid);
         try {
             Files.createDirectories(tempDir);
             Path filePath = tempDir.resolve("assets.csv");
@@ -587,12 +590,10 @@ public class FileService {
         }
     }
 
-    public void saveFilesTempFolder(List<String> paths, User user) throws IOException, InterruptedException {
-
-        this.cleanTempFolder();
+    public void saveFilesTempFolder(List<String> paths, User user, String guid) throws IOException, InterruptedException {
 
         String projectDir = System.getProperty("user.dir");
-        Path tempDir = Paths.get(projectDir, "target", "temp");
+        Path tempDir = Paths.get(projectDir, "target", "temp", guid);
 
         HttpClient httpClient = HttpClient.newHttpClient();
 
@@ -600,7 +601,6 @@ public class FileService {
             Files.createDirectories(tempDir);
         } catch (IOException e) {
             e.printStackTrace();
-            return;
         }
 
         for (String path : paths) {
@@ -672,5 +672,16 @@ public class FileService {
     public List<String> listFilesInErda(String assetGuid){
         List<DasscoFile> files = jdbi.onDemand(FileRepository.class).getSyncFilesByAssetGuid(assetGuid);
         return files.stream().map(DasscoFile::getWorkDirFilePath).toList();
+    }
+
+    public String randomGuidGenerator(int length){
+        String characters = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+        SecureRandom random = new SecureRandom();
+
+        StringBuilder guid = new StringBuilder(length);
+        for (int i = 0; i < length; i++){
+            guid.append(characters.charAt(random.nextInt(characters.length())));
+        }
+        return guid.toString();
     }
 }
