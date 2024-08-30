@@ -7,14 +7,18 @@ services:
     extends:
       file: ./docker-compose-postgres.yaml
       service: database
-  app:
+#  app:
+#    extends:
+#      file: ./docker-compose-app.yaml
+#      service: app
+  rabbitmq:
     extends:
-      file: ./docker-compose-app.yaml
-      service: app
-  asset-service:
-    extends:
-      file: ./docker-compos-asset-service-app.yaml
-      service: asset-service
+      file: ./docker-compose-rabbitmq.yaml
+      service: rabbitmq
+#  asset-service:
+#    extends:
+#      file: docker-compose-asset-service-app.yaml
+#      service: asset-service
 volumes:
   log-volume:
   asset-service-log-volume:

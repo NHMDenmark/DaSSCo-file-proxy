@@ -1,0 +1,14 @@
+services:
+  rabbitmq:
+    build:
+      dockerfile: rabbitmq/Dockerfile
+    image: rabbitmq
+    ports:
+      - 15672:15672
+      - 5672:5672
+    environment:
+      KEYCLOAK_SCHEME: https
+      KEYCLOAK_HOSTNAME: keycloak:8443
+      KEYCLOAK_REALM: dassco
+      KEYCLOAK_PREFIX: keycloak
+      KEYCLOAK_AUD: rabbitmq
