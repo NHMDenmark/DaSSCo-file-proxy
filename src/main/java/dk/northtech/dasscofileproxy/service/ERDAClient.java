@@ -15,7 +15,6 @@ import java.util.*;
 public class ERDAClient implements AutoCloseable {
     private static final Logger logger = LoggerFactory.getLogger(ERDAClient.class);
     private Session session;
-
     private final SFTPConfig sftpConfig;
     private ErdaDataSource creator;
 
@@ -116,13 +115,16 @@ public class ERDAClient implements AutoCloseable {
     public Collection<String> listFiles(String path) throws JSchException, SftpException {
         List<String> fileList = new ArrayList<>();
         ChannelSftp channel = startChannelSftp();
-        Vector<ChannelSftp.LsEntry> files = channel.ls(path);
-        for (ChannelSftp.LsEntry entry : files) {
-            if (!entry.getAttrs().isDir()) {
-                fileList.add(entry.getFilename());
+        try {
+            Vector<ChannelSftp.LsEntry> files = channel.ls(path);
+            for (ChannelSftp.LsEntry entry : files) {
+                if (!entry.getAttrs().isDir()) {
+                    fileList.add(entry.getFilename());
+                }
             }
+        } finally {
+            disconnect(channel);
         }
-        disconnect(channel);
 
         return fileList;
     }
@@ -161,20 +163,23 @@ public class ERDAClient implements AutoCloseable {
 
     public void createSubDirsIfNotExists(List<Path> paths) {
         ChannelSftp channelSftp = startChannelSftp();
-        for (Path path : paths) {
-            //Last element is the file itself
-            int directoryDepth = path.getNameCount() - 1;
-            String remotePath = "";
-            for (int i = 0; i < directoryDepth; i++) {
-                remotePath += path.getName(i) + "/";
-                try {
-                    channelSftp.mkdir(remotePath);
-                } catch (Exception e) {
-                    //OK, the folder already exists
+        try {
+            for (Path path : paths) {
+                //Last element is the file itself
+                int directoryDepth = path.getNameCount() - 1;
+                String remotePath = "";
+                for (int i = 0; i < directoryDepth; i++) {
+                    remotePath += path.getName(i) + "/";
+                    try {
+                        channelSftp.mkdir(remotePath);
+                    } catch (Exception e) {
+                        //OK, the folder already exists
+                    }
                 }
             }
+        } finally {
+            channelSftp.disconnect();
         }
-
     }
 
     public void putFileToPath(String localPath, String remotePath) throws JSchException {
@@ -215,8 +220,9 @@ public class ERDAClient implements AutoCloseable {
             channel.disconnect();
             // File or folder does not exist
             return false;
+        } finally {
+            channel.exit();
         }
-
         return false;
     }
 
@@ -282,8 +288,11 @@ public class ERDAClient implements AutoCloseable {
 
     public void downloadFile(String path, String destination) throws IOException, SftpException {
         ChannelSftp channel = startChannelSftp();
-        channel.get(path, destination);
-        disconnect(channel);
+        try {
+            channel.get(path, destination);
+        } finally {
+            disconnect(channel);
+        }
     }
 
     public void testAndRestore() {
@@ -300,6 +309,15 @@ public class ERDAClient implements AutoCloseable {
                 // We do not want to return failed connection.
                 throw new RuntimeException(e2);
             }
+        }
+    }
+
+    public void testAndThrow() {
+        try {
+//            logger.info("Verifying that ERDA connection works");
+            Collection<String> strings = listFiles("healthcheck/");
+        } catch (Exception e) {
+            throw new RuntimeException(e);
         }
     }
 }

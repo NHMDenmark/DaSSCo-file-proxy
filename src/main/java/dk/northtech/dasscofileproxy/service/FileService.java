@@ -1,6 +1,11 @@
 package dk.northtech.dasscofileproxy.service;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Strings;
+import com.google.common.reflect.TypeToken;
+import com.nimbusds.jose.shaded.gson.Gson;
+import dk.northtech.dasscofileproxy.assets.AssetServiceProperties;
 import dk.northtech.dasscofileproxy.configuration.ShareConfig;
 import dk.northtech.dasscofileproxy.domain.*;
 import dk.northtech.dasscofileproxy.domain.exceptions.DasscoInternalErrorException;
@@ -8,34 +13,52 @@ import dk.northtech.dasscofileproxy.repository.DirectoryRepository;
 import dk.northtech.dasscofileproxy.repository.FileRepository;
 import dk.northtech.dasscofileproxy.repository.SharedAssetList;
 import dk.northtech.dasscofileproxy.repository.UserAccessList;
+import dk.northtech.dasscofileproxy.webapi.exceptionmappers.DaSSCoError;
+import dk.northtech.dasscofileproxy.webapi.exceptionmappers.DaSSCoErrorCode;
 import dk.northtech.dasscofileproxy.webapi.model.FileUploadData;
 import dk.northtech.dasscofileproxy.webapi.model.FileUploadResult;
 import jakarta.inject.Inject;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import jakarta.ws.rs.core.Response;
+import jakarta.ws.rs.core.StreamingOutput;
 import org.jdbi.v3.core.Jdbi;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.security.core.parameters.P;
 import org.springframework.stereotype.Service;
 
 import java.io.*;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.nio.file.*;
+import java.nio.file.attribute.BasicFileAttributes;
+import java.security.SecureRandom;
 import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.util.zip.CRC32;
 import java.util.zip.CheckedInputStream;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipOutputStream;
 
 @Service
 public class FileService {
     ShareConfig shareConfig;
     Jdbi jdbi;
     AssetService assetService;
+    AssetServiceProperties assetServiceProperties;
     private static final Logger logger = LoggerFactory.getLogger(FileService.class);
 
     @Inject
-    public FileService(ShareConfig shareConfig, Jdbi jdbi, AssetService assetService) {
+    public FileService(ShareConfig shareConfig, Jdbi jdbi, AssetService assetService,
+                       AssetServiceProperties assetServiceProperties) {
         this.shareConfig = shareConfig;
         this.assetService = assetService;
         this.jdbi = jdbi;
+        this.assetServiceProperties = assetServiceProperties;
     }
 
 
@@ -64,7 +87,7 @@ public class FileService {
     }
 
     public Optional<FileResult> getFile(FileUploadData fileUploadData) {
-        File file = new File(shareConfig.mountFolder() + fileUploadData.getFilePath());
+        File file = new File(shareConfig.mountFolder() + fileUploadData.getAssetFilePath());
         if (file.exists()) {
             try {
                 return Optional.of(new FileResult(new FileInputStream(file), file.getName()));
@@ -108,6 +131,11 @@ public class FileService {
             fileRepository.setSynchronizedStatus(assetGuid);
             return h;
         });
+    }
+
+    public boolean deleteFile(String locationOnDisk) {
+        File file = new File(locationOnDisk);
+        return file.delete();
     }
 
     public record FileResult(InputStream is, String filename) {
@@ -270,12 +298,12 @@ public class FileService {
                 if (crc == value) {
                     if (markForDeletion) {
                         logger.info("Marking overwritten file for deletion upon sync");
-                        fileRepository.markForDeletion(fileUploadData.getFilePath());
+                        fileRepository.markForDeletion(fileUploadData.getPath());
                     }
                     long fileSize = tempFile.length();
                     // Move to actual location and overwrite existing file if present.
                     Files.move(tempFile.toPath(), file2.toPath(), StandardCopyOption.REPLACE_EXISTING);
-                    fileRepository.insertFile(new DasscoFile(null, fileUploadData.asset_guid(), fileUploadData.getFilePath(), fileSize, value, FileSyncStatus.NEW_FILE));
+                    fileRepository.insertFile(new DasscoFile(null, fileUploadData.asset_guid(), fileUploadData.getPath(), fileSize, value, FileSyncStatus.NEW_FILE));
                 }
 
             } catch (IOException e) {
@@ -319,7 +347,7 @@ public class FileService {
     }
 
     public boolean deleteFile(FileUploadData fileUploadData) {
-        File file = new File(shareConfig.mountFolder() + fileUploadData.getFilePath());
+        File file = new File(shareConfig.mountFolder() + fileUploadData.getAssetFilePath());
         jdbi.withHandle(h -> {
             DirectoryRepository directoryRepository = h.attach(DirectoryRepository.class);
             List<Directory> writeableDirectoriesByAsset = directoryRepository.getWriteableDirectoriesByAsset(fileUploadData.asset_guid());
@@ -344,12 +372,12 @@ public class FileService {
             throw new IllegalArgumentException("Collection must be present");
         }
         // Get all asset files so we can schedule the deleted files for deletion
-        Map<String, DasscoFile> collect = listFilesByAssetGuid(fileUploadData.asset_guid())
+        Map<String, DasscoFile> pathFileMap = listFilesByAssetGuid(fileUploadData.asset_guid())
                 .stream()
                 .filter(x -> !x.deleteAfterSync())
-                .collect(Collectors.toMap(x -> shareConfig.mountFolder() + x.path(), x -> x));
+                .collect(Collectors.toMap(dasscoFile -> shareConfig.mountFolder() + dasscoFile.getWorkDirFilePath(), x -> x));
         if (file.isDirectory()) {
-            try (var dirStream = Files.walk(Paths.get(shareConfig.mountFolder() + fileUploadData.getFilePath()))) {
+            try (var dirStream = Files.walk(Paths.get(shareConfig.mountFolder() + fileUploadData.getAssetFilePath()))) {
                 dirStream
                         .map(Path::toFile)
                         .sorted(Comparator.reverseOrder())
@@ -361,8 +389,8 @@ public class FileService {
                             file1.delete();
                             if (isFile) {
                                 String normalisedPath = file1.toString().replace('\\', '/');
-                                if (collect.containsKey(normalisedPath)) {
-                                    markDasscoFileToBeDeleted(collect.get(normalisedPath).path());
+                                if (pathFileMap.containsKey(normalisedPath)) {
+                                    markDasscoFileToBeDeleted(pathFileMap.get(normalisedPath).path());
                                 }
                             }
                         });
@@ -372,10 +400,288 @@ public class FileService {
         } else {
             file.delete();
             String normalisedPath = file.toString().replace('\\', '/');
-            if (collect.containsKey(normalisedPath)) {
-                markDasscoFileToBeDeleted(collect.get(normalisedPath).path());
+            if (pathFileMap.containsKey(normalisedPath)) {
+                markDasscoFileToBeDeleted(pathFileMap.get(normalisedPath).path());
             }
         }
         return true;
+    }
+
+    public boolean deleteLocalFiles(String relativePath, String fileName){
+        String projectDir = System.getProperty("user.dir");
+        Path filePath = Paths.get(projectDir, "target", relativePath);
+        File file = new File(filePath.toString());
+
+        if (file.exists() && file.getName().equals(fileName)){
+            try {
+                Files.delete(filePath);
+                return true;
+            } catch (IOException e){
+                e.printStackTrace();
+                return false;
+            }
+        } else {
+            return false;
+        }
+    }
+
+    public void createZipFile(String guid) throws IOException {
+
+        String projectDir = System.getProperty("user.dir");
+        Path tempDir = Paths.get(projectDir, "target", "temp", guid);
+        Path zipFilePath = tempDir.resolve("assets.zip");
+
+        try (FileOutputStream fos = new FileOutputStream(zipFilePath.toFile());
+             ZipOutputStream zos = new ZipOutputStream(fos)) {
+
+            Files.walk(tempDir)
+                    .filter(path -> !path.equals(zipFilePath))
+                    .forEach(path -> {
+                        String entryName = tempDir.relativize(path).toString();
+                        if (Files.isDirectory(path)) {
+                            try {
+                                zos.putNextEntry(new ZipEntry(entryName + "/"));
+                                zos.closeEntry();
+                            } catch (IOException e) {
+                                e.printStackTrace();
+                            }
+                        } else {
+                            try {
+                                ZipEntry zipEntry = new ZipEntry(entryName);
+                                zos.putNextEntry(zipEntry);
+                                Files.copy(path, zos);
+                                zos.closeEntry();
+                            } catch (Exception e) {
+                                e.printStackTrace();
+                            }
+                        }
+                    });
+        }
+    }
+
+    public boolean checkAccess(String assetGuid, User user){
+        HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create(assetServiceProperties.rootUrl() + "/api/v1/assets/readaccess?assetGuid=" + assetGuid))
+                .header("Authorization", "Bearer " + user.token)
+                .header("Content-Type", "application/json")
+                .POST(HttpRequest.BodyPublishers.noBody())
+                .build();
+
+        HttpClient httpClient = HttpClient.newHttpClient();
+
+        try {
+            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+            if (response.statusCode() == 403){
+                return false;
+            } else if (response.statusCode() == 204){
+                return true;
+            }
+        } catch (Exception e){
+            e.printStackTrace();
+        }
+        return false;
+    }
+
+    public Response checkAccessCreateZip(List<String> assets, User user, String guid){
+
+        if (assets == null || assets.isEmpty()){
+            return Response.status(500).entity("Need to pass a list of assets").build();
+        }
+
+        Gson gson = new Gson();
+        String requestBody = gson.toJson(assets);
+
+        ObjectMapper objectMapper = new ObjectMapper();
+
+        HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create(assetServiceProperties.rootUrl() + "/api/v1/assets/readaccessforzip"))
+                .header("Authorization", "Bearer " + user.token)
+                .header("Content-Type", "application/json")
+                .POST(HttpRequest.BodyPublishers.ofString(requestBody))
+                .build();
+
+        HttpClient httpClient = HttpClient.newHttpClient();
+
+        try {
+            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+
+            if (response.statusCode() == 403){
+                return Response.status(403).entity(response.body()).build();
+            } else if (response.statusCode() == 200){
+                try {
+                    // GET FILE LOCATION FROM THE DB:
+                    List<String> assetGuids = objectMapper.readValue(response.body(), new TypeReference<List<String>>() {});
+                    List<String> assetFiles = new ArrayList<>();
+                    for (String asset : assetGuids){
+                        List<DasscoFile> foundFiles = jdbi.onDemand(FileRepository.class).getSyncFilesByAssetGuid(asset);
+                        for (DasscoFile dasscoFile : foundFiles){
+                            assetFiles.add(dasscoFile.path());
+                        }
+                    }
+                    if (!assetFiles.isEmpty()){
+                        saveFilesTempFolder(assetFiles, user, guid);
+                    }
+                    this.createZipFile(guid);
+                    return Response.status(200).entity(guid).build();
+                } catch (Exception e){
+                    e.printStackTrace();
+                }
+            } else {
+                return Response.status(500).entity(response.body()).build();
+            }
+        } catch (Exception e){
+            e.printStackTrace();
+        }
+        return Response.status(500).entity("There was an error downloading the files").build();
+    }
+
+    public Response checkAccessCreateCSV(List<String> assets, User user){
+
+        if (assets == null || assets.isEmpty()){
+            return Response.status(500).entity("Need to pass a list of assets").build();
+        }
+
+        Gson gson = new Gson();
+        String requestBody = gson.toJson(assets);
+
+        HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create(assetServiceProperties.rootUrl() + "/api/v1/assets/readaccessforcsv"))
+                .header("Authorization", "Bearer " + user.token)
+                .header("Content-Type", "application/json")
+                .POST(HttpRequest.BodyPublishers.ofString(requestBody))
+                .build();
+
+        HttpClient httpClient = HttpClient.newHttpClient();
+
+        try {
+            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+
+            if (response.statusCode() == 403){
+                return Response.status(403).entity(response.body()).build();
+            } else if (response.statusCode() == 200){
+                // Create a 20 digit guid
+                String guid = randomGuidGenerator(20);
+                // Create the CSV file:
+                createCsvFile(response.body(), guid);
+                return Response.status(200).entity(guid).build();
+            } else {
+                return Response.status(500).entity(response.body()).build();
+            }
+
+        } catch (Exception e){
+            e.printStackTrace();
+        }
+        return Response.status(500).build();
+    }
+
+    public void createCsvFile(String csvString, String guid){
+        String separatorLine = "sep=,\r\n";
+        String fullCsv = separatorLine + csvString;
+        String projectDir = System.getProperty("user.dir");
+        Path tempDir = Paths.get(projectDir, "target", "temp", guid);
+        try {
+            Files.createDirectories(tempDir);
+            Path filePath = tempDir.resolve("assets.csv");
+            try (FileWriter writer = new FileWriter(filePath.toFile())){
+                writer.write(fullCsv);
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public void saveFilesTempFolder(List<String> paths, User user, String guid) throws IOException, InterruptedException {
+
+        String projectDir = System.getProperty("user.dir");
+        Path tempDir = Paths.get(projectDir, "target", "temp", guid);
+
+        HttpClient httpClient = HttpClient.newHttpClient();
+
+        try {
+            Files.createDirectories(tempDir);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+        for (String path : paths) {
+            String[] parts = path.split("/");
+            String folderName = parts[parts.length - 2];
+            String fileName = parts[parts.length - 1];
+
+            Path outputDir = tempDir.resolve(folderName);
+            Files.createDirectories(outputDir);
+
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create(shareConfig.nodeHost() + "/file_proxy/api/files/assets" + path))
+                    .header("Authorization", "Bearer " + user.token)
+                    .header("Content-Type", "application/json")
+                    .GET()
+                    .build();
+            try {
+                HttpResponse<InputStream> response = httpClient.send(request, HttpResponse.BodyHandlers.ofInputStream());
+                if (response.statusCode() == 200){
+                    Path outputPath = outputDir.resolve(fileName);
+                    try (InputStream inputStream = response.body()){
+                        Files.copy(inputStream, outputPath, StandardCopyOption.REPLACE_EXISTING);
+                    }
+                } else {
+                    throw new FileNotFoundException("Failed to download image: " + path);
+                }
+            } catch (Exception e){
+                throw new FileNotFoundException(e.getMessage());
+            }
+        }
+    }
+
+    // Clean the temp folder (if it exists) from .zip and folders.
+    public void cleanTempFolder() {
+        String projectDir = System.getProperty("user.dir");
+        Path tempDir = Paths.get(projectDir, "target", "temp");
+
+        if (Files.exists(tempDir)){
+            try {
+                try (var stream = Files.list(tempDir)){
+                    stream.filter(path -> path.toString().endsWith(".zip"))
+                            .forEach(path -> {
+                                try {
+                                    Files.deleteIfExists(path);
+                                } catch (IOException e){
+                                    e.printStackTrace();
+                                }
+                            });
+                }
+
+                try (var stream = Files.walk(tempDir)){
+                    stream.sorted(Comparator.reverseOrder())
+                            .filter(path -> !path.equals(tempDir))
+                            .filter(path -> Files.isDirectory(path) || !path.toString().endsWith(".csv"))
+                            .forEach(path -> {
+                                try {
+                                    Files.deleteIfExists(path);
+                                } catch (IOException e){
+                                    e.printStackTrace();
+                                }
+                            });
+                }
+            } catch (IOException e){
+                e.printStackTrace();
+            }
+        }
+    }
+
+    public List<String> listFilesInErda(String assetGuid){
+        List<DasscoFile> files = jdbi.onDemand(FileRepository.class).getSyncFilesByAssetGuid(assetGuid);
+        return files.stream().map(DasscoFile::getWorkDirFilePath).toList();
+    }
+
+    public String randomGuidGenerator(int length){
+        String characters = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+        SecureRandom random = new SecureRandom();
+
+        StringBuilder guid = new StringBuilder(length);
+        for (int i = 0; i < length; i++){
+            guid.append(characters.charAt(random.nextInt(characters.length())));
+        }
+        return guid.toString();
     }
 }

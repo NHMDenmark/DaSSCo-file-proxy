@@ -29,6 +29,10 @@ public record DasscoFile(
         this.syncStatus = syncStatus;
     }
 
+    public String getWorkDirFilePath() {
+        return "/assetfiles" + path;
+    }
+
     public DasscoFile(Long fileId, String assetGuid, String path, long sizeBytes, long crc, FileSyncStatus fileSyncStatus) {
         this(fileId, assetGuid, path, sizeBytes, crc, false, fileSyncStatus);
     }

@@ -5,7 +5,11 @@ import dk.northtech.dasscofileproxy.repository.FileRepository;
 import dk.northtech.dasscofileproxy.webapi.model.FileUploadData;
 import dk.northtech.dasscofileproxy.webapi.model.FileUploadResult;
 import jakarta.inject.Inject;
+
+import org.junit.Assert;
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Disabled;
+import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.annotation.DirtiesContext;
@@ -18,14 +22,20 @@ import org.testcontainers.utility.DockerImageName;
 
 import java.io.*;
 import java.nio.channels.FileChannel;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.time.Instant;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipInputStream;
+import java.util.zip.ZipOutputStream;
 
 import static com.google.common.truth.Truth.assertThat;
-import static org.junit.Assert.assertThrows;
+import static org.junit.Assert.*;
 
 
 @SpringBootTest
@@ -174,4 +184,25 @@ public class FileServiceTest {
         }).close();
     }
 
+    @Test
+    public void testCreateCsvFile(){
+        String projectDir = System.getProperty("user.dir");
+        String relativePath = "assets.csv";
+        String csvContent = "header1,header2,header3\nvalue1,value2,value3";
+
+
+        fileService.createCsvFile(csvContent, "123456");
+
+        Path csvFilePath = Paths.get(projectDir, "target", "temp", relativePath);
+        System.out.println(csvFilePath);
+        assertThat(Files.exists(csvFilePath)).isTrue();
+
+        try {
+            String content = Files.readString(csvFilePath);
+            assertThat(content).isEqualTo("sep=,\r\n" + csvContent);
+            Files.deleteIfExists(csvFilePath);
+        } catch (IOException e) {
+            Assertions.fail("IOException should not have been thrown while reading the file");
+        }
+    }
 }

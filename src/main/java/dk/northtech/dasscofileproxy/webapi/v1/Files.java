@@ -1,164 +1,80 @@
 package dk.northtech.dasscofileproxy.webapi.v1;
 
 import dk.northtech.dasscofileproxy.domain.User;
+import dk.northtech.dasscofileproxy.service.CacheFileService;
 import dk.northtech.dasscofileproxy.service.FileService;
 import dk.northtech.dasscofileproxy.webapi.UserMapper;
-import dk.northtech.dasscofileproxy.webapi.exceptionmappers.DaSSCoError;
-import dk.northtech.dasscofileproxy.webapi.model.FileUploadData;
-import dk.northtech.dasscofileproxy.webapi.model.FileUploadResult;
-import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.media.ArraySchema;
-import io.swagger.v3.oas.annotations.media.Content;
-import io.swagger.v3.oas.annotations.media.ExampleObject;
-import io.swagger.v3.oas.annotations.media.Schema;
-import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.*;
 import org.apache.tika.Tika;
-import org.checkerframework.checker.units.qual.A;
-import org.checkerframework.checker.units.qual.C;
-
-import java.io.InputStream;
-import java.util.List;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import java.util.Optional;
 
-import static jakarta.ws.rs.core.MediaType.APPLICATION_JSON;
 
-@Path("/assetfiles")
+@Path("/files")
 @Tag(name = "Asset Files", description = "Endpoints related to assets' files.")
 @SecurityRequirement(name = "dassco-idp")
 public class Files {
+    private static final Logger logger = LoggerFactory.getLogger(Files.class);
+    private final CacheFileService cacheFileService;
     private FileService fileService;
-
-    @Inject
-    public Files(FileService fileService) {
-        this.fileService = fileService;
-    }
-
     @Context
     UriInfo uriInfo;
 
-    @PUT
-    @Path("/{institutionName}/{collectionName}/{assetGuid}/{path: .+}")
-    @Operation(summary = "Upload File", description = "Uploads a file. Requires institution, collection, asset_guid, crc and file size (in mb).\n\n" +
-                                                        "Can be called multiple times to upload multiple files to the same asset. If the files are called the same, the file will be overwritten.")
-    @Produces(MediaType.APPLICATION_JSON)
-    @Consumes(MediaType.APPLICATION_OCTET_STREAM)
-    @ApiResponse(responseCode = "200", content = @Content(mediaType = APPLICATION_JSON, schema = @Schema(implementation = FileUploadResult.class)))
-    @ApiResponse(responseCode = "400-599", content = @Content(mediaType = APPLICATION_JSON, schema = @Schema(implementation = DaSSCoError.class)))
-    public Response putFile(
-            @PathParam("institutionName") String institutionName
-            , @PathParam("collectionName") String collectionName
-            , @PathParam("assetGuid") String assetGuid
-            , @QueryParam("crc") long crc
-            , @QueryParam("file_size_mb") int fileSize
-            , @Context SecurityContext securityContext
-            , InputStream file) {
-        User user = UserMapper.from(securityContext);
-        if (fileSize == 0) {
-            throw new IllegalArgumentException("file_size_mb cannot be 0");
-        }
-        if (crc == 0) {
-            throw new IllegalArgumentException("crc cannot be 0");
-        }
-        final String path
-                = uriInfo.getPathParameters().getFirst("path");
-        FileUploadData fileUploadData = new FileUploadData(assetGuid, institutionName, collectionName, path, fileSize);
-        FileUploadResult upload = fileService.upload(file, crc, fileUploadData);
-        return Response.status(upload.getResponseCode()).entity(upload).build();
+    @Inject
+    public Files(CacheFileService cacheFileService, FileService fileService) {
+        this.cacheFileService = cacheFileService;
+        this.fileService = fileService;
     }
 
 
     @GET
-    @Path("/{institutionName}/{collectionName}/{assetGuid}/{path: .+}")
-    // TODO: Should the path remain like this? This endpoint only works in Postman in its current state, and not in the Documentation Page. •
-    @Operation(summary = "Get Asset File by path", description = "Get an asset file based on institution, collection, asset_guid and path to the file")
-//    @Produces(MediaType.APPLICATION_OCTET_STREAM)
-    @Consumes(APPLICATION_JSON)
-    @ApiResponse(responseCode = "200", description = "Returns the file.")
-    @ApiResponse(responseCode = "400-599", content = @Content(mediaType = APPLICATION_JSON, schema = @Schema(implementation = DaSSCoError.class)))
+    @Path("/assets/{institution}/{collection}/{assetGuid}/{path: .+}")
     public Response getFile(
-            @PathParam("institutionName") String institutionName
-            , @PathParam("collectionName") String collectionName
-            , @PathParam("assetGuid") String assetGuid
+            @PathParam("institution") String institution
+            , @PathParam("collection") String collection
+            , @PathParam("assetGuid") String guid
             , @Context SecurityContext securityContext
+            , @QueryParam("no-cache") @DefaultValue("false") boolean noCache
     ) {
-        final String path
-                = uriInfo.getPathParameters().getFirst("path");
-        User user = UserMapper.from(securityContext);
-        FileUploadData fileUploadData = new FileUploadData(assetGuid, institutionName, collectionName, path, 0);
-        Optional<FileService.FileResult> getFileResult = fileService.getFile(fileUploadData);
-        if (getFileResult.isPresent()) {
-            FileService.FileResult fileResult = getFileResult.get();
-            StreamingOutput streamingOutput = output -> {
-                fileResult.is().transferTo(output);
-                output.flush();
-            };
-
-            return Response.status(200)
-                    .header("Content-Disposition", "attachment; filename=" + fileResult.filename())
-                    .header("Content-Type", new Tika().detect(fileResult.filename())).entity(streamingOutput).build();
+        final String path = uriInfo.getPathParameters().getFirst("path");
+        logger.info("Getting file");
+        if (securityContext == null) {
+            return Response.status(401).build();
         }
-        return Response.status(404).build();
-    }
 
-    @GET
-    @Path("/{institutionName}/{collectionName}/{assetGuid}/")
-    @Operation(summary = "Get List of Asset Files", description = "Get a list of files based on institution, collection and asset_guid")
-    // TODO: Roles allowed?
-    @Produces(APPLICATION_JSON)
-    @Consumes(APPLICATION_JSON)
-    @ApiResponse(responseCode = "200", content = @Content(mediaType = APPLICATION_JSON, array = @ArraySchema(schema = @Schema(implementation = String.class)), examples = { @ExampleObject("[\"test-institution/test-collection/nt_asset_19/example.jpg\", \"test-institution/test-collection/nt_asset_19/example2.jpg\"]")}))
-    @ApiResponse(responseCode = "400-599", content = @Content(mediaType = APPLICATION_JSON, schema = @Schema(implementation = DaSSCoError.class)))
-    public List<String> listFiles(
-            @PathParam("institutionName") String institutionName
-            , @PathParam("collectionName") String collectionName
-            , @PathParam("assetGuid") String assetGuid
-            , @Context SecurityContext securityContext
-    ) {
-        User user = UserMapper.from(securityContext);
-        List<String> links = fileService.listAvailableFiles(new FileUploadData(assetGuid, institutionName, collectionName, null, 0));
-        return links;
-    }
+        if (!noCache){
+            Optional<FileService.FileResult> file = cacheFileService.getFile(institution, collection, guid, path, UserMapper.from(securityContext));
+            logger.info("got file");
 
-    @DELETE
-    @Path("/{institutionName}/{collectionName}/{assetGuid}/{path: .+}")
-    // TODO: Same as with the Get, should the path be changed to a @PathParam? Currently it only works in Postman
-//    @Produces(MediaType.APPLICATION_JSON)
-//    @Consumes(APPLICATION_JSON)
-    @Operation(summary = "Delete Asset File by path", description = "Delete resource at the given path. If the resource is a directory, it will be deleted along its content. If the resource is the base directory for an asset the directory will not be deleted, only the content.")
-    @ApiResponse(responseCode = "204", description = "No Content. File has been deleted.")
-    @ApiResponse(responseCode = "400-599", content = @Content(mediaType = APPLICATION_JSON, schema = @Schema(implementation = DaSSCoError.class)))
-    public Response deletefile(
-            @PathParam("institutionName") String institutionName
-            , @PathParam("collectionName") String collectionName
-            , @PathParam("assetGuid") String assetGuid
-            , @Context SecurityContext securityContext) {
-        User user = UserMapper.from(securityContext);
-        final String path
-                = uriInfo.getPathParameters().getFirst("path");
-        boolean deleted = fileService.deleteFile(new FileUploadData(assetGuid, institutionName, collectionName, path, 0));
-        return Response.status(deleted ? 204 : 404).build();
-    }
+            if (file.isPresent()) {
+//            try {
+                FileService.FileResult fileResult = file.get();
+                StreamingOutput streamingOutput = output -> {
+                    fileResult.is().transferTo(output);
+                    output.flush();
+                };
 
-    //Delete all files under an azzet
-    @DELETE
-    @Path("/{institutionName}/{collectionName}/{assetGuid}/")
-    @Operation(summary = "Delete Asset Files", description = "Deletes all files for an asset based on institution, collection and asset_guid")
-    @Produces(MediaType.APPLICATION_JSON)
-    @Consumes(APPLICATION_JSON)
-    @ApiResponse(responseCode = "204", description = "No Content. File has been deleted.")
-    @ApiResponse(responseCode = "400-599", content = @Content(mediaType = APPLICATION_JSON, schema = @Schema(implementation = DaSSCoError.class)))
-    public Response deleteAsset(
-            @PathParam("institutionName") String institutionName
-            , @PathParam("collectionName") String collectionName
-            , @PathParam("assetGuid") String assetGuid
-            , @Context SecurityContext securityContext) {
-        User user = UserMapper.from(securityContext);
-        boolean deleted = fileService.deleteFile(new FileUploadData(assetGuid, institutionName, collectionName, null, 0));
-        return Response.status(deleted ? 204 : 404).build();
+                return Response.status(200)
+                        .header("Content-Disposition", "attachment; filename=" + fileResult.filename())
+                        .header("Content-Type", new Tika().detect(fileResult.filename())).entity(streamingOutput).build();
+//            }
+//            finally {
+//                try {
+//                    file.get().is().close();
+//                } catch (IOException e) {
+//                    throw new RuntimeException(e);
+//                }
+//            }
+            } else {
+                return Response.status(404).build();
+            }
+        } else {
+            return cacheFileService.streamFile(institution, collection, guid, path, UserMapper.from(securityContext));
+        }
     }
 }

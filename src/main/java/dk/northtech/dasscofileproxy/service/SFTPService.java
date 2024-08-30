@@ -76,12 +76,11 @@ public class SFTPService {
 
     @Scheduled(cron = "0 * * * * *")
     public void moveFiles() {
-        logger.info("checking files");
         List<Directory> directories = getHttpSharesToSynchronize(shareConfig.maxErdaSyncAttempts());
         List<FailedAsset> failedGuids = new ArrayList<>();
 
-
-        try(ERDAClient erdaClient = erdaDataSource.acquire()) {
+        // If we do not get an ERDA connection immediately all connections are likely being used. Prioritise requests from REST api.
+        try(ERDAClient erdaClient = erdaDataSource.acquire(1)) {
             for (Directory directory : directories) {
                 List<SharedAsset> sharedAssetList = getShardAsset(directory.directoryId());
                 if (sharedAssetList.size() != 1) {
@@ -162,7 +161,7 @@ public class SFTPService {
         String remotePath = getRemotePath(minimalAsset);
         logger.info("Initialising asset folder, remote path is {}", remotePath);
 
-        try (ERDAClient erdaClient = erdaDataSource.acquire();) {
+        try (ERDAClient erdaClient = erdaDataSource.acquire(120);) {
             if (!erdaClient.exists(remotePath, true)) {
                 logger.info("Remote path {} didnt exist ", remotePath);
             } else {
