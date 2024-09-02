@@ -29,31 +29,45 @@ public class ErdaDataSource extends ResourcePool<ERDAClient> {
         return new ERDAClient(sftpConfig, this);
     }
 
-
     @Override
     public ERDAClient acquire(int maxSeconds) {
-        try {
-            ERDAClient acquire = super.acquire(maxSeconds);
-            if(acquire == null) {
-              throw new RuntimeException("No available ERDA connections");
-            }
+        int attempts = 3;
+        ERDAClient erdaClient = null;
+        for (int i = 0; i < attempts; i++) {
             try {
-                acquire.testAndThrow();
-                return acquire;
+                erdaClient = acquireInternal(maxSeconds);
+                return erdaClient;
             } catch (Exception e) {
-                logger.warn("Failed to get ERDAClient, maybe ERDA is down?");
-                synchronized (lock) {
-                    deadClients.add(acquire);
-                }
-                // Don't reset last failure if it happened within the last 5 minutes (ERDA failure typically lasts 5 minutes).
-                if (lastFailure == null || Instant.now().minusSeconds(310).isBefore(lastFailure)) {
-                    lastFailure = Instant.now();
-                }
-                throw e;
+                logger.error("Failed to get ERDA client, attempt {}", i + 1);
             }
-        } catch (Exception e) {
-            throw new RuntimeException("Failed to get ERDA client: unknown error", e);
         }
+        throw new RuntimeException("No ERDA connection is available");
+    }
+
+    public ERDAClient acquireInternal(int maxSeconds) throws Exception {
+//        try {
+        ERDAClient acquire = super.acquire(maxSeconds);
+        if (acquire == null) {
+            return null;
+        }
+        try {
+            acquire.testAndThrow();
+            return acquire;
+        } catch (Exception e) {
+            logger.warn("Failed to get ERDAClient");
+            synchronized (lock) {
+                deadClients.add(acquire);
+            }
+            // Don't reset last failure if it happened within the last 5 minutes (ERDA failure typically lasts 5 minutes).
+            if (lastFailure == null || Instant.now().minusSeconds(310).isBefore(lastFailure)) {
+                lastFailure = Instant.now();
+            }
+            logger.error("Failed to aquire ERDA connection, ", e);
+            throw new RuntimeException(e);
+        }
+//        } catch (Exception e) {
+//            throw new RuntimeException("Failed to get ERDA client: unknown error", e);
+//        }
 
     }
 
@@ -83,7 +97,6 @@ public class ErdaDataSource extends ResourcePool<ERDAClient> {
                         logger.info("Restored one ERDAClient");
                         recycle(erdaClient);
                     } catch (Exception e) {
-                        // If it is still impossible to add
                         logger.info("Failed to restore an ERDAClient");
                         this.deadClients.add(erdaClient);
                     }
