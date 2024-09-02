@@ -15,7 +15,6 @@ import java.util.*;
 public class ERDAClient implements AutoCloseable {
     private static final Logger logger = LoggerFactory.getLogger(ERDAClient.class);
     private Session session;
-
     private final SFTPConfig sftpConfig;
     private ErdaDataSource creator;
 
@@ -164,20 +163,23 @@ public class ERDAClient implements AutoCloseable {
 
     public void createSubDirsIfNotExists(List<Path> paths) {
         ChannelSftp channelSftp = startChannelSftp();
-        for (Path path : paths) {
-            //Last element is the file itself
-            int directoryDepth = path.getNameCount() - 1;
-            String remotePath = "";
-            for (int i = 0; i < directoryDepth; i++) {
-                remotePath += path.getName(i) + "/";
-                try {
-                    channelSftp.mkdir(remotePath);
-                } catch (Exception e) {
-                    //OK, the folder already exists
+        try {
+            for (Path path : paths) {
+                //Last element is the file itself
+                int directoryDepth = path.getNameCount() - 1;
+                String remotePath = "";
+                for (int i = 0; i < directoryDepth; i++) {
+                    remotePath += path.getName(i) + "/";
+                    try {
+                        channelSftp.mkdir(remotePath);
+                    } catch (Exception e) {
+                        //OK, the folder already exists
+                    }
                 }
             }
+        } finally {
+            channelSftp.disconnect();
         }
-
     }
 
     public void putFileToPath(String localPath, String remotePath) throws JSchException {
