@@ -611,7 +611,7 @@
       "get" : {
         "tags" : [ "Asset Files" ],
         "summary" : "Get File From ERDA",
-        "description" : "G",
+        "description" : "Gets a file from ERDA. If 'no-cache' is true, then the file won't be saved in the cache and will be streamed instead. 'no-cache' is false by default.",
         "operationId" : "getFile_1",
         "parameters" : [ {
           "name" : "institution",

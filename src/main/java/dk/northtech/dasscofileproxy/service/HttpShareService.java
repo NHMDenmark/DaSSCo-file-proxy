@@ -18,6 +18,7 @@ import org.springframework.stereotype.Service;
 import javax.sql.DataSource;
 import java.io.File;
 import java.time.Instant;
+import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -66,6 +67,7 @@ public class HttpShareService {
     }
 
     public HttpInfo createHttpShareInternal(CreationObj creationObj, User user) {
+        LocalDateTime createShareStart = LocalDateTime.now();
         try {
             Instant creationDatetime = Instant.now();
             if (!creationObj.users().isEmpty() && !creationObj.assets().isEmpty()) {
