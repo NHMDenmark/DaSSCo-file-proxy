@@ -4,6 +4,7 @@ import dk.northtech.dasscofileproxy.domain.User;
 import dk.northtech.dasscofileproxy.service.CacheFileService;
 import dk.northtech.dasscofileproxy.service.FileService;
 import dk.northtech.dasscofileproxy.webapi.UserMapper;
+import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.inject.Inject;
@@ -33,6 +34,7 @@ public class Files {
 
 
     @GET
+    @Operation(summary = "Get File From ERDA", description = "Gets a file from ERDA. If 'no-cache' is true, then the file won't be saved in the cache and will be streamed instead. 'no-cache' is false by default.")
     @Path("/assets/{institution}/{collection}/{assetGuid}/{path: .+}")
     public Response getFile(
             @PathParam("institution") String institution

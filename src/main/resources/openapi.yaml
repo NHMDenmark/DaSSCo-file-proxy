@@ -438,6 +438,8 @@ paths:
     get:
       tags:
       - Asset Files
+      summary: Get File From ERDA
+      description: G
       operationId: getFile_1
       parameters:
       - name: institution
@@ -533,12 +535,8 @@ paths:
     get:
       tags:
       - Shares
-      summary: Open Share
-      description: Here you can open a share of an existing asset. The post body consists
-        of a list of assets to be shared and a list of usernames of users that should
-        have access to the share. The amount of space needed to be allocated also
-        needs to be specified. The list of assets can only contain one asset when
-        using this endpoint.
+      summary: List Shares
+      description: List of Open Shares
       operationId: listShares
       responses:
         "200":
