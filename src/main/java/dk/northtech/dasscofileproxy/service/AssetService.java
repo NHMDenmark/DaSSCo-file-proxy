@@ -119,7 +119,7 @@ public class AssetService {
         LocalDateTime adminTokenStart = LocalDateTime.now();
         var token = this.keycloakService.getAdminToken();
         LocalDateTime adminTokenEnd = LocalDateTime.now();
-        logger.info("Getting the Admin Token took {}", java.time.Duration.between(adminTokenStart, adminTokenEnd).toMillis());
+        logger.info("#4.1.1: Getting the Admin Token took {} ms", java.time.Duration.between(adminTokenStart, adminTokenEnd).toMillis());
 
         // Create RestTemplate instance
         RestTemplate restTemplate = new RestTemplate();
@@ -136,7 +136,7 @@ public class AssetService {
         String url = assetServiceProperties.rootUrl() + "/api/v1/assetmetadata/" + guid;
         ResponseEntity<AssetFull> response = restTemplate.exchange(url, HttpMethod.GET, entity, AssetFull.class);
         LocalDateTime getFullAssetEnd = LocalDateTime.now();
-        logger.info("Getting the Full Asset from Asset Service took {}", java.time.Duration.between(getFullAssetStart, getFullAssetEnd).toMillis());
+        logger.info("Getting the Full Asset from Asset Service took {} ms", java.time.Duration.between(getFullAssetStart, getFullAssetEnd).toMillis());
         // Return the response body
         return response.getBody();
     }

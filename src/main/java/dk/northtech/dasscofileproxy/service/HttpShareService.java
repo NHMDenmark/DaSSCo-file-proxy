@@ -67,7 +67,6 @@ public class HttpShareService {
     }
 
     public HttpInfo createHttpShareInternal(CreationObj creationObj, User user) {
-        LocalDateTime createShareStart = LocalDateTime.now();
         try {
             Instant creationDatetime = Instant.now();
             if (!creationObj.users().isEmpty() && !creationObj.assets().isEmpty()) {
@@ -76,7 +75,11 @@ public class HttpShareService {
                     throw new IllegalArgumentException("Number of assets must be one");
                 }
                 MinimalAsset minimalAsset = creationObj.assets().getFirst();
+                LocalDateTime getFullAssetStart = LocalDateTime.now();
+                logger.info("#4.1: Making API Call to AssetService to get full asset:");
                 AssetFull fullAsset = assetService.getFullAsset(minimalAsset.asset_guid());
+                LocalDateTime getFullAssetEnd = LocalDateTime.now();
+                logger.info("#4.1 took {} ms", java.time.Duration.between(getFullAssetStart, getFullAssetEnd).toMillis());
                 if (fullAsset != null && fullAsset.asset_locked) {
                     logger.warn("Cannot create writeable share: Asset {} is locked", fullAsset.asset_guid);
                     throw new DasscoIllegalActionException("Asset is locked");
@@ -86,8 +89,14 @@ public class HttpShareService {
                     logger.warn("{} is not the parent of {}", minimalAsset.parent_guid(), minimalAsset.asset_guid());
                     throw new DasscoIllegalActionException("Provided parent is different than the actual parent of the asset");
                 }
+                LocalDateTime getUsageByAssetStart = LocalDateTime.now();
                 FileService.AssetAllocation usageByAsset = fileService.getUsageByAsset(minimalAsset);
+                LocalDateTime getUsageByAssetEnd = LocalDateTime.now();
+                logger.info("#4.2 Getting usage took {} ms", java.time.Duration.between(getUsageByAssetStart, getUsageByAssetEnd).toMillis());
+                LocalDateTime getStorageMetricsStart = LocalDateTime.now();
                 StorageMetrics storageMetrics = getStorageMetrics();
+                LocalDateTime getStorageMetricsEnd = LocalDateTime.now();
+                logger.info("#4.3 Getting the storage metrics took {} ms", java.time.Duration.between(getStorageMetricsStart, getStorageMetricsEnd).toMillis());
                 logger.info("Storage metrics {}", storageMetrics);
                 HttpInfo httpInfo = createHttpInfo(storageMetrics, creationObj, usageByAsset);
                 if (httpInfo.http_allocation_status() != HttpAllocationStatus.SUCCESS) {
