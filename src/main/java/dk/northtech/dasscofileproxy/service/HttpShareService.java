@@ -133,7 +133,7 @@ public class HttpShareService {
                         LocalDateTime initAssetShareStart = LocalDateTime.now();
                         sftpService.initAssetShare(shareFolder, minimalAsset);
                         LocalDateTime initAssetShareEnd = LocalDateTime.now();
-                        logger.info("4.4: Initializing Asset Share took {} ms", java.time.Duration.between(initAssetShareStart, initAssetShareEnd).toMillis());
+                        logger.info("#4.4: Initializing Asset Share took {} ms", java.time.Duration.between(initAssetShareStart, initAssetShareEnd).toMillis());
                         return httpInfo;
                     }
                 } catch (Exception e) {
