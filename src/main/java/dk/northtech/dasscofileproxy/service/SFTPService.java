@@ -7,6 +7,8 @@ import dk.northtech.dasscofileproxy.configuration.ShareConfig;
 import dk.northtech.dasscofileproxy.domain.*;
 import dk.northtech.dasscofileproxy.repository.DirectoryRepository;
 import dk.northtech.dasscofileproxy.repository.SharedAssetList;
+import io.micrometer.observation.Observation;
+import io.micrometer.observation.ObservationRegistry;
 import jakarta.inject.Inject;
 import org.jdbi.v3.core.Jdbi;
 import org.slf4j.Logger;
@@ -35,15 +37,18 @@ public class SFTPService {
     private ErdaDataSource erdaDataSource;
     //    private HttpShareService httpShareService;
     private static final Logger logger = LoggerFactory.getLogger(SFTPService.class);
+    private final ObservationRegistry observationRegistry;
 
     @Inject
-    public SFTPService(SFTPConfig sftpConfig, FileService fileService, ShareConfig shareConfig, AssetService assetService, Jdbi jdbi, ErdaDataSource erdaDataSource) {
+    public SFTPService(SFTPConfig sftpConfig, FileService fileService, ShareConfig shareConfig, AssetService assetService,
+                       Jdbi jdbi, ErdaDataSource erdaDataSource, ObservationRegistry observationRegistry) {
         this.sftpConfig = sftpConfig;
         this.assetService = assetService;
         this.fileService = fileService;
         this.shareConfig = shareConfig;
         this.jdbi = jdbi;
         this.erdaDataSource = erdaDataSource;
+        this.observationRegistry = observationRegistry;
     }
 
 
@@ -157,47 +162,49 @@ public class SFTPService {
     }
 
     public void initAssetShare(String sharePath, MinimalAsset minimalAsset) {
-//        AssetFull asset = assetService.getFullAsset(assetGuid);
-        String remotePath = getRemotePath(minimalAsset);
-        logger.info("Initialising asset folder, remote path is {}", remotePath);
+        Observation.createNotStarted("persist:init-asset-share", observationRegistry).observe(() -> {
+            //        AssetFull asset = assetService.getFullAsset(assetGuid);
+            String remotePath = getRemotePath(minimalAsset);
+            logger.info("Initialising asset folder, remote path is {}", remotePath);
 
-        try (ERDAClient erdaClient = erdaDataSource.acquire(120);) {
-            if (!erdaClient.exists(remotePath, true)) {
-                logger.info("Remote path {} didnt exist ", remotePath);
-            } else {
-                List<String> fileNames = erdaClient.listAllFiles(remotePath);
-                erdaClient.downloadFiles(fileNames, sharePath, minimalAsset.asset_guid());
-            }
-            try {
-                logger.info("Initialising parent folder, parent_guid is {}", minimalAsset.parent_guid());
+            try (ERDAClient erdaClient = erdaDataSource.acquire(120);) {
+                if (!erdaClient.exists(remotePath, true)) {
+                    logger.info("Remote path {} didnt exist ", remotePath);
+                } else {
+                    List<String> fileNames = erdaClient.listAllFiles(remotePath);
+                    erdaClient.downloadFiles(fileNames, sharePath, minimalAsset.asset_guid());
+                }
+                try {
+                    logger.info("Initialising parent folder, parent_guid is {}", minimalAsset.parent_guid());
 
-                //If asset have parent download into parent folder
-                //We could save a http request here as we dont need the full parent asset to get the remote location, it is in the same collection and institution.
-                if (minimalAsset.parent_guid() != null) {
-                    AssetFull parent = assetService.getFullAsset(minimalAsset.parent_guid());
-                    if(parent == null) {
-                        throw new IllegalArgumentException("parent doesnt exist");
-                    }
-                    String parentRemotePath = getRemotePath(new MinimalAsset(parent.asset_guid, parent.parent_guid, parent.institution, parent.collection));
-                    logger.info("Initialising parent folder, remote path is {}", parentRemotePath);
-                    try {
-                        if (!erdaClient.exists(parentRemotePath, true)) {
-                            logger.info("Remote parent path {} didnt exist ", parentRemotePath);
-                            throw new RuntimeException("Remote path doesnt exist");
-//                        return;
+                    //If asset have parent download into parent folder
+                    //We could save a http request here as we dont need the full parent asset to get the remote location, it is in the same collection and institution.
+                    if (minimalAsset.parent_guid() != null) {
+                        AssetFull parent = assetService.getFullAsset(minimalAsset.parent_guid());
+                        if(parent == null) {
+                            throw new IllegalArgumentException("parent doesnt exist");
                         }
-                    } catch (Exception e) {
-                        throw new RuntimeException(e);
+                        String parentRemotePath = getRemotePath(new MinimalAsset(parent.asset_guid, parent.parent_guid, parent.institution, parent.collection));
+                        logger.info("Initialising parent folder, remote path is {}", parentRemotePath);
+                        try {
+                            if (!erdaClient.exists(parentRemotePath, true)) {
+                                logger.info("Remote parent path {} didnt exist ", parentRemotePath);
+                                throw new RuntimeException("Remote path doesnt exist");
+//                        return;
+                            }
+                        } catch (Exception e) {
+                            throw new RuntimeException(e);
+                        }
+                        List<String> parentFileNames = erdaClient.listAllFiles(parentRemotePath);
+                        erdaClient.downloadFiles(parentFileNames, sharePath + "/parent", parent.asset_guid);
                     }
-                    List<String> parentFileNames = erdaClient.listAllFiles(parentRemotePath);
-                    erdaClient.downloadFiles(parentFileNames, sharePath + "/parent", parent.asset_guid);
+                } catch (Exception e) {
+                    throw new RuntimeException(e);
                 }
             } catch (Exception e) {
                 throw new RuntimeException(e);
             }
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
+        });
     }
 
 

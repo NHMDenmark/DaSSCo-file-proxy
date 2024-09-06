@@ -17,6 +17,8 @@ import dk.northtech.dasscofileproxy.webapi.exceptionmappers.DaSSCoError;
 import dk.northtech.dasscofileproxy.webapi.exceptionmappers.DaSSCoErrorCode;
 import dk.northtech.dasscofileproxy.webapi.model.FileUploadData;
 import dk.northtech.dasscofileproxy.webapi.model.FileUploadResult;
+import io.micrometer.observation.Observation;
+import io.micrometer.observation.ObservationRegistry;
 import jakarta.inject.Inject;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -51,14 +53,17 @@ public class FileService {
     AssetService assetService;
     AssetServiceProperties assetServiceProperties;
     private static final Logger logger = LoggerFactory.getLogger(FileService.class);
+    private final ObservationRegistry observationRegistry;
 
     @Inject
     public FileService(ShareConfig shareConfig, Jdbi jdbi, AssetService assetService,
-                       AssetServiceProperties assetServiceProperties) {
+                       AssetServiceProperties assetServiceProperties,
+                       ObservationRegistry observationRegistry) {
         this.shareConfig = shareConfig;
         this.assetService = assetService;
         this.jdbi = jdbi;
         this.assetServiceProperties = assetServiceProperties;
+        this.observationRegistry = observationRegistry;
     }
 
 
@@ -74,15 +79,17 @@ public class FileService {
     }
 
     public AssetAllocation getUsageByAsset(MinimalAsset minimalAsset) {
-        return jdbi.withHandle(h -> {
-            long assetAllocation = 0;
-            long parentAllocation = 0;
-            FileRepository attach = h.attach(FileRepository.class);
-            assetAllocation = attach.getTotalAllocatedByAsset(minimalAsset.asset_guid());
-            if (minimalAsset.parent_guid() != null) {
-                parentAllocation = attach.getTotalAllocatedByAsset(minimalAsset.parent_guid());
-            }
-            return new AssetAllocation(assetAllocation, parentAllocation);
+        return Observation.createNotStarted("persist:get-usage-by-asset", observationRegistry).observe(() -> {
+            return jdbi.withHandle(h -> {
+                long assetAllocation = 0;
+                long parentAllocation = 0;
+                FileRepository attach = h.attach(FileRepository.class);
+                assetAllocation = attach.getTotalAllocatedByAsset(minimalAsset.asset_guid());
+                if (minimalAsset.parent_guid() != null) {
+                    parentAllocation = attach.getTotalAllocatedByAsset(minimalAsset.parent_guid());
+                }
+                return new AssetAllocation(assetAllocation, parentAllocation);
+            });
         });
     }
 

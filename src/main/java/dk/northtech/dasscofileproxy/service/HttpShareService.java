@@ -6,6 +6,8 @@ import dk.northtech.dasscofileproxy.domain.exceptions.DasscoIllegalActionExcepti
 import dk.northtech.dasscofileproxy.domain.exceptions.DasscoInternalErrorException;
 import dk.northtech.dasscofileproxy.repository.*;
 import dk.northtech.dasscofileproxy.webapi.model.AssetStorageAllocation;
+import io.micrometer.observation.Observation;
+import io.micrometer.observation.ObservationRegistry;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.BadRequestException;
 import org.jdbi.v3.core.Jdbi;
@@ -31,9 +33,11 @@ public class HttpShareService {
     private final SFTPService sftpService;
     private final AssetService assetService;
     private static final Logger logger = LoggerFactory.getLogger(HttpShareService.class);
+    private final ObservationRegistry observationRegistry;
 
     @Inject
-    public HttpShareService(DataSource dataSource, FileService fileService, SFTPService sftpService, ShareConfig shareConfig, AssetService assetService) {
+    public HttpShareService(DataSource dataSource, FileService fileService, SFTPService sftpService,
+                            ShareConfig shareConfig, AssetService assetService, ObservationRegistry observationRegistry) {
         this.fileService = fileService;
         this.sftpService = sftpService;
         this.shareConfig = shareConfig;
@@ -43,6 +47,7 @@ public class HttpShareService {
                 .registerRowMapper(ConstructorMapper.factory(Directory.class))
                 .registerRowMapper(ConstructorMapper.factory(UserAccess.class))
                 .registerRowMapper(ConstructorMapper.factory(SharedAsset.class));
+        this.observationRegistry = observationRegistry;
     }
 
     public Directory createDirectory(Directory directory) {
@@ -125,7 +130,10 @@ public class HttpShareService {
                 String shareFolder = shareFolderOpt.get();
                 try {
                     if (creationObj.assets().size() == 1) {
+                        LocalDateTime initAssetShareStart = LocalDateTime.now();
                         sftpService.initAssetShare(shareFolder, minimalAsset);
+                        LocalDateTime initAssetShareEnd = LocalDateTime.now();
+                        logger.info("4.4: Initializing Asset Share took {} ms", java.time.Duration.between(initAssetShareStart, initAssetShareEnd).toMillis());
                         return httpInfo;
                     }
                 } catch (Exception e) {
@@ -183,28 +191,29 @@ public class HttpShareService {
     }
 
     public StorageMetrics getStorageMetrics() {
-        return jdbi.withHandle(h -> {
-            File file = new File(shareConfig.mountFolder());
-            long totalSpace = file.getTotalSpace();
-            long usableSpace = file.getUsableSpace();
-            long freeSpace = file.getFreeSpace();
-            logger.info("totalSpace {}", totalSpace);
-            logger.info("Free space {}", freeSpace);
-            logger.info("Usable space {}", usableSpace);
-            int totalAllocated = 0;
-            long foldersize = fileService.getFoldersize(shareConfig.mountFolder());
-            logger.info("folderSize {}", foldersize);
-            DirectoryRepository attach = h.attach(DirectoryRepository.class);
-            totalAllocated = attach.getTotalAllocated();
-            int totalDiskSpace = (int) (totalSpace / 1000000L);
-            int cacheDiskSpace = shareConfig.cacheDiskspace();
-            long totalAllocatedB = totalAllocated * 1000000L;
-            //We have to calculate the remaining disk space including allocations that have not been fully used
-            long actualUsable = usableSpace - foldersize;
-            long remaining = (actualUsable - totalAllocatedB);
-            return new StorageMetrics(totalDiskSpace, cacheDiskSpace, totalAllocated, (int) (remaining / 1000000));
+        return Observation.createNotStarted("persist:getStorageMetrics", observationRegistry).observe(() -> {
+            return jdbi.withHandle(h -> {
+                File file = new File(shareConfig.mountFolder());
+                long totalSpace = file.getTotalSpace();
+                long usableSpace = file.getUsableSpace();
+                long freeSpace = file.getFreeSpace();
+                logger.info("totalSpace {}", totalSpace);
+                logger.info("Free space {}", freeSpace);
+                logger.info("Usable space {}", usableSpace);
+                int totalAllocated = 0;
+                long foldersize = fileService.getFoldersize(shareConfig.mountFolder());
+                logger.info("folderSize {}", foldersize);
+                DirectoryRepository attach = h.attach(DirectoryRepository.class);
+                totalAllocated = attach.getTotalAllocated();
+                int totalDiskSpace = (int) (totalSpace / 1000000L);
+                int cacheDiskSpace = shareConfig.cacheDiskspace();
+                long totalAllocatedB = totalAllocated * 1000000L;
+                //We have to calculate the remaining disk space including allocations that have not been fully used
+                long actualUsable = usableSpace - foldersize;
+                long remaining = (actualUsable - totalAllocatedB);
+                return new StorageMetrics(totalDiskSpace, cacheDiskSpace, totalAllocated, (int) (remaining / 1000000));
+            });
         });
-
     }
 
     public HttpInfo allocateStorage(AssetStorageAllocation newAllocation) {
