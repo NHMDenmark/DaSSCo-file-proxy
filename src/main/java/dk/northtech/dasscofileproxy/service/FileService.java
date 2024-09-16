@@ -424,7 +424,7 @@ public class FileService {
                 Files.delete(filePath);
                 return true;
             } catch (IOException e){
-                e.printStackTrace();
+                logger.error(e.getMessage());
                 return false;
             }
         } else {
@@ -450,7 +450,7 @@ public class FileService {
                                 zos.putNextEntry(new ZipEntry(entryName + "/"));
                                 zos.closeEntry();
                             } catch (IOException e) {
-                                e.printStackTrace();
+                                logger.error(e.getMessage());
                             }
                         } else {
                             try {
@@ -459,7 +459,7 @@ public class FileService {
                                 Files.copy(path, zos);
                                 zos.closeEntry();
                             } catch (Exception e) {
-                                e.printStackTrace();
+                                logger.error(e.getMessage());
                             }
                         }
                     });
@@ -484,7 +484,7 @@ public class FileService {
                 return true;
             }
         } catch (Exception e){
-            e.printStackTrace();
+            logger.error(e.getMessage());
         }
         return false;
     }
@@ -531,13 +531,13 @@ public class FileService {
                     this.createZipFile(guid);
                     return Response.status(200).entity(guid).build();
                 } catch (Exception e){
-                    e.printStackTrace();
+                    logger.error(e.getMessage());
                 }
             } else {
                 return Response.status(500).entity(response.body()).build();
             }
         } catch (Exception e){
-            e.printStackTrace();
+            logger.error(e.getMessage());
         }
         return Response.status(500).entity("There was an error downloading the files").build();
     }
@@ -576,7 +576,7 @@ public class FileService {
             }
 
         } catch (Exception e){
-            e.printStackTrace();
+            logger.error(e.getMessage());
         }
         return Response.status(500).build();
     }
@@ -593,7 +593,7 @@ public class FileService {
                 writer.write(fullCsv);
             }
         } catch (IOException e) {
-            e.printStackTrace();
+            logger.error(e.getMessage());
         }
     }
 
@@ -607,7 +607,7 @@ public class FileService {
         try {
             Files.createDirectories(tempDir);
         } catch (IOException e) {
-            e.printStackTrace();
+            logger.error(e.getMessage());
         }
 
         for (String path : paths) {
@@ -653,7 +653,7 @@ public class FileService {
                                 try {
                                     Files.deleteIfExists(path);
                                 } catch (IOException e){
-                                    e.printStackTrace();
+                                    logger.error(e.getMessage());
                                 }
                             });
                 }
@@ -666,12 +666,12 @@ public class FileService {
                                 try {
                                     Files.deleteIfExists(path);
                                 } catch (IOException e){
-                                    e.printStackTrace();
+                                    logger.error(e.getMessage());
                                 }
                             });
                 }
             } catch (IOException e){
-                e.printStackTrace();
+                logger.error(e.getMessage());
             }
         }
     }
