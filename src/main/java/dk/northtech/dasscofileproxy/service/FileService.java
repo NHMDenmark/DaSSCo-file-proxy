@@ -24,17 +24,21 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.core.StreamingOutput;
+import org.apache.tomcat.util.net.jsse.JSSEUtil;
 import org.jdbi.v3.core.Jdbi;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.security.core.parameters.P;
 import org.springframework.stereotype.Service;
+import org.springframework.web.util.UriUtils;
 
 import java.io.*;
 import java.net.URI;
+import java.net.URLEncoder;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.security.SecureRandom;
@@ -618,12 +622,15 @@ public class FileService {
             Path outputDir = tempDir.resolve(folderName);
             Files.createDirectories(outputDir);
 
+            String encodedPath = UriUtils.encodePath(path, "UTF-8");
+
             HttpRequest request = HttpRequest.newBuilder()
-                    .uri(URI.create(shareConfig.nodeHost() + "/file_proxy/api/files/assets" + path))
+                    .uri(URI.create(shareConfig.nodeHost() + "/file_proxy/api/files/assets" + encodedPath))
                     .header("Authorization", "Bearer " + user.token)
                     .header("Content-Type", "application/json")
                     .GET()
                     .build();
+
             try {
                 HttpResponse<InputStream> response = httpClient.send(request, HttpResponse.BodyHandlers.ofInputStream());
                 if (response.statusCode() == 200){

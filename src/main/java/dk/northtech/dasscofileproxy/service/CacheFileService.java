@@ -29,6 +29,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
+import org.springframework.web.util.UriUtils;
 
 import java.io.*;
 import java.net.URI;
@@ -102,6 +103,7 @@ public class CacheFileService {
             }
             logger.info("File didnt exist in cache, fetching from ERDA");
             String erdaLocation = Strings.join(new String[]{erdaProperties.httpURL(), institution, collection, assetGuid, filePath}, "/");
+            erdaLocation = UriUtils.encodePath(erdaLocation, "UTF-8");
             logger.info("ERDA location: {}", erdaLocation);
             try (InputStream inputStream = fetchFromERDA(erdaLocation)) {
                 logger.info("got stream");
