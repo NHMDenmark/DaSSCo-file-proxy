@@ -152,8 +152,6 @@ public class FileService {
     public record FileResult(InputStream is, String filename) {
     }
 
-    ;
-
     record AssetAllocation(long assetBytes, long parentBytes) {
         int getTotalAllocationAsMb() {
             return (int) Math.ceil((assetBytes + parentBytes) / 1000000d);

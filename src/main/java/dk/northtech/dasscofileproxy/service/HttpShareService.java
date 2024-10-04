@@ -117,9 +117,9 @@ public class HttpShareService {
                         , false
                         , 0
                         , setupSharedAssets(creationObj.assets()
-                        .stream()
-                        .map(MinimalAsset::asset_guid)
-                        .collect(Collectors.toList()), creationDatetime)
+                            .stream()
+                            .map(MinimalAsset::asset_guid)
+                            .collect(Collectors.toList()), creationDatetime)
                         , setupUserAccess(creationObj.users(), creationDatetime)
                 );
                 Directory directory = createDirectory(dir);
@@ -202,16 +202,17 @@ public class HttpShareService {
                 logger.info("Usable space {}", usableSpace);
                 int totalAllocated = 0;
                 long foldersize = fileService.getFoldersize(shareConfig.mountFolder());
-                logger.info("folderSize {}", foldersize);
+                logger.info("Size of folder {}", foldersize);
                 DirectoryRepository attach = h.attach(DirectoryRepository.class);
                 totalAllocated = attach.getTotalAllocated();
                 int totalDiskSpace = (int) (totalSpace / 1000000L);
                 int cacheDiskSpace = shareConfig.cacheDiskspace();
                 long totalAllocatedB = totalAllocated * 1000000L;
-                //We have to calculate the remaining disk space including allocations that have not been fully used
-                long actualUsable = usableSpace - foldersize;
-                long remaining = (actualUsable - totalAllocatedB);
-                return new StorageMetrics(totalDiskSpace, cacheDiskSpace, totalAllocated, (int) (remaining / 1000000));
+                logger.info("tolal allocated {}", totalAllocatedB);
+                // We have to calculate the remaining disk space including allocations that have not been fully used
+                // long actualUsable = usableSpace - foldersize;
+                long actualRemaining = usableSpace - (totalAllocatedB - foldersize);
+                return new StorageMetrics(totalDiskSpace, cacheDiskSpace, totalAllocated, (int) (actualRemaining / 1000000));
             });
         });
     }
@@ -333,18 +334,33 @@ public class HttpShareService {
     }
 
     public HttpInfo createHttpShare(CreationObj creationObj, User user) {
-        AssetFull fullAsset = assetService.getFullAsset(creationObj.assets().getFirst().asset_guid());
+        MinimalAsset asset = creationObj.assets().getFirst();
+        AssetFull fullAsset = assetService.getFullAsset(asset.asset_guid());
         if (fullAsset == null) {
-            throw new DasscoIllegalActionException("Asset [" + creationObj.assets().getFirst().asset_guid() + "] was not found");
+            throw new DasscoIllegalActionException("Asset [" + asset.asset_guid() + "] was not found");
         }
         if (fullAsset.asset_locked) {
             throw new DasscoIllegalActionException("Asset is locked");
         }
-        Optional<Directory> writeableDirectory = fileService.getWriteableDirectory(creationObj.assets().getFirst().asset_guid());
+
+        Optional<Directory> writeableDirectory = fileService.getWriteableDirectory(asset.asset_guid());
         if (writeableDirectory.isPresent()) {
             throw new DasscoIllegalActionException("Asset is already checked out");
         }
-        return createHttpShareInternal(creationObj, user);
+        CreationObj mappedCreationObject = mapCreationObject(creationObj, asset, fullAsset);
+        return createHttpShareInternal(mappedCreationObject, user);
+    }
+
+    static CreationObj mapCreationObject(CreationObj creationObj, MinimalAsset asset, AssetFull fullAsset) {
+        if(asset.institution() != null && !(asset.institution().equals(fullAsset.institution))) {
+            throw new DasscoIllegalActionException("Institution in creation object should match institution of asset with supplied guid or be set to null");
+        }
+        if(asset.collection() != null && !(asset.collection().equals(fullAsset.collection))) {
+            throw new DasscoIllegalActionException("Collection in creation object should match collection of asset with supplied guid or be set to null");
+        }
+        MinimalAsset minimalAsset = new MinimalAsset(asset.asset_guid(), asset.parent_guid(), fullAsset.institution, fullAsset.collection);
+        CreationObj mappedCreationObject = new CreationObj(List.of(minimalAsset), creationObj.users(), creationObj.allocation_mb());
+        return mappedCreationObject;
     }
 
     public List<Share> listShares() {
