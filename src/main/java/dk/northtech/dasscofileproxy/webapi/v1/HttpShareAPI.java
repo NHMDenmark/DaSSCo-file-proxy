@@ -23,6 +23,7 @@ import jakarta.ws.rs.core.SecurityContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 import static jakarta.ws.rs.core.MediaType.APPLICATION_JSON;
@@ -43,7 +44,7 @@ public class HttpShareAPI {
 
     @GET
     @Path("/")
-    @Operation(summary = "Open Share", description = "Here you can open a share of an existing asset. The post body consists of a list of assets to be shared and a list of usernames of users that should have access to the share. The amount of space needed to be allocated also needs to be specified. The list of assets can only contain one asset when using this endpoint.")
+    @Operation(summary = "List Shares", description = "List of Open Shares")
     @Produces(MediaType.APPLICATION_JSON)
     @Consumes(APPLICATION_JSON)
     @RolesAllowed({SecurityRoles.USER, SecurityRoles.ADMIN, SecurityRoles.SERVICE})

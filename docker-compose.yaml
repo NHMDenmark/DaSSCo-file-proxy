@@ -19,6 +19,10 @@ services:
 #    extends:
 #      file: docker-compose-asset-service-app.yaml
 #      service: asset-service
+  jaeger:
+    extends:
+      file: ./docker-compose-jaeger.yaml
+      service: jaeger
 volumes:
   log-volume:
   asset-service-log-volume:

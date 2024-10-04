@@ -6,6 +6,8 @@ import dk.northtech.dasscofileproxy.domain.AssetFull;
 import dk.northtech.dasscofileproxy.domain.AssetUpdateRequest;
 import dk.northtech.dasscofileproxy.domain.InternalStatus;
 import dk.northtech.dasscofileproxy.domain.MinimalAsset;
+import io.micrometer.observation.Observation;
+import io.micrometer.observation.ObservationRegistry;
 import jakarta.annotation.Nullable;
 import jakarta.inject.Inject;
 import org.apache.http.client.utils.URIBuilder;
@@ -21,6 +23,8 @@ import org.springframework.web.client.RestTemplate;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Service
@@ -28,11 +32,13 @@ public class AssetService {
     private static final Logger logger = LoggerFactory.getLogger(AssetService.class);
     private final KeycloakService keycloakService;
     private final AssetServiceProperties assetServiceProperties;
-
+    private final ObservationRegistry observationRegistry;
     @Inject
-    public AssetService(KeycloakService keycloakService, AssetServiceProperties assetServiceProperties) {
+    public AssetService(KeycloakService keycloakService, AssetServiceProperties assetServiceProperties,
+                        ObservationRegistry observationRegistry) {
         this.keycloakService = keycloakService;
         this.assetServiceProperties = assetServiceProperties;
+        this.observationRegistry = observationRegistry;
     }
 
     public void setAssestStatus(String assetGuid, InternalStatus status, @Nullable String errorMessage) {
@@ -114,7 +120,10 @@ public class AssetService {
 
     public AssetFull getFullAsset(String guid) {
         // Retrieve service token
+        LocalDateTime adminTokenStart = LocalDateTime.now();
         var token = this.keycloakService.getAdminToken();
+        LocalDateTime adminTokenEnd = LocalDateTime.now();
+        logger.info("#4.1.1: Getting the Admin Token took {} ms", java.time.Duration.between(adminTokenStart, adminTokenEnd).toMillis());
 
         // Create RestTemplate instance
         RestTemplate restTemplate = new RestTemplate();
@@ -127,10 +136,14 @@ public class AssetService {
         HttpEntity<String> entity = new HttpEntity<>(headers);
 
         // Make the GET request
+        LocalDateTime getFullAssetStart = LocalDateTime.now();
         String url = assetServiceProperties.rootUrl() + "/api/v1/assetmetadata/" + guid;
-        ResponseEntity<AssetFull> response = restTemplate.exchange(url, HttpMethod.GET, entity, AssetFull.class);
-
-        // Return the response body
-        return response.getBody();
+        return Observation.createNotStarted("persist:ars-get-full-asset", observationRegistry).observe(() -> {
+            ResponseEntity<AssetFull> response = restTemplate.exchange(url, HttpMethod.GET, entity, AssetFull.class);
+            LocalDateTime getFullAssetEnd = LocalDateTime.now();
+            logger.info("Getting the Full Asset from Asset Service took {} ms", java.time.Duration.between(getFullAssetStart, getFullAssetEnd).toMillis());
+            // Return the response body
+            return response.getBody();
+        });
     }
 }

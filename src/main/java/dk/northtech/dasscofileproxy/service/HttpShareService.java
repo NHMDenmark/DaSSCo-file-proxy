@@ -6,6 +6,8 @@ import dk.northtech.dasscofileproxy.domain.exceptions.DasscoIllegalActionExcepti
 import dk.northtech.dasscofileproxy.domain.exceptions.DasscoInternalErrorException;
 import dk.northtech.dasscofileproxy.repository.*;
 import dk.northtech.dasscofileproxy.webapi.model.AssetStorageAllocation;
+import io.micrometer.observation.Observation;
+import io.micrometer.observation.ObservationRegistry;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.BadRequestException;
 import org.jdbi.v3.core.Jdbi;
@@ -18,6 +20,7 @@ import org.springframework.stereotype.Service;
 import javax.sql.DataSource;
 import java.io.File;
 import java.time.Instant;
+import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -30,9 +33,11 @@ public class HttpShareService {
     private final SFTPService sftpService;
     private final AssetService assetService;
     private static final Logger logger = LoggerFactory.getLogger(HttpShareService.class);
+    private final ObservationRegistry observationRegistry;
 
     @Inject
-    public HttpShareService(DataSource dataSource, FileService fileService, SFTPService sftpService, ShareConfig shareConfig, AssetService assetService) {
+    public HttpShareService(DataSource dataSource, FileService fileService, SFTPService sftpService,
+                            ShareConfig shareConfig, AssetService assetService, ObservationRegistry observationRegistry) {
         this.fileService = fileService;
         this.sftpService = sftpService;
         this.shareConfig = shareConfig;
@@ -42,6 +47,7 @@ public class HttpShareService {
                 .registerRowMapper(ConstructorMapper.factory(Directory.class))
                 .registerRowMapper(ConstructorMapper.factory(UserAccess.class))
                 .registerRowMapper(ConstructorMapper.factory(SharedAsset.class));
+        this.observationRegistry = observationRegistry;
     }
 
     public Directory createDirectory(Directory directory) {
@@ -74,7 +80,11 @@ public class HttpShareService {
                     throw new IllegalArgumentException("Number of assets must be one");
                 }
                 MinimalAsset minimalAsset = creationObj.assets().getFirst();
+                LocalDateTime getFullAssetStart = LocalDateTime.now();
+                logger.info("#4.1: Making API Call to AssetService to get full asset:");
                 AssetFull fullAsset = assetService.getFullAsset(minimalAsset.asset_guid());
+                LocalDateTime getFullAssetEnd = LocalDateTime.now();
+                logger.info("#4.1 took {} ms", java.time.Duration.between(getFullAssetStart, getFullAssetEnd).toMillis());
                 if (fullAsset != null && fullAsset.asset_locked) {
                     logger.warn("Cannot create writeable share: Asset {} is locked", fullAsset.asset_guid);
                     throw new DasscoIllegalActionException("Asset is locked");
@@ -84,8 +94,14 @@ public class HttpShareService {
                     logger.warn("{} is not the parent of {}", minimalAsset.parent_guid(), minimalAsset.asset_guid());
                     throw new DasscoIllegalActionException("Provided parent is different than the actual parent of the asset");
                 }
+                LocalDateTime getUsageByAssetStart = LocalDateTime.now();
                 FileService.AssetAllocation usageByAsset = fileService.getUsageByAsset(minimalAsset);
+                LocalDateTime getUsageByAssetEnd = LocalDateTime.now();
+                logger.info("#4.2 Getting usage took {} ms", java.time.Duration.between(getUsageByAssetStart, getUsageByAssetEnd).toMillis());
+                LocalDateTime getStorageMetricsStart = LocalDateTime.now();
                 StorageMetrics storageMetrics = getStorageMetrics();
+                LocalDateTime getStorageMetricsEnd = LocalDateTime.now();
+                logger.info("#4.3 Getting the storage metrics took {} ms", java.time.Duration.between(getStorageMetricsStart, getStorageMetricsEnd).toMillis());
                 logger.info("Storage metrics {}", storageMetrics);
                 HttpInfo httpInfo = createHttpInfo(storageMetrics, creationObj, usageByAsset);
                 if (httpInfo.http_allocation_status() != HttpAllocationStatus.SUCCESS) {
@@ -101,9 +117,9 @@ public class HttpShareService {
                         , false
                         , 0
                         , setupSharedAssets(creationObj.assets()
-                        .stream()
-                        .map(MinimalAsset::asset_guid)
-                        .collect(Collectors.toList()), creationDatetime)
+                            .stream()
+                            .map(MinimalAsset::asset_guid)
+                            .collect(Collectors.toList()), creationDatetime)
                         , setupUserAccess(creationObj.users(), creationDatetime)
                 );
                 Directory directory = createDirectory(dir);
@@ -114,7 +130,10 @@ public class HttpShareService {
                 String shareFolder = shareFolderOpt.get();
                 try {
                     if (creationObj.assets().size() == 1) {
+                        LocalDateTime initAssetShareStart = LocalDateTime.now();
                         sftpService.initAssetShare(shareFolder, minimalAsset);
+                        LocalDateTime initAssetShareEnd = LocalDateTime.now();
+                        logger.info("#4.4: Initializing Asset Share took {} ms", java.time.Duration.between(initAssetShareStart, initAssetShareEnd).toMillis());
                         return httpInfo;
                     }
                 } catch (Exception e) {
@@ -172,28 +191,30 @@ public class HttpShareService {
     }
 
     public StorageMetrics getStorageMetrics() {
-        return jdbi.withHandle(h -> {
-            File file = new File(shareConfig.mountFolder());
-            long totalSpace = file.getTotalSpace();
-            long usableSpace = file.getUsableSpace();
-            long freeSpace = file.getFreeSpace();
-            logger.info("totalSpace {}", totalSpace);
-            logger.info("Free space {}", freeSpace);
-            logger.info("Usable space {}", usableSpace);
-            int totalAllocated = 0;
-            long foldersize = fileService.getFoldersize(shareConfig.mountFolder());
-            logger.info("folderSize {}", foldersize);
-            DirectoryRepository attach = h.attach(DirectoryRepository.class);
-            totalAllocated = attach.getTotalAllocated();
-            int totalDiskSpace = (int) (totalSpace / 1000000L);
-            int cacheDiskSpace = shareConfig.cacheDiskspace();
-            long totalAllocatedB = totalAllocated * 1000000L;
-            //We have to calculate the remaining disk space including allocations that have not been fully used
-            long actualUsable = usableSpace - foldersize;
-            long remaining = (actualUsable - totalAllocatedB);
-            return new StorageMetrics(totalDiskSpace, cacheDiskSpace, totalAllocated, (int) (remaining / 1000000));
+        return Observation.createNotStarted("persist:getStorageMetrics", observationRegistry).observe(() -> {
+            return jdbi.withHandle(h -> {
+                File file = new File(shareConfig.mountFolder());
+                long totalSpace = file.getTotalSpace();
+                long usableSpace = file.getUsableSpace();
+                long freeSpace = file.getFreeSpace();
+                logger.info("totalSpace {}", totalSpace);
+                logger.info("Free space {}", freeSpace);
+                logger.info("Usable space {}", usableSpace);
+                int totalAllocated = 0;
+                long foldersize = fileService.getFoldersize(shareConfig.mountFolder());
+                logger.info("Size of folder {}", foldersize);
+                DirectoryRepository attach = h.attach(DirectoryRepository.class);
+                totalAllocated = attach.getTotalAllocated();
+                int totalDiskSpace = (int) (totalSpace / 1000000L);
+                int cacheDiskSpace = shareConfig.cacheDiskspace();
+                long totalAllocatedB = totalAllocated * 1000000L;
+                logger.info("tolal allocated {}", totalAllocatedB);
+                // We have to calculate the remaining disk space including allocations that have not been fully used
+                // long actualUsable = usableSpace - foldersize;
+                long actualRemaining = usableSpace - (totalAllocatedB - foldersize);
+                return new StorageMetrics(totalDiskSpace, cacheDiskSpace, totalAllocated, (int) (actualRemaining / 1000000));
+            });
         });
-
     }
 
     public HttpInfo allocateStorage(AssetStorageAllocation newAllocation) {
@@ -313,18 +334,33 @@ public class HttpShareService {
     }
 
     public HttpInfo createHttpShare(CreationObj creationObj, User user) {
-        AssetFull fullAsset = assetService.getFullAsset(creationObj.assets().getFirst().asset_guid());
+        MinimalAsset asset = creationObj.assets().getFirst();
+        AssetFull fullAsset = assetService.getFullAsset(asset.asset_guid());
         if (fullAsset == null) {
-            throw new DasscoIllegalActionException("Asset [" + creationObj.assets().getFirst().asset_guid() + "] was not found");
+            throw new DasscoIllegalActionException("Asset [" + asset.asset_guid() + "] was not found");
         }
         if (fullAsset.asset_locked) {
             throw new DasscoIllegalActionException("Asset is locked");
         }
-        Optional<Directory> writeableDirectory = fileService.getWriteableDirectory(creationObj.assets().getFirst().asset_guid());
+
+        Optional<Directory> writeableDirectory = fileService.getWriteableDirectory(asset.asset_guid());
         if (writeableDirectory.isPresent()) {
             throw new DasscoIllegalActionException("Asset is already checked out");
         }
-        return createHttpShareInternal(creationObj, user);
+        CreationObj mappedCreationObject = mapCreationObject(creationObj, asset, fullAsset);
+        return createHttpShareInternal(mappedCreationObject, user);
+    }
+
+    static CreationObj mapCreationObject(CreationObj creationObj, MinimalAsset asset, AssetFull fullAsset) {
+        if(asset.institution() != null && !(asset.institution().equals(fullAsset.institution))) {
+            throw new DasscoIllegalActionException("Institution in creation object should match institution of asset with supplied guid or be set to null");
+        }
+        if(asset.collection() != null && !(asset.collection().equals(fullAsset.collection))) {
+            throw new DasscoIllegalActionException("Collection in creation object should match collection of asset with supplied guid or be set to null");
+        }
+        MinimalAsset minimalAsset = new MinimalAsset(asset.asset_guid(), asset.parent_guid(), fullAsset.institution, fullAsset.collection);
+        CreationObj mappedCreationObject = new CreationObj(List.of(minimalAsset), creationObj.users(), creationObj.allocation_mb());
+        return mappedCreationObject;
     }
 
     public List<Share> listShares() {

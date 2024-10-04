@@ -92,7 +92,9 @@ class HttpShareServiceTest {
         Directory directory = new Directory(null, "/i1/c1/alloc8ExtraNotEnoughSpace/", "test.dassco.dk", AccessType.WRITE, Instant.now(), 10,false,0, Arrays.asList(azzet1), Arrays.asList(userAccess));
         Directory directory1 = httpShareService.createDirectory(directory);
         StorageMetrics storageMetrics = httpShareService.getStorageMetrics();
-        HttpInfo httpInfo = httpShareService.allocateStorage(new AssetStorageAllocation("alloc8ExtraNotEnoughSpace", (int) ((new File(shareConfig.mountFolder()).getUsableSpace() / 1000000) +1)));
+        long usableSpace = new File(shareConfig.mountFolder()).getUsableSpace();
+
+        HttpInfo httpInfo = httpShareService.allocateStorage(new AssetStorageAllocation("alloc8ExtraNotEnoughSpace", (int) ((usableSpace / 1000000) +1000)));
         StorageMetrics resultMetrics = httpShareService.getStorageMetrics();
         System.out.println(storageMetrics);
         System.out.println(resultMetrics);
@@ -187,5 +189,35 @@ class HttpShareServiceTest {
         CreationObj creationObj = new CreationObj(minimalAssetList, userList, 1);
         IllegalArgumentException illegalArgumentException = assertThrows(IllegalArgumentException.class, () -> httpShareService.createHttpShareInternal(creationObj, user));
         assertThat(illegalArgumentException).hasMessageThat().isEqualTo("Number of assets must be one");
+    }
+
+    @Test
+    void testMapCreationObject() {
+        AssetFull assetFull = new AssetFull();
+        MinimalAsset minazzet = new MinimalAsset("1234", "123", "inztitution", "kollection");
+        assetFull.asset_guid = "1234";
+        assetFull.collection = "kollection";
+        assetFull.institution = "inztitution";
+        CreationObj result = HttpShareService.mapCreationObject(new CreationObj(List.of(minazzet), new ArrayList<>(), 123), minazzet, assetFull);
+        MinimalAsset minimalAsset = result.assets().getFirst();
+        assertThat(minimalAsset.asset_guid()).isEqualTo("1234");
+        assertThat(minimalAsset.parent_guid()).isEqualTo("123");
+        assertThat(minimalAsset.collection()).isEqualTo("kollection");
+        assertThat(minimalAsset.institution()).isEqualTo("inztitution");
+    }
+
+    @Test
+    void testMapCreationObjectNull() {
+        AssetFull assetFull = new AssetFull();
+        MinimalAsset minazzet = new MinimalAsset("1234", "123", null, null);
+        assetFull.asset_guid = "1234";
+        assetFull.collection = "kollection";
+        assetFull.institution = "inztitution";
+        CreationObj result = HttpShareService.mapCreationObject(new CreationObj(List.of(minazzet), new ArrayList<>(), 123), minazzet, assetFull);
+        MinimalAsset minimalAsset = result.assets().getFirst();
+        assertThat(minimalAsset.asset_guid()).isEqualTo("1234");
+        assertThat(minimalAsset.parent_guid()).isEqualTo("123");
+        assertThat(minimalAsset.collection()).isEqualTo("kollection");
+        assertThat(minimalAsset.institution()).isEqualTo("inztitution");
     }
 }

@@ -55,7 +55,7 @@ class SftpServiceTest {
             Files.createDirectories(Path.of("target/test/subfolder/"));
             Files.write(Path.of("target/test/test.txt"), "asdf".getBytes());
             Files.write(Path.of("target/test/subfolder/test.txt"), "asdf".getBytes());
-            new FileService(null, null, null, null).deleteAll(new File("target/test"));
+            new FileService(null, null, null, null, null).deleteAll(new File("target/test"));
         } catch (IOException e) {
             throw new RuntimeException(e);
         }

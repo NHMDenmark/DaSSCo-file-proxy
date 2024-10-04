@@ -17,22 +17,28 @@ import dk.northtech.dasscofileproxy.webapi.exceptionmappers.DaSSCoError;
 import dk.northtech.dasscofileproxy.webapi.exceptionmappers.DaSSCoErrorCode;
 import dk.northtech.dasscofileproxy.webapi.model.FileUploadData;
 import dk.northtech.dasscofileproxy.webapi.model.FileUploadResult;
+import io.micrometer.observation.Observation;
+import io.micrometer.observation.ObservationRegistry;
 import jakarta.inject.Inject;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.core.StreamingOutput;
+import org.apache.tomcat.util.net.jsse.JSSEUtil;
 import org.jdbi.v3.core.Jdbi;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.security.core.parameters.P;
 import org.springframework.stereotype.Service;
+import org.springframework.web.util.UriUtils;
 
 import java.io.*;
 import java.net.URI;
+import java.net.URLEncoder;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.security.SecureRandom;
@@ -51,14 +57,17 @@ public class FileService {
     AssetService assetService;
     AssetServiceProperties assetServiceProperties;
     private static final Logger logger = LoggerFactory.getLogger(FileService.class);
+    private final ObservationRegistry observationRegistry;
 
     @Inject
     public FileService(ShareConfig shareConfig, Jdbi jdbi, AssetService assetService,
-                       AssetServiceProperties assetServiceProperties) {
+                       AssetServiceProperties assetServiceProperties,
+                       ObservationRegistry observationRegistry) {
         this.shareConfig = shareConfig;
         this.assetService = assetService;
         this.jdbi = jdbi;
         this.assetServiceProperties = assetServiceProperties;
+        this.observationRegistry = observationRegistry;
     }
 
 
@@ -74,15 +83,17 @@ public class FileService {
     }
 
     public AssetAllocation getUsageByAsset(MinimalAsset minimalAsset) {
-        return jdbi.withHandle(h -> {
-            long assetAllocation = 0;
-            long parentAllocation = 0;
-            FileRepository attach = h.attach(FileRepository.class);
-            assetAllocation = attach.getTotalAllocatedByAsset(minimalAsset.asset_guid());
-            if (minimalAsset.parent_guid() != null) {
-                parentAllocation = attach.getTotalAllocatedByAsset(minimalAsset.parent_guid());
-            }
-            return new AssetAllocation(assetAllocation, parentAllocation);
+        return Observation.createNotStarted("persist:get-usage-by-asset", observationRegistry).observe(() -> {
+            return jdbi.withHandle(h -> {
+                long assetAllocation = 0;
+                long parentAllocation = 0;
+                FileRepository attach = h.attach(FileRepository.class);
+                assetAllocation = attach.getTotalAllocatedByAsset(minimalAsset.asset_guid());
+                if (minimalAsset.parent_guid() != null) {
+                    parentAllocation = attach.getTotalAllocatedByAsset(minimalAsset.parent_guid());
+                }
+                return new AssetAllocation(assetAllocation, parentAllocation);
+            });
         });
     }
 
@@ -140,8 +151,6 @@ public class FileService {
 
     public record FileResult(InputStream is, String filename) {
     }
-
-    ;
 
     record AssetAllocation(long assetBytes, long parentBytes) {
         int getTotalAllocationAsMb() {
@@ -417,7 +426,7 @@ public class FileService {
                 Files.delete(filePath);
                 return true;
             } catch (IOException e){
-                e.printStackTrace();
+                logger.error(e.getMessage());
                 return false;
             }
         } else {
@@ -443,7 +452,7 @@ public class FileService {
                                 zos.putNextEntry(new ZipEntry(entryName + "/"));
                                 zos.closeEntry();
                             } catch (IOException e) {
-                                e.printStackTrace();
+                                logger.error(e.getMessage());
                             }
                         } else {
                             try {
@@ -452,7 +461,7 @@ public class FileService {
                                 Files.copy(path, zos);
                                 zos.closeEntry();
                             } catch (Exception e) {
-                                e.printStackTrace();
+                                logger.error(e.getMessage());
                             }
                         }
                     });
@@ -477,7 +486,7 @@ public class FileService {
                 return true;
             }
         } catch (Exception e){
-            e.printStackTrace();
+            logger.error(e.getMessage());
         }
         return false;
     }
@@ -524,13 +533,13 @@ public class FileService {
                     this.createZipFile(guid);
                     return Response.status(200).entity(guid).build();
                 } catch (Exception e){
-                    e.printStackTrace();
+                    logger.error(e.getMessage());
                 }
             } else {
                 return Response.status(500).entity(response.body()).build();
             }
         } catch (Exception e){
-            e.printStackTrace();
+            logger.error(e.getMessage());
         }
         return Response.status(500).entity("There was an error downloading the files").build();
     }
@@ -569,7 +578,7 @@ public class FileService {
             }
 
         } catch (Exception e){
-            e.printStackTrace();
+            logger.error(e.getMessage());
         }
         return Response.status(500).build();
     }
@@ -586,7 +595,7 @@ public class FileService {
                 writer.write(fullCsv);
             }
         } catch (IOException e) {
-            e.printStackTrace();
+            logger.error(e.getMessage());
         }
     }
 
@@ -600,7 +609,7 @@ public class FileService {
         try {
             Files.createDirectories(tempDir);
         } catch (IOException e) {
-            e.printStackTrace();
+            logger.error(e.getMessage());
         }
 
         for (String path : paths) {
@@ -611,12 +620,15 @@ public class FileService {
             Path outputDir = tempDir.resolve(folderName);
             Files.createDirectories(outputDir);
 
+            String encodedPath = UriUtils.encodePath(path, "UTF-8");
+
             HttpRequest request = HttpRequest.newBuilder()
-                    .uri(URI.create(shareConfig.nodeHost() + "/file_proxy/api/files/assets" + path))
+                    .uri(URI.create(shareConfig.nodeHost() + "/file_proxy/api/files/assets" + encodedPath))
                     .header("Authorization", "Bearer " + user.token)
                     .header("Content-Type", "application/json")
                     .GET()
                     .build();
+
             try {
                 HttpResponse<InputStream> response = httpClient.send(request, HttpResponse.BodyHandlers.ofInputStream());
                 if (response.statusCode() == 200){
@@ -646,7 +658,7 @@ public class FileService {
                                 try {
                                     Files.deleteIfExists(path);
                                 } catch (IOException e){
-                                    e.printStackTrace();
+                                    logger.error(e.getMessage());
                                 }
                             });
                 }
@@ -659,12 +671,12 @@ public class FileService {
                                 try {
                                     Files.deleteIfExists(path);
                                 } catch (IOException e){
-                                    e.printStackTrace();
+                                    logger.error(e.getMessage());
                                 }
                             });
                 }
             } catch (IOException e){
-                e.printStackTrace();
+                logger.error(e.getMessage());
             }
         }
     }

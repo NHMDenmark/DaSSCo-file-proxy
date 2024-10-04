@@ -7,6 +7,8 @@ import dk.northtech.dasscofileproxy.assets.KeycloakAdminConfig;
 import dk.northtech.dasscofileproxy.domain.KeycloakToken;
 import dk.northtech.dasscofileproxy.utils.CustomKeycloakTokenDeserializer;
 import dk.northtech.dasscofileproxy.utils.KeycloakAuthenticator;
+import io.micrometer.observation.Observation;
+import io.micrometer.observation.ObservationRegistry;
 import jakarta.inject.Inject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -30,38 +32,42 @@ public class KeycloakService {
     SimpleModule module = new SimpleModule("CustomKeycloakTokenDeserializer", new Version(1, 0, 0, null, null, null));
     private static KeycloakToken keycloakToken;
     private static HttpClient httpClient;
+    private final ObservationRegistry observationRegistry;
 
     @Inject
-    public KeycloakService(KeycloakAuthenticator keycloakAuthenticator, KeycloakAdminConfig keycloakAdminConfig) {
+    public KeycloakService(KeycloakAuthenticator keycloakAuthenticator, KeycloakAdminConfig keycloakAdminConfig,
+                           ObservationRegistry observationRegistry) {
         this.keycloakAuthenticator = keycloakAuthenticator;
         this.keycloakAdminConfig = keycloakAdminConfig;
         this.module.addDeserializer(KeycloakToken.class, new CustomKeycloakTokenDeserializer());
         this.objectMapper.registerModule(module);
-
+        this.observationRegistry = observationRegistry;
     }
 
     public String getAdminToken() {
         // Given we have an access token
-        if (keycloakToken != null) {
-            // Validate the expiration
-            // If it's almost ran out, try to refresh
-            if (keycloakToken.accessExpirationTimeStamp().isBefore(Instant.now().plusSeconds(30))) {
-                LOGGER.debug("KeycloakService: Attempt refresh!");
-                // If the refresh token is still valid, use refresh token
-                if (keycloakToken.refreshExpirationTimeStamp().isBefore(Instant.now().plusSeconds(30))) {
-                    LOGGER.debug("KeycloakService: Refreshing!");
-                    return newAccessToken().accessToken();
-                }
-                // If it's not valid, then fall through and create a new token
+        return Observation.createNotStarted("persist:getKeycloakAdminToken", observationRegistry).observe(() -> {
+            if (keycloakToken != null) {
+                // Validate the expiration
+                // If it's almost ran out, try to refresh
+                if (keycloakToken.accessExpirationTimeStamp().isBefore(Instant.now().plusSeconds(30))) {
+                    LOGGER.debug("KeycloakService: Attempt refresh!");
+                    // If the refresh token is still valid, use refresh token
+                    if (keycloakToken.refreshExpirationTimeStamp().isBefore(Instant.now().plusSeconds(30))) {
+                        LOGGER.debug("KeycloakService: Refreshing!");
+                        return newAccessToken().accessToken();
+                    }
+                    // If it's not valid, then fall through and create a new token
 
-                // else: Just reuse the old access token.
-            } else {
-                LOGGER.debug("KeycloakService: Using old AccessToken for: " + (keycloakToken.accessExpirationTimeStamp().getEpochSecond() - Instant.now().plusSeconds(30).getEpochSecond()) + " seconds");
-                return keycloakToken.accessToken();
+                    // else: Just reuse the old access token.
+                } else {
+                    LOGGER.debug("KeycloakService: Using old AccessToken for: " + (keycloakToken.accessExpirationTimeStamp().getEpochSecond() - Instant.now().plusSeconds(30).getEpochSecond()) + " seconds");
+                    return keycloakToken.accessToken();
+                }
             }
-        }
-        LOGGER.debug("KeycloakService: Create new AccessToken");
-        return newAccessToken().accessToken();
+            LOGGER.debug("KeycloakService: Create new AccessToken");
+            return newAccessToken().accessToken();
+        });
     }
 
 
