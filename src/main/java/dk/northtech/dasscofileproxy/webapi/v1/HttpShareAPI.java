@@ -1,5 +1,6 @@
 package dk.northtech.dasscofileproxy.webapi.v1;
 
+import com.github.benmanes.caffeine.cache.Caffeine;
 import dk.northtech.dasscofileproxy.domain.*;
 import dk.northtech.dasscofileproxy.domain.exceptions.DasscoIllegalActionException;
 import dk.northtech.dasscofileproxy.service.*;

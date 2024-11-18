@@ -1,5 +1,8 @@
 package dk.northtech.dasscofileproxy.service;
 
+import com.github.benmanes.caffeine.cache.Caffeine;
+import com.github.benmanes.caffeine.cache.LoadingCache;
+import com.google.common.base.Strings;
 import dk.northtech.dasscofileproxy.configuration.ShareConfig;
 import dk.northtech.dasscofileproxy.domain.*;
 import dk.northtech.dasscofileproxy.domain.exceptions.DasscoIllegalActionException;
@@ -22,12 +25,16 @@ import java.io.File;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.*;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
+
+import com.github.benmanes.caffeine.cache.Cache;
 
 @Service
 public class HttpShareService {
+    Cache<String, Instant> guids = Caffeine.newBuilder() // <user, <"read", ["collection2"]>>
+            .expireAfterWrite(5, TimeUnit.MINUTES).build();
     private final Jdbi jdbi;
-
     private final ShareConfig shareConfig;
     private final FileService fileService;
     private final SFTPService sftpService;
@@ -71,80 +78,99 @@ public class HttpShareService {
         );
     }
 
+    public synchronized void checkCreationObject(CreationObj creationObj) {
+        if (creationObj.users().isEmpty() || creationObj.assets().isEmpty()) {
+            throw new BadRequestException("You have to provide users and an asset in this call");
+        }
+        if (creationObj.assets().size() != 1) {
+            logger.warn("Create writeable share api received number of assets different than one");
+            throw new IllegalArgumentException("Number of assets must be one");
+        }
+        String guid = creationObj.assets().getFirst().asset_guid();
+        if (Strings.isNullOrEmpty(guid)) {
+            throw new IllegalArgumentException("Asset guid cannot be null or empty");
+        }
+        Instant time = guids.getIfPresent(guid);
+        if(time != null) {
+            throw new RuntimeException("A share with guid "+guid+" is already in the process of creation");
+        }
+        guids.put(guid, Instant.now());
+    }
+
     public HttpInfo createHttpShareInternal(CreationObj creationObj, User user) {
         try {
             Instant creationDatetime = Instant.now();
-            if (!creationObj.users().isEmpty() && !creationObj.assets().isEmpty()) {
-                if (creationObj.assets().size() != 1) {
-                    logger.warn("Create writeable share api received number of assets different than one");
-                    throw new IllegalArgumentException("Number of assets must be one");
-                }
-                MinimalAsset minimalAsset = creationObj.assets().getFirst();
-                LocalDateTime getFullAssetStart = LocalDateTime.now();
-                logger.info("#4.1: Making API Call to AssetService to get full asset:");
-                AssetFull fullAsset = assetService.getFullAsset(minimalAsset.asset_guid());
-                LocalDateTime getFullAssetEnd = LocalDateTime.now();
-                logger.info("#4.1 took {} ms", java.time.Duration.between(getFullAssetStart, getFullAssetEnd).toMillis());
-                if (fullAsset != null && fullAsset.asset_locked) {
-                    logger.warn("Cannot create writeable share: Asset {} is locked", fullAsset.asset_guid);
-                    throw new DasscoIllegalActionException("Asset is locked");
-                }
-                // Prevents people from checking out random assets as parents
-                if (fullAsset != null && fullAsset.parent_guid != null && minimalAsset.parent_guid() != null && !fullAsset.parent_guid.equals(minimalAsset.parent_guid())) {
-                    logger.warn("{} is not the parent of {}", minimalAsset.parent_guid(), minimalAsset.asset_guid());
-                    throw new DasscoIllegalActionException("Provided parent is different than the actual parent of the asset");
-                }
-                LocalDateTime getUsageByAssetStart = LocalDateTime.now();
-                FileService.AssetAllocation usageByAsset = fileService.getUsageByAsset(minimalAsset);
-                LocalDateTime getUsageByAssetEnd = LocalDateTime.now();
-                logger.info("#4.2 Getting usage took {} ms", java.time.Duration.between(getUsageByAssetStart, getUsageByAssetEnd).toMillis());
-                LocalDateTime getStorageMetricsStart = LocalDateTime.now();
-                StorageMetrics storageMetrics = getStorageMetrics();
-                LocalDateTime getStorageMetricsEnd = LocalDateTime.now();
-                logger.info("#4.3 Getting the storage metrics took {} ms", java.time.Duration.between(getStorageMetricsStart, getStorageMetricsEnd).toMillis());
-                logger.info("Storage metrics {}", storageMetrics);
-                HttpInfo httpInfo = createHttpInfo(storageMetrics, creationObj, usageByAsset);
-                if (httpInfo.http_allocation_status() != HttpAllocationStatus.SUCCESS) {
+
+            checkCreationObject(creationObj);
+            MinimalAsset minimalAsset = creationObj.assets().getFirst();
+            Optional<Directory> writeableDirectory = fileService.getWriteableDirectory(minimalAsset.asset_guid());
+            if (writeableDirectory.isPresent()) {
+                throw new DasscoIllegalActionException("Asset is already checked out");
+            }
+            LocalDateTime getFullAssetStart = LocalDateTime.now();
+            logger.info("#4.1: Making API Call to AssetService to get full asset:");
+            AssetFull fullAsset = assetService.getFullAsset(minimalAsset.asset_guid());
+            LocalDateTime getFullAssetEnd = LocalDateTime.now();
+            logger.info("#4.1 took {} ms", java.time.Duration.between(getFullAssetStart, getFullAssetEnd).toMillis());
+            if (fullAsset != null && fullAsset.asset_locked) {
+                logger.warn("Cannot create writeable share: Asset {} is locked", fullAsset.asset_guid);
+                throw new DasscoIllegalActionException("Asset is locked");
+            }
+            // Prevents people from checking out random assets as parents
+            if (fullAsset != null && fullAsset.parent_guid != null && minimalAsset.parent_guid() != null && !fullAsset.parent_guid.equals(minimalAsset.parent_guid())) {
+                logger.warn("{} is not the parent of {}", minimalAsset.parent_guid(), minimalAsset.asset_guid());
+                throw new DasscoIllegalActionException("Provided parent is different than the actual parent of the asset");
+            }
+            LocalDateTime getUsageByAssetStart = LocalDateTime.now();
+            FileService.AssetAllocation usageByAsset = fileService.getUsageByAsset(minimalAsset);
+            LocalDateTime getUsageByAssetEnd = LocalDateTime.now();
+            logger.info("#4.2 Getting usage took {} ms", java.time.Duration.between(getUsageByAssetStart, getUsageByAssetEnd).toMillis());
+            LocalDateTime getStorageMetricsStart = LocalDateTime.now();
+            StorageMetrics storageMetrics = getStorageMetrics();
+            LocalDateTime getStorageMetricsEnd = LocalDateTime.now();
+            logger.info("#4.3 Getting the storage metrics took {} ms", java.time.Duration.between(getStorageMetricsStart, getStorageMetricsEnd).toMillis());
+            logger.info("Storage metrics {}", storageMetrics);
+            HttpInfo httpInfo = createHttpInfo(storageMetrics, creationObj, usageByAsset);
+            if (httpInfo.http_allocation_status() != HttpAllocationStatus.SUCCESS) {
+                return httpInfo;
+            }
+            logger.info("creation obj is valid");
+            Directory dir = new Directory(null
+                    , httpInfo.path()
+                    , shareConfig.nodeHost()
+                    , AccessType.WRITE
+                    , creationDatetime
+                    , creationObj.allocation_mb()
+                    , false
+                    , 0
+                    , setupSharedAssets(creationObj.assets()
+                    .stream()
+                    .map(MinimalAsset::asset_guid)
+                    .collect(Collectors.toList()), creationDatetime)
+                    , setupUserAccess(creationObj.users(), creationDatetime)
+            );
+            // d
+            Directory directory = createDirectory(dir);
+            Optional<String> shareFolderOpt = fileService.createShareFolder(minimalAsset);
+            if (shareFolderOpt.isEmpty()) {
+                throw new DasscoInternalErrorException("Local asset directory did not get created, this might be due to a disk space or permission error on the server.");
+            }
+            String shareFolder = shareFolderOpt.get();
+            try {
+                if (creationObj.assets().size() == 1) {
+                    LocalDateTime initAssetShareStart = LocalDateTime.now();
+                    sftpService.initAssetShare(shareFolder, minimalAsset);
+                    LocalDateTime initAssetShareEnd = LocalDateTime.now();
+                    logger.info("#4.4: Initializing Asset Share took {} ms", java.time.Duration.between(initAssetShareStart, initAssetShareEnd).toMillis());
                     return httpInfo;
                 }
-                logger.info("creation obj is valid");
-                Directory dir = new Directory(null
-                        , httpInfo.path()
-                        , shareConfig.nodeHost()
-                        , AccessType.WRITE
-                        , creationDatetime
-                        , creationObj.allocation_mb()
-                        , false
-                        , 0
-                        , setupSharedAssets(creationObj.assets()
-                            .stream()
-                            .map(MinimalAsset::asset_guid)
-                            .collect(Collectors.toList()), creationDatetime)
-                        , setupUserAccess(creationObj.users(), creationDatetime)
-                );
-                Directory directory = createDirectory(dir);
-                Optional<String> shareFolderOpt = fileService.createShareFolder(minimalAsset);
-                if (shareFolderOpt.isEmpty()) {
-                    throw new DasscoInternalErrorException("Local asset directory did not get created, this might be due to a disk space or permission error on the server.");
-                }
-                String shareFolder = shareFolderOpt.get();
-                try {
-                    if (creationObj.assets().size() == 1) {
-                        LocalDateTime initAssetShareStart = LocalDateTime.now();
-                        sftpService.initAssetShare(shareFolder, minimalAsset);
-                        LocalDateTime initAssetShareEnd = LocalDateTime.now();
-                        logger.info("#4.4: Initializing Asset Share took {} ms", java.time.Duration.between(initAssetShareStart, initAssetShareEnd).toMillis());
-                        return httpInfo;
-                    }
-                } catch (Exception e) {
-                    logger.error("Failed to init asset share", e);
-                    fileService.deleteDirectory(directory.directoryId());
-                    throw e;
-                }
-                return new HttpInfo(null, null, storageMetrics.total_storage_mb(), storageMetrics.cache_storage_mb(), storageMetrics.remaining_storage_mb(), storageMetrics.all_allocated_storage_mb(), 0, httpInfo.allocation_status_text(), httpInfo.http_allocation_status(), 0);
-            } else {
-                throw new BadRequestException("You have to provide users in this call");
+            } catch (Exception e) {
+                logger.error("Failed to init asset share", e);
+                fileService.deleteDirectory(directory.directoryId());
+                throw e;
             }
+            return new HttpInfo(null, null, storageMetrics.total_storage_mb(), storageMetrics.cache_storage_mb(), storageMetrics.remaining_storage_mb(), storageMetrics.all_allocated_storage_mb(), 0, httpInfo.allocation_status_text(), httpInfo.http_allocation_status(), 0);
+
         } catch (RuntimeException e) {
             logger.error("exception", e);
             throw e;
@@ -333,6 +359,7 @@ public class HttpShareService {
         });
     }
 
+
     public HttpInfo createHttpShare(CreationObj creationObj, User user) {
         MinimalAsset asset = creationObj.assets().getFirst();
         AssetFull fullAsset = assetService.getFullAsset(asset.asset_guid());
@@ -342,20 +369,16 @@ public class HttpShareService {
         if (fullAsset.asset_locked) {
             throw new DasscoIllegalActionException("Asset is locked");
         }
-
-        Optional<Directory> writeableDirectory = fileService.getWriteableDirectory(asset.asset_guid());
-        if (writeableDirectory.isPresent()) {
-            throw new DasscoIllegalActionException("Asset is already checked out");
-        }
         CreationObj mappedCreationObject = mapCreationObject(creationObj, asset, fullAsset);
         return createHttpShareInternal(mappedCreationObject, user);
     }
 
+
     static CreationObj mapCreationObject(CreationObj creationObj, MinimalAsset asset, AssetFull fullAsset) {
-        if(asset.institution() != null && !(asset.institution().equals(fullAsset.institution))) {
+        if (asset.institution() != null && !(asset.institution().equals(fullAsset.institution))) {
             throw new DasscoIllegalActionException("Institution in creation object should match institution of asset with supplied guid or be set to null");
         }
-        if(asset.collection() != null && !(asset.collection().equals(fullAsset.collection))) {
+        if (asset.collection() != null && !(asset.collection().equals(fullAsset.collection))) {
             throw new DasscoIllegalActionException("Collection in creation object should match collection of asset with supplied guid or be set to null");
         }
         MinimalAsset minimalAsset = new MinimalAsset(asset.asset_guid(), asset.parent_guid(), fullAsset.institution, fullAsset.collection);
@@ -373,7 +396,7 @@ public class HttpShareService {
                     .collect(Collectors.toMap(x -> x.id, y -> {
                         return y;
                     }));
-            for(SharedAsset asset : sharedAssets) {
+            for (SharedAsset asset : sharedAssets) {
                 shares.get(asset.directoryId()).assets.add(asset.assetGuid());
             }
             return new ArrayList<>(shares.values());

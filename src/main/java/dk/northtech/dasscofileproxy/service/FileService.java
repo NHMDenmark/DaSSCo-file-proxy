@@ -221,8 +221,11 @@ public class FileService {
         return jdbi.withHandle(handle -> {
             DirectoryRepository directoryRepository = handle.attach(DirectoryRepository.class);
             List<Directory> writeableDirectoriesByAsset = directoryRepository.getWriteableDirectoriesByAsset(assetGuid);
-            if (writeableDirectoriesByAsset.size() != 1) {
+            if (writeableDirectoriesByAsset.isEmpty()) {
                 return Optional.empty();
+            }
+            if (writeableDirectoriesByAsset.size() > 1) {
+                throw new DasscoInternalErrorException("Multiple writeable directories found for asset " + assetGuid + " this has to be fixed manually");
             }
             return Optional.of(writeableDirectoriesByAsset.get(0));
         });
