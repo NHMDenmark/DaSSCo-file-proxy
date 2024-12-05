@@ -114,11 +114,13 @@ public class HttpShareService {
             logger.info("#4.1 took {} ms", java.time.Duration.between(getFullAssetStart, getFullAssetEnd).toMillis());
             if (fullAsset != null && fullAsset.asset_locked) {
                 logger.warn("Cannot create writeable share: Asset {} is locked", fullAsset.asset_guid);
+                guids.invalidate(minimalAsset.asset_guid());
                 throw new DasscoIllegalActionException("Asset is locked");
             }
             // Prevents people from checking out random assets as parents
             if (fullAsset != null && fullAsset.parent_guid != null && minimalAsset.parent_guid() != null && !fullAsset.parent_guid.equals(minimalAsset.parent_guid())) {
                 logger.warn("{} is not the parent of {}", minimalAsset.parent_guid(), minimalAsset.asset_guid());
+                guids.invalidate(fullAsset.asset_guid);
                 throw new DasscoIllegalActionException("Provided parent is different than the actual parent of the asset");
             }
             LocalDateTime getUsageByAssetStart = LocalDateTime.now();
@@ -132,6 +134,7 @@ public class HttpShareService {
             logger.info("Storage metrics {}", storageMetrics);
             HttpInfo httpInfo = createHttpInfo(storageMetrics, creationObj, usageByAsset);
             if (httpInfo.http_allocation_status() != HttpAllocationStatus.SUCCESS) {
+                guids.invalidate(fullAsset.asset_guid);
                 return httpInfo;
             }
             logger.info("creation obj is valid");
