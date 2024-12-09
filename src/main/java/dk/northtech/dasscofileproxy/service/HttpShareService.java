@@ -92,7 +92,7 @@ public class HttpShareService {
         }
         Instant time = guids.getIfPresent(guid);
         if(time != null) {
-            throw new RuntimeException("A share with guid "+guid+" is already in the process of creation");
+            throw new IllegalArgumentException("A share with guid "+guid+" is already in the process of creation");
         }
         guids.put(guid, Instant.now());
     }
@@ -165,6 +165,7 @@ public class HttpShareService {
                     sftpService.initAssetShare(shareFolder, minimalAsset);
                     LocalDateTime initAssetShareEnd = LocalDateTime.now();
                     logger.info("#4.4: Initializing Asset Share took {} ms", java.time.Duration.between(initAssetShareStart, initAssetShareEnd).toMillis());
+                    guids.invalidate(minimalAsset.asset_guid());
                     return httpInfo;
                 }
             } catch (Exception e) {
