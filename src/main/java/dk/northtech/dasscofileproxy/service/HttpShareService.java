@@ -80,7 +80,7 @@ public class HttpShareService {
 
     public synchronized void checkCreationObject(CreationObj creationObj) {
         if (creationObj.users().isEmpty() || creationObj.assets().isEmpty()) {
-            throw new BadRequestException("You have to provide users and an asset in this call");
+            throw new IllegalArgumentException("You have to provide users and an asset in this call");
         }
         if (creationObj.assets().size() != 1) {
             logger.warn("Create writeable share api received number of assets different than one");
