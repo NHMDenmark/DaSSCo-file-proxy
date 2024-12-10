@@ -171,8 +171,8 @@ class HttpShareServiceTest {
         List<MinimalAsset> listMinimalAsset = new ArrayList<>();
         List<String> listUsers = new ArrayList<>();
         CreationObj creationObj = new CreationObj(listMinimalAsset, listUsers, 1);
-        BadRequestException badRequestException = assertThrows(BadRequestException.class, () -> httpShareService.createHttpShareInternal(creationObj, user));
-        assertThat(badRequestException).hasMessageThat().isEqualTo("You have to provide users in this call");
+        IllegalArgumentException badRequestException = assertThrows(IllegalArgumentException.class, () -> httpShareService.createHttpShareInternal(creationObj, user));
+        assertThat(badRequestException).hasMessageThat().isEqualTo("You have to provide users and an asset in this call");
     }
 
     @Test
