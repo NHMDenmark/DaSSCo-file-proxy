@@ -34,7 +34,9 @@ public class Files {
 
 
     @GET
-    @Operation(summary = "Get File From ERDA", description = "Gets a file from ERDA. If 'no-cache' is true, then the file won't be saved in the cache and will be streamed instead. 'no-cache' is false by default.")
+    @Operation(summary = "Get File From ERDA", description = """
+    Gets a file from ERDA on the give path. If 'no-cache' is true, then the file won't be saved in the cache and will be streamed instead. 'no-cache' is false by default.
+    """)
     @Path("/assets/{institution}/{collection}/{assetGuid}/{path: .+}")
     public Response getFile(
             @PathParam("institution") String institution
@@ -64,14 +66,6 @@ public class Files {
                 return Response.status(200)
                         .header("Content-Disposition", "attachment; filename=" + fileResult.filename())
                         .header("Content-Type", new Tika().detect(fileResult.filename())).entity(streamingOutput).build();
-//            }
-//            finally {
-//                try {
-//                    file.get().is().close();
-//                } catch (IOException e) {
-//                    throw new RuntimeException(e);
-//                }
-//            }
             } else {
                 return Response.status(404).build();
             }

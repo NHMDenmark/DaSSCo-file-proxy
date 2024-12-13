@@ -80,7 +80,6 @@ public class AssetFiles {
 
     @GET
     @Path("/{institutionName}/{collectionName}/{assetGuid}/{path: .+}")
-    // TODO: Should the path remain like this? This endpoint only works in Postman in its current state, and not in the Documentation Page. •
     @Operation(summary = "Get Asset File by path", description = "Get an asset file based on institution, collection, asset_guid and path to the file")
 //    @Produces(MediaType.APPLICATION_OCTET_STREAM)
     @Consumes(APPLICATION_JSON)
@@ -123,7 +122,7 @@ public class AssetFiles {
 
     @GET
     @Path("/{institutionName}/{collectionName}/{assetGuid}/")
-    @Operation(summary = "Get List of Asset Files", description = "Get a list of files based on institution, collection and asset_guid")
+    @Operation(summary = "Get List of Asset Files that have been checked out", description = "Get a list of files for a given asset with an open share")
     // TODO: Roles allowed?
     @Produces(APPLICATION_JSON)
     @Consumes(APPLICATION_JSON)
@@ -142,9 +141,6 @@ public class AssetFiles {
 
     @DELETE
     @Path("/{institutionName}/{collectionName}/{assetGuid}/{path: .+}")
-    // TODO: Same as with the Get, should the path be changed to a @PathParam? Currently it only works in Postman
-//    @Produces(MediaType.APPLICATION_JSON)
-//    @Consumes(APPLICATION_JSON)
     @Operation(summary = "Delete Asset File by path", description = "Delete resource at the given path. If the resource is a directory, it will be deleted along its content. If the resource is the base directory for an asset the directory will not be deleted, only the content.")
     @ApiResponse(responseCode = "204", description = "No Content. File has been deleted.")
     @ApiResponse(responseCode = "400-599", content = @Content(mediaType = APPLICATION_JSON, schema = @Schema(implementation = DaSSCoError.class)))
@@ -180,7 +176,10 @@ public class AssetFiles {
 
     @POST
     @Path("/createZipFile/{guid}")
-    @Operation(summary = "Create Zip File", description = "Takes a list of Asset Guids, saves the associated files in the temp folder and zips both the images and the .csv with metadata.")
+    @Operation(summary = "Create Zip File", description = """
+    Takes a list of Asset Guids, saves the associated files in the temp folder and zips both the images and the .csv with metadata.
+    Used by the query page in the frontend in connection with downloading zip file with assets.
+    """)
     @Consumes(APPLICATION_JSON)
     @Produces(MediaType.TEXT_PLAIN)
     @ApiResponse(responseCode = "200", content = @Content(mediaType = MediaType.TEXT_PLAIN, array = @ArraySchema(schema = @Schema(implementation = String.class)), examples = { @ExampleObject("ZIP File created successfully.")}))
@@ -194,7 +193,7 @@ public class AssetFiles {
 
     @POST
     @Path("/createCsvFile")
-    @Operation(summary = "Create CSV File", description = "Creates a CSV File with Asset metadata in the Temp folder")
+    @Operation(summary = "Create CSV File", description = "Creates a CSV File with Asset metadata in the Temp folder, used by the query page in the frontend in connection with dowloading csv files.")
     @Produces(MediaType.TEXT_PLAIN)
     @Consumes(APPLICATION_JSON)
     @ApiResponse(responseCode = "200", content = @Content(mediaType = MediaType.TEXT_PLAIN, array = @ArraySchema(schema = @Schema(implementation = String.class)), examples = { @ExampleObject("CSV File created successfully.")}))
@@ -226,7 +225,7 @@ public class AssetFiles {
 
     @GET
     @Path("/getTempFile/{guid}/{fileName}")
-    @Operation(summary = "Get Temporary File", description = "Gets a file from the Temp Folder (.csv or .zip for downloading assets).")
+    @Operation(summary = "Get Temporary File", description = "Gets a file from the Temp Folder (.csv or .zip for downloading assets) used on the query page in the frontend.")
     public Response getTempFile(@PathParam("guid") String guid, @PathParam("fileName") String fileName){
         String projectDir = System.getProperty("user.dir");
         java.nio.file.Path tempDir = Paths.get(projectDir, "target", "temp", guid);

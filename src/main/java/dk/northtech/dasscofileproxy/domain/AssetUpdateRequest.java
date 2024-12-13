@@ -5,8 +5,6 @@ import jakarta.annotation.Nullable;
 
 public record AssetUpdateRequest(
         @Schema(description = "", example = "")
-        @Nullable String shareName,
-        @Schema(description = "", example = "")
         @Nullable MinimalAsset minimalAsset,
         @Schema(description = "The name of the workstation used to do the imaging", example = "ti-ws1")
         @Nullable String workstation,
