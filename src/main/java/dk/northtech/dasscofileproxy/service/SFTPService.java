@@ -117,7 +117,7 @@ public class SFTPService {
                     List<String> filesToDelete = remoteFiles.stream().filter(f -> !uploadedFiles.contains(f)).collect(Collectors.toList());
                     erdaClient.deleteFiles(filesToDelete);
                     fileService.markFilesAsSynced(fullAsset.asset_guid);
-                    if (assetService.completeAsset(new AssetUpdateRequest(null, new MinimalAsset(sharedAsset.assetGuid(), null, null, null), directory.syncWorkstation(), directory.syncPipeline(), directory.syncUser()))) {
+                    if (assetService.completeAsset(new AssetUpdateRequest(new MinimalAsset(sharedAsset.assetGuid(), null, null, null), directory.syncWorkstation(), directory.syncPipeline(), directory.syncUser()))) {
                         //Clean up local dir and its metadata
                         fileService.deleteDirectory(directory.directoryId());
                         fileService.removeShareFolder(directory);
