@@ -197,7 +197,7 @@
                 <version>2.2.7</version>
                 <configuration>
                     <outputFileName>openapi</outputFileName>
-                    <outputPath>${project.basedir}/src/main/resources</outputPath>
+                    <outputPath>${project.basedir}/target/classes</outputPath>
                     <outputFormat>JSONANDYAML</outputFormat>
                     <resourcePackages>
                         <package>dk.northtech.dasscofileproxy.webapi</package>
