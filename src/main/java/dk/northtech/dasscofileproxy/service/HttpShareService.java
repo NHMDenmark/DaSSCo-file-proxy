@@ -1,7 +1,6 @@
 package dk.northtech.dasscofileproxy.service;
 
 import com.github.benmanes.caffeine.cache.Caffeine;
-import com.github.benmanes.caffeine.cache.LoadingCache;
 import com.google.common.base.Strings;
 import dk.northtech.dasscofileproxy.configuration.ShareConfig;
 import dk.northtech.dasscofileproxy.domain.*;
@@ -12,7 +11,6 @@ import dk.northtech.dasscofileproxy.webapi.model.AssetStorageAllocation;
 import io.micrometer.observation.Observation;
 import io.micrometer.observation.ObservationRegistry;
 import jakarta.inject.Inject;
-import jakarta.ws.rs.BadRequestException;
 import org.jdbi.v3.core.Jdbi;
 import org.jdbi.v3.core.mapper.reflect.ConstructorMapper;
 import org.jdbi.v3.sqlobject.SqlObjectPlugin;
@@ -64,7 +62,7 @@ public class HttpShareService {
                     Long directoryId = di.insertDirectory(directory);
 
                     if (directory.sharedAssets().size() > 0) {
-                        SharedAssetList sharedAssetRepository = h.attach(SharedAssetList.class);
+                        SharedAssetRepository sharedAssetRepository = h.attach(SharedAssetRepository.class);
                         sharedAssetRepository.fillBatch(directoryId, directory.sharedAssets());
                     }
 
@@ -392,9 +390,9 @@ public class HttpShareService {
 
     public List<Share> listShares() {
         return jdbi.withHandle(h -> {
-            SharedAssetList sharedAssetList = h.attach(SharedAssetList.class);
+            SharedAssetRepository sharedAssetRepository = h.attach(SharedAssetRepository.class);
             DirectoryRepository directoryRepository = h.attach(DirectoryRepository.class);
-            List<SharedAsset> sharedAssets = sharedAssetList.getSharedAssets();
+            List<SharedAsset> sharedAssets = sharedAssetRepository.getSharedAssets();
             Map<Long, Share> shares = directoryRepository.getAll().stream()
                     .map(x -> new Share(x.uri(), x.directoryId(), new ArrayList<>()))
                     .collect(Collectors.toMap(x -> x.id, y -> {

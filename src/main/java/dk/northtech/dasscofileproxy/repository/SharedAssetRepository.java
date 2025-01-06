@@ -10,7 +10,7 @@ import org.jdbi.v3.sqlobject.statement.SqlUpdate;
 import java.util.Collection;
 import java.util.List;
 
-public interface SharedAssetList {
+public interface SharedAssetRepository {
     @SqlBatch("INSERT INTO shared_assets(directory_id, asset_guid, creation_datetime) VALUES(:newDirectoryId, :assetGuid, :creationDatetime)")
     void fillBatch(@Bind Long newDirectoryId, @BindMethods Collection<SharedAsset> sharedAssets);
 

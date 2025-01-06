@@ -6,7 +6,7 @@ import dk.northtech.dasscofileproxy.configuration.SFTPConfig;
 import dk.northtech.dasscofileproxy.configuration.ShareConfig;
 import dk.northtech.dasscofileproxy.domain.*;
 import dk.northtech.dasscofileproxy.repository.DirectoryRepository;
-import dk.northtech.dasscofileproxy.repository.SharedAssetList;
+import dk.northtech.dasscofileproxy.repository.SharedAssetRepository;
 import io.micrometer.observation.Observation;
 import io.micrometer.observation.ObservationRegistry;
 import jakarta.inject.Inject;
@@ -71,7 +71,7 @@ public class SFTPService {
 
     public List<SharedAsset> getShardAsset(long directoryId) {
         return jdbi.withHandle(h -> {
-            SharedAssetList attach = h.attach(SharedAssetList.class);
+            SharedAssetRepository attach = h.attach(SharedAssetRepository.class);
             return attach.getSharedAssetsByDirectory(directoryId);
         });
     }

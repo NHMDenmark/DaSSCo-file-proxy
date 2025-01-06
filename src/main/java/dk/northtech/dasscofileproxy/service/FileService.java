@@ -3,7 +3,6 @@ package dk.northtech.dasscofileproxy.service;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Strings;
-import com.google.common.reflect.TypeToken;
 import com.nimbusds.jose.shaded.gson.Gson;
 import dk.northtech.dasscofileproxy.assets.AssetServiceProperties;
 import dk.northtech.dasscofileproxy.configuration.ShareConfig;
@@ -11,36 +10,26 @@ import dk.northtech.dasscofileproxy.domain.*;
 import dk.northtech.dasscofileproxy.domain.exceptions.DasscoInternalErrorException;
 import dk.northtech.dasscofileproxy.repository.DirectoryRepository;
 import dk.northtech.dasscofileproxy.repository.FileRepository;
-import dk.northtech.dasscofileproxy.repository.SharedAssetList;
+import dk.northtech.dasscofileproxy.repository.SharedAssetRepository;
 import dk.northtech.dasscofileproxy.repository.UserAccessList;
-import dk.northtech.dasscofileproxy.webapi.exceptionmappers.DaSSCoError;
-import dk.northtech.dasscofileproxy.webapi.exceptionmappers.DaSSCoErrorCode;
 import dk.northtech.dasscofileproxy.webapi.model.FileUploadData;
 import dk.northtech.dasscofileproxy.webapi.model.FileUploadResult;
 import io.micrometer.observation.Observation;
 import io.micrometer.observation.ObservationRegistry;
 import jakarta.inject.Inject;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
 import jakarta.ws.rs.core.Response;
-import jakarta.ws.rs.core.StreamingOutput;
-import org.apache.tomcat.util.net.jsse.JSSEUtil;
 import org.jdbi.v3.core.Jdbi;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.security.core.parameters.P;
 import org.springframework.stereotype.Service;
 import org.springframework.web.util.UriUtils;
 
 import java.io.*;
 import java.net.URI;
-import java.net.URLEncoder;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
-import java.nio.file.attribute.BasicFileAttributes;
 import java.security.SecureRandom;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -250,7 +239,7 @@ public class FileService {
 
     public void deleteDirectory(long directoryId) {
         jdbi.inTransaction(h -> {
-            SharedAssetList sharedAssetRepository = h.attach(SharedAssetList.class);
+            SharedAssetRepository sharedAssetRepository = h.attach(SharedAssetRepository.class);
             UserAccessList userAccessRepository = h.attach(UserAccessList.class);
             DirectoryRepository directoryRepository = h.attach(DirectoryRepository.class);
             userAccessRepository.deleteUserAccess(directoryId);
@@ -262,7 +251,7 @@ public class FileService {
 
     public void resetDirectoryAndResetFiles(long directoryId, String assetGuid) {
         jdbi.inTransaction(h -> {
-            SharedAssetList sharedAssetRepository = h.attach(SharedAssetList.class);
+            SharedAssetRepository sharedAssetRepository = h.attach(SharedAssetRepository.class);
             UserAccessList userAccessRepository = h.attach(UserAccessList.class);
             DirectoryRepository directoryRepository = h.attach(DirectoryRepository.class);
             FileRepository fileRepository = h.attach(FileRepository.class);
