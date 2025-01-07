@@ -89,8 +89,8 @@ public class HttpShareService {
             throw new IllegalArgumentException("Asset guid cannot be null or empty");
         }
         Instant time = guids.getIfPresent(guid);
-        if(time != null) {
-            throw new IllegalArgumentException("A share with guid "+guid+" is already in the process of creation");
+        if (time != null) {
+            throw new IllegalArgumentException("A share with guid " + guid + " is already in the process of creation");
         }
         guids.put(guid, Instant.now());
     }
@@ -392,20 +392,39 @@ public class HttpShareService {
         return jdbi.withHandle(h -> {
             SharedAssetRepository sharedAssetRepository = h.attach(SharedAssetRepository.class);
             DirectoryRepository directoryRepository = h.attach(DirectoryRepository.class);
-            List<SharedAsset> sharedAssets = sharedAssetRepository.getSharedAssets();
+            Map<String, AssetStatusInfo> guidStatus = assetService.getInProgressAssets(false).stream().collect(Collectors.toMap(AssetStatusInfo::asset_guid, y -> y));
+            Map<Long, List<AssetStatusInfo>> assetsWithStatusMap = new HashMap<>();
+            sharedAssetRepository.getSharedAssets().stream().forEach(sharedAsset -> {
+                AssetStatusInfo assetStatusInfo = guidStatus.get(sharedAsset.assetGuid());
+                // Return default value if status is missing.
+                AssetStatusInfo assetStatusInfo1 = Objects.requireNonNullElseGet(assetStatusInfo, () -> new AssetStatusInfo(sharedAsset.assetGuid(), null, null, null, null));
+                assetsWithStatusMap.computeIfAbsent(sharedAsset.directoryId(), (x) -> new ArrayList<>()).add(assetStatusInfo1);
+            });
             Map<Long, Share> shares = directoryRepository.getAll().stream()
-                    .map(x -> new Share(x.uri(), x.directoryId(), new ArrayList<>()))
+                    .map(x -> {
+                        Share share = new Share(x.uri(), x.directoryId(), new ArrayList<>());
+                        List<AssetStatusInfo> assetStatusInfos = assetsWithStatusMap.get(x.directoryId());
+                        if (assetStatusInfos != null) {
+                            share.assets.addAll(assetStatusInfos);
+                        }
+                        return share;
+                    })
                     .collect(Collectors.toMap(x -> x.id, y -> {
                         return y;
                     }));
-            for (SharedAsset asset : sharedAssets) {
-                shares.get(asset.directoryId()).assets.add(asset.assetGuid());
-            }
-            return new ArrayList<>(shares.values());
+//            for (AssetStatusInfo assetStatusInfo : sharedAssetsWithStatus) {
+//                shares.get(assetStatusInfo.asset_guid()).assets.add(sharedAssetsWithStatus);
+//            }
+            ArrayList<Share> sharesWithGuid = new ArrayList<>(shares.values());
+            return sharesWithGuid;
         });
     }
 
-    public record Share(String path, long id, List<String> assets) {
+    public record Share(String path, long id, List<AssetStatusInfo> assets) {
+    }
+
+    public record GuidStatusObject(String path, InternalStatus internalStatus, long id, List<String> assets) {
+
     }
 }
 
