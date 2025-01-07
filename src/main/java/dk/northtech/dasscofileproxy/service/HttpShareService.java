@@ -412,9 +412,6 @@ public class HttpShareService {
                     .collect(Collectors.toMap(x -> x.id, y -> {
                         return y;
                     }));
-//            for (AssetStatusInfo assetStatusInfo : sharedAssetsWithStatus) {
-//                shares.get(assetStatusInfo.asset_guid()).assets.add(sharedAssetsWithStatus);
-//            }
             ArrayList<Share> sharesWithGuid = new ArrayList<>(shares.values());
             return sharesWithGuid;
         });
