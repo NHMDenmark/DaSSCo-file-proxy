@@ -9,6 +9,7 @@ import dk.northtech.dasscofileproxy.webapi.exceptionmappers.DaSSCoError;
 import dk.northtech.dasscofileproxy.webapi.model.AssetStorageAllocation;
 import io.swagger.v3.oas.annotations.Hidden;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.ArraySchema;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -49,8 +50,8 @@ public class HttpShareAPI {
     @Produces(MediaType.APPLICATION_JSON)
     @Consumes(APPLICATION_JSON)
     @RolesAllowed({SecurityRoles.USER, SecurityRoles.ADMIN, SecurityRoles.SERVICE})
-    @ApiResponse(responseCode = "200", content = @Content(mediaType = APPLICATION_JSON, schema = @Schema(implementation = HttpInfo.class)))
-    @ApiResponse(responseCode = "400-599", content = @Content(mediaType = APPLICATION_JSON, schema = @Schema(implementation = DaSSCoError.class)))
+    @ApiResponse(responseCode = "200", content = @Content(mediaType = APPLICATION_JSON,array = @ArraySchema(schema = @Schema(implementation = HttpShareService.Share.class))))
+    @ApiResponse(responseCode = "400-599", content = @Content(mediaType = APPLICATION_JSON, schema = @Schema(implementation = DaSSCoError.class) ))
     public List<HttpShareService.Share> listShares(@Context SecurityContext securityContext) {
         User user = UserMapper.from(securityContext);
       return httpShareService.listShares();

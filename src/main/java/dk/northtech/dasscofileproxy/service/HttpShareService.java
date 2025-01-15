@@ -10,6 +10,7 @@ import dk.northtech.dasscofileproxy.repository.*;
 import dk.northtech.dasscofileproxy.webapi.model.AssetStorageAllocation;
 import io.micrometer.observation.Observation;
 import io.micrometer.observation.ObservationRegistry;
+import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.inject.Inject;
 import org.jdbi.v3.core.Jdbi;
 import org.jdbi.v3.core.mapper.reflect.ConstructorMapper;
@@ -417,7 +418,13 @@ public class HttpShareService {
         });
     }
 
-    public record Share(String path, long id, List<AssetStatusInfo> assets) {
+    public record Share(
+            @Schema(description = "The path to the share", example = "/assetfiles/test-institution/test-collection/test-asset/")
+            String path,
+            @Schema(description = "The id of the share", example = "123")
+            long id,
+            @Schema(description = "List of assets in the share with status info")
+            List<AssetStatusInfo> assets) {
     }
 
     public record GuidStatusObject(String path, InternalStatus internalStatus, long id, List<String> assets) {
