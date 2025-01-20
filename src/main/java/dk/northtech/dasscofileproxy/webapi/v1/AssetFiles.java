@@ -156,7 +156,7 @@ public class AssetFiles {
         return Response.status(deleted ? 204 : 404).build();
     }
 
-    //Delete all files under an azzet
+    //Delete all files under an asset
     @DELETE
     @Path("/{institutionName}/{collectionName}/{assetGuid}/")
     @Operation(summary = "Delete Asset Files", description = "Deletes all files for an asset based on institution, collection and asset_guid")

@@ -5,5 +5,6 @@ public enum DaSSCoErrorCode {
     UPSTREAM_ERROR,
     INTERNAL_ERROR,
     FORBIDDEN,
-    NOT_FOUND
+    NOT_FOUND,
+    UNAUTHORIZED
 }
