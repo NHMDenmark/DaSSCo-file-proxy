@@ -133,7 +133,7 @@ public class HttpShareService {
             logger.info("Storage metrics {}", storageMetrics);
             HttpInfo httpInfo = createHttpInfo(storageMetrics, creationObj, usageByAsset);
             if (httpInfo.http_allocation_status() != HttpAllocationStatus.SUCCESS) {
-                guids.invalidate(fullAsset.asset_guid);
+                guids.invalidate(minimalAsset.asset_guid());
                 return httpInfo;
             }
             logger.info("creation obj is valid");
