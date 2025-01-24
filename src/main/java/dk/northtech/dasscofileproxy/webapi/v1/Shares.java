@@ -1,6 +1,5 @@
 package dk.northtech.dasscofileproxy.webapi.v1;
 
-import com.github.benmanes.caffeine.cache.Caffeine;
 import dk.northtech.dasscofileproxy.domain.*;
 import dk.northtech.dasscofileproxy.domain.exceptions.DasscoIllegalActionException;
 import dk.northtech.dasscofileproxy.service.*;
@@ -25,7 +24,6 @@ import jakarta.ws.rs.core.SecurityContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.time.LocalDateTime;
 import java.util.List;
 
 import static jakarta.ws.rs.core.MediaType.APPLICATION_JSON;
@@ -33,13 +31,13 @@ import static jakarta.ws.rs.core.MediaType.APPLICATION_JSON;
 @Path("/shares")
 @Tag(name = "Shares", description = "Endpoints related to assets' allocation")
 @SecurityRequirement(name = "dassco-idp")
-public class HttpShareAPI {
-    public static final Logger logger = LoggerFactory.getLogger(HttpShareAPI.class);
+public class Shares {
+    public static final Logger logger = LoggerFactory.getLogger(Shares.class);
     HttpShareService httpShareService;
     SFTPService sftpService;
 
     @Inject
-    public HttpShareAPI(HttpShareService httpShareService, SFTPService sftpService) {
+    public Shares(HttpShareService httpShareService, SFTPService sftpService) {
         this.httpShareService = httpShareService;
         this.sftpService = sftpService;
     }

@@ -427,9 +427,6 @@ public class HttpShareService {
             List<AssetStatusInfo> assets) {
     }
 
-    public record GuidStatusObject(String path, InternalStatus internalStatus, long id, List<String> assets) {
-
-    }
 }
 
 

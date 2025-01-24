@@ -21,7 +21,7 @@ public class JerseyApplicationConfig extends ResourceConfig {
     register(DaSScoExceptionMapper.class);
     register(AssetFiles.class);
     register(Assets.class);
-    register(HttpShareAPI.class);
+    register(Shares.class);
     register(OpenAPI.class);
     register(Logs.class);
     register(DebugTools.class);
