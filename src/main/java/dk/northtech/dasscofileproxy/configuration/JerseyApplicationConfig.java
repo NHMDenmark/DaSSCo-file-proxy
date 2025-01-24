@@ -13,7 +13,6 @@ import org.springframework.stereotype.Component;
 public class JerseyApplicationConfig extends ResourceConfig {
   public JerseyApplicationConfig() {
     // Activate the designated JaxRs classes with API endpoints:
-    register(FtpsClient.class);
     register(SFTPApi.class);
     register(RolesAllowedDynamicFeature.class);
     register(ClientAbortInterceptor.class);

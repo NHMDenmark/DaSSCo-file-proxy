@@ -174,7 +174,7 @@ public class CacheFileService {
         logger.info("Running cache eviction code");
                 FileCacheRepository fileCacheRepository = h.attach(FileCacheRepository.class);
                 // If more than 90% of available space is used, we evict based on disk usage as well as expiration date.
-                long maxBytes = (long) (.90 * (shareConfig.cacheDiskspace() * 1000000));
+                long maxBytes = (long) (.90 * (shareConfig.cacheDiskspace() * 1000000L));
                 List<String> pathsToDelete = fileCacheRepository.evict(maxBytes);
                 for (String s : pathsToDelete) {
                     this.cachedFiles.invalidate(s);
