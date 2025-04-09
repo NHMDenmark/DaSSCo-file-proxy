@@ -7,15 +7,20 @@ import dk.northtech.dasscofileproxy.webapi.model.FileUploadResult;
 import jakarta.inject.Inject;
 
 import org.junit.Assert;
-import org.junit.jupiter.api.Assertions;
-import org.junit.jupiter.api.Disabled;
-import org.junit.jupiter.api.Order;
-import org.junit.jupiter.api.Test;
+import org.junit.Rule;
+import org.junit.jupiter.api.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.containers.GenericContainer;
+import org.testcontainers.containers.Network;
+import org.testcontainers.containers.PostgreSQLContainer;
+import org.testcontainers.containers.output.Slf4jLogConsumer;
+import org.testcontainers.containers.wait.strategy.Wait;
+import org.testcontainers.containers.wait.strategy.WaitStrategy;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.utility.DockerImageName;
@@ -25,6 +30,7 @@ import java.nio.channels.FileChannel;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.Arrays;
 import java.util.List;
@@ -45,24 +51,52 @@ import static org.junit.Assert.*;
 public class FileServiceTest {
     @Inject
     FileService fileService;
-
+    private static final Logger logger = LoggerFactory.getLogger(FileServiceTest.class);
+    private static Network network = Network.newNetwork();
     @Container
-    static GenericContainer postgreSQL = new GenericContainer(DockerImageName.parse("apache/age:release_PG11_1.5.0"))
+    static GenericContainer postgreSQL = new PostgreSQLContainer("postgres:16-alpine")
+            .withDatabaseName( "dassco_file_proxy")
+            .withPassword("dassco_file_proxy")
+            .withUsername("dassco_file_proxy")
             .withExposedPorts(5432)
-            .withEnv("POSTGRES_DB", "dassco_file_proxy")
-            .withEnv("POSTGRES_USER", "dassco_file_proxy")
-            .withEnv("POSTGRES_PASSWORD", "dassco_file_proxy");
+//            .waitingFor(Wait.forLogMessage("ready to accept connections",1))
+            .withNetwork(network).withNetworkAliases("database");
+    //            .withEnv("POSTGRES_DB", "dassco_file_proxy")
+//            .withEnv("POSTGRES_USER", "dassco_file_proxy")
+//            .withEnv("POSTGRES_PASSWORD", "dassco_file_proxy")
+    @Container
+     static GenericContainer arsBackend;
 
+    static {
+        postgreSQL.start();
+        Slf4jLogConsumer logConsumer = new Slf4jLogConsumer(logger);
+        arsBackend = new GenericContainer(DockerImageName.parse("nhmdenmark/dassco-asset-service:1.3.4"))
+                .withEnv("POSTGRES_URL", "jdbc:postgresql://database:"+5432+"/dassco_file_proxy")
+                .withEnv("LIQUIBASE_CONTEXTS",  "default, development, test")
+                .dependsOn(postgreSQL)
+                .withAccessToHost(true)
+                .withLogConsumer(logConsumer)
+                .waitingFor(Wait.forLogMessage("Started DasscoAssetServiceApplication", 1)).withStartupTimeout(Duration.ofSeconds(180))
+                .withNetwork(network);
+
+    }
     @DynamicPropertySource
     static void dataSourceProperties(DynamicPropertyRegistry registry) {
         registry.add("datasource.jdbcUrl", () -> "jdbc:postgresql://localhost:" + postgreSQL.getFirstMappedPort() + "/dassco_file_proxy");
     }
-
+//    @BeforeAll
+//    void start() {
+//
+//    }
     @Inject
     HttpShareService httpShareService;
 
     @Test
     public void testUpload() {
+        System.out.println("hejz");
+        System.out.println(arsBackend.getLogs());
+        System.out.println("hejz");
+
         SharedAsset azzet1 = new SharedAsset(null, null, "testUpload", Instant.now());
         UserAccess userAccess = new UserAccess(null, null, "Bazviola", "token", Instant.now());
         Directory directory = new Directory(null, "/i1/c1/testUpload/", "localhost:8080", AccessType.WRITE, Instant.now(), 10, false, 0, Arrays.asList(azzet1), Arrays.asList(userAccess));

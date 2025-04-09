@@ -11,45 +11,45 @@ import java.util.List;
 
 public interface FileRepository {
     static final String INSERT = """
-            INSERT INTO files(asset_guid, size_bytes, path, crc) VALUES (:assetGuid, :sizeBytes, :path, :crc)
+            INSERT INTO file(asset_guid, size_bytes, path, crc) VALUES (:assetGuid, :sizeBytes, :path, :crc)
             """;
     @SqlUpdate(INSERT)
     @GetGeneratedKeys
     public long insertFile(@BindMethods DasscoFile dasscoFile);
 
 
-    @SqlQuery("SELECT * FROM files WHERE asset_guid = :assetGuid")
+    @SqlQuery("SELECT * FROM file WHERE asset_guid = :assetGuid")
     List<DasscoFile> getFilesByAssetGuid(@Bind String assetGuid);
 
-    @SqlQuery("SELECT * FROM files WHERE asset_guid = :assetGuid AND sync_status = 'SYNCHRONIZED'")
+    @SqlQuery("SELECT * FROM file WHERE asset_guid = :assetGuid AND sync_status = 'SYNCHRONIZED'")
     List<DasscoFile> getSyncFilesByAssetGuid(@Bind String assetGuid);
 
-    @SqlQuery("SELECT * FROM files WHERE path = :path AND delete_after_sync = FALSE ")
+    @SqlQuery("SELECT * FROM file WHERE path = :path AND delete_after_sync = FALSE ")
     DasscoFile getFilesByAssetPath(@Bind String path);
 
-    @SqlUpdate("DELETE FROM files WHERE asset_guid = :assetGuid")
+    @SqlUpdate("DELETE FROM file WHERE asset_guid = :assetGuid")
     void deleteFilesByAssetGuid(@Bind String assetGuid);
 
-    @SqlUpdate("DELETE FROM files WHERE delete_after_sync = TRUE AND asset_guid = :assetGuid")
+    @SqlUpdate("DELETE FROM file WHERE delete_after_sync = TRUE AND asset_guid = :assetGuid")
     void deleteFilesMarkedForDeletionByAssetGuid(@Bind String assetGuid);
 
     // For undoing all local changes without syncing to ERDA.
-    @SqlUpdate("DELETE FROM files WHERE asset_guid = :assetGuid AND sync_status = 'NEW_FILE'::file_sync_status")
+    @SqlUpdate("DELETE FROM file WHERE asset_guid = :assetGuid AND sync_status = 'NEW_FILE'::file_sync_status")
     void deleteNewFiles(@Bind String assetGuid);
 
     // For undoing all local changes without syncing to ERDA.
-    @SqlUpdate("UPDATE files SET delete_after_sync = false WHERE asset_guid = :assetGuid AND sync_status = 'SYNCHRONIZED'::file_sync_status")
+    @SqlUpdate("UPDATE file SET delete_after_sync = false WHERE asset_guid = :assetGuid AND sync_status = 'SYNCHRONIZED'::file_sync_status")
     void resetDeleteFlag(@Bind String assetGuid);
 
-    @SqlUpdate("DELETE FROM files WHERE file_id = :fileId AND delete_after_sync = TRUE")
+    @SqlUpdate("DELETE FROM file WHERE file_id = :fileId AND delete_after_sync = TRUE")
     void deleteFile(@Bind String assetGuid);
 
-    @SqlUpdate("UPDATE files SET delete_after_sync = true WHERE path = :path")
+    @SqlUpdate("UPDATE file SET delete_after_sync = true WHERE path = :path")
     void markForDeletion(@Bind String path);
 
-    @SqlUpdate("UPDATE files SET sync_status = 'SYNCHRONIZED'::file_sync_status WHERE asset_guid = :assetGuid AND sync_status = 'NEW_FILE'::file_sync_status")
+    @SqlUpdate("UPDATE file SET sync_status = 'SYNCHRONIZED'::file_sync_status WHERE asset_guid = :assetGuid AND sync_status = 'NEW_FILE'::file_sync_status")
     void setSynchronizedStatus(@Bind String assetGuid);
 
-    @SqlQuery("SELECT sum(size_bytes) as totalAllocated FROM files WHERE asset_guid = :assetGuid AND delete_after_sync = FALSE")
+    @SqlQuery("SELECT sum(size_bytes) as totalAllocated FROM file WHERE asset_guid = :assetGuid AND delete_after_sync = FALSE")
     long getTotalAllocatedByAsset(String assetGuid);
 }

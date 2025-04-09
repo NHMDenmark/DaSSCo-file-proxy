@@ -11,17 +11,24 @@ import org.jdbi.v3.core.Jdbi;
 import org.junit.Ignore;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.containers.GenericContainer;
+import org.testcontainers.containers.Network;
+import org.testcontainers.containers.PostgreSQLContainer;
+import org.testcontainers.containers.output.Slf4jLogConsumer;
+import org.testcontainers.containers.wait.strategy.Wait;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.utility.DockerImageName;
 
 import javax.validation.constraints.Min;
 import java.io.File;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -44,13 +51,34 @@ class HttpShareServiceTest {
     @Inject
     Jdbi jdbi;
 
+    private static final Logger logger = LoggerFactory.getLogger(HttpShareServiceTest.class);
+    private static Network network = Network.newNetwork();
     @Container
-    static GenericContainer postgreSQL = new GenericContainer(DockerImageName.parse("apache/age:release_PG11_1.5.0"))
+    static GenericContainer postgreSQL = new PostgreSQLContainer("postgres:16-alpine")
+            .withDatabaseName( "dassco_file_proxy")
+            .withPassword("dassco_file_proxy")
+            .withUsername("dassco_file_proxy")
             .withExposedPorts(5432)
-            .withEnv("POSTGRES_DB", "dassco_file_proxy")
-            .withEnv("POSTGRES_USER", "dassco_file_proxy")
-            .withEnv("POSTGRES_PASSWORD", "dassco_file_proxy");
+//            .waitingFor(Wait.forLogMessage("ready to accept connections",1))
+            .withNetwork(network).withNetworkAliases("database");
+    //            .withEnv("POSTGRES_DB", "dassco_file_proxy")
+//            .withEnv("POSTGRES_USER", "dassco_file_proxy")
+//            .withEnv("POSTGRES_PASSWORD", "dassco_file_proxy")
+    @Container
+    static GenericContainer arsBackend;
 
+    static {
+        postgreSQL.start();
+        Slf4jLogConsumer logConsumer = new Slf4jLogConsumer(logger);
+        arsBackend = new GenericContainer(DockerImageName.parse("nhmdenmark/dassco-asset-service:1.3.4"))
+                .withEnv("POSTGRES_URL", "jdbc:postgresql://database:"+5432+"/dassco_file_proxy")
+                .withEnv("LIQUIBASE_CONTEXTS",  "default, development, test")
+                .dependsOn(postgreSQL)
+                .withLogConsumer(logConsumer)
+                .waitingFor(Wait.forLogMessage(".*Started DasscoAssetServiceApplication.*\\n", 1)).withStartupTimeout(Duration.ofSeconds(180))
+                .withNetwork(network);
+
+    }
     @DynamicPropertySource
     static void dataSourceProperties(DynamicPropertyRegistry registry) {
         registry.add("datasource.jdbcUrl", () -> "jdbc:postgresql://localhost:" + postgreSQL.getFirstMappedPort() + "/dassco_file_proxy");
@@ -148,7 +176,9 @@ class HttpShareServiceTest {
         List<DasscoFile> deleteShare1 = fileservice.listFilesByAssetGuid("deleteShare_1");
         assertThat(deleteShare1.size()).isEqualTo(1);
     }
+    public void createAsset(String assetId) {
 
+    }
     @Test
     @Disabled("Requires keycloak so is disabled for now")
     void testCreateHttpShareInternal(){

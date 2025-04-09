@@ -82,37 +82,37 @@ public class SFTPApi {
 
         // Determine whether the user should be allowed access to the file
         AtomicBoolean userHasAccess = new AtomicBoolean(false);
-        if (!assetFull.restricted_access.isEmpty()) {
-            if (headers == null || headers.getHeaderString(HttpHeaders.AUTHORIZATION) == null) return Response.status(Response.Status.UNAUTHORIZED).entity("The requested asset has restricted access and the request does not include valid authorization header.").build();
+//        if (!assetFull.restricted_access.isEmpty()) {
+//            if (headers == null || headers.getHeaderString(HttpHeaders.AUTHORIZATION) == null) return Response.status(Response.Status.UNAUTHORIZED).entity("The requested asset has restricted access and the request does not include valid authorization header.").build();
+//
+//            String authHeader = headers.getHeaderString(HttpHeaders.AUTHORIZATION);
+//            String[] parts = authHeader.split(" ");
+//            if (parts.length!=2) {
+//                return Response.status(Response.Status.BAD_REQUEST).entity("Authorization header must comply with basic auth headers, i.e. the headers content should look like \"Bearer {token}\".").build();
+//            }
+//            DecodedJWT jwt = JWT.decode(parts[1]);
+//
+//            String rolesStr = jwt.getClaims().get("realm_access").toString();
+//            String toConvert = rolesStr.substring(rolesStr.indexOf("["));
+//            toConvert = toConvert.substring(0, toConvert.indexOf("]")+1);
+//            JSONArray rolesArray = new JSONArray(toConvert);
+//
+//            // Convert the JSONArray to a List of Strings
+//            List<String> roles = new ArrayList<>();
+//            for (int i = 0; i < rolesArray.length(); i++) {
+//                roles.add(rolesArray.getString(i));
+//            }
+//
+//            assetFull.restricted_access.forEach(role -> {
+//                if (roles.contains(role.name())) {
+//                    userHasAccess.set(true);
+//                }
+//            });
+//
 
-            String authHeader = headers.getHeaderString(HttpHeaders.AUTHORIZATION);
-            String[] parts = authHeader.split(" ");
-            if (parts.length!=2) {
-                return Response.status(Response.Status.BAD_REQUEST).entity("Authorization header must comply with basic auth headers, i.e. the headers content should look like \"Bearer {token}\".").build();
-            }
-            DecodedJWT jwt = JWT.decode(parts[1]);
-
-            String rolesStr = jwt.getClaims().get("realm_access").toString();
-            String toConvert = rolesStr.substring(rolesStr.indexOf("["));
-            toConvert = toConvert.substring(0, toConvert.indexOf("]")+1);
-            JSONArray rolesArray = new JSONArray(toConvert);
-
-            // Convert the JSONArray to a List of Strings
-            List<String> roles = new ArrayList<>();
-            for (int i = 0; i < rolesArray.length(); i++) {
-                roles.add(rolesArray.getString(i));
-            }
-
-            assetFull.restricted_access.forEach(role -> {
-                if (roles.contains(role.name())) {
-                    userHasAccess.set(true);
-                }
-            });
-
-
-        } else {
+//        } else {
             userHasAccess.set(true);
-        }
+//        }
         if (!userHasAccess.get()) {
             return Response.status(Response.Status.UNAUTHORIZED).entity("The requested asset has restricted access and the user does not have any of the required roles.").build();
         }

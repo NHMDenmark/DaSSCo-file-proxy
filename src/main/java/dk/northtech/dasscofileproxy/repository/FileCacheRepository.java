@@ -23,7 +23,7 @@ public interface FileCacheRepository {
             , f.sync_status
             , f.delete_after_sync
             FROM file_cache fc
-    LEFT JOIN files f ON f.file_id = fc.file_id 
+    LEFT JOIN file f ON f.file_id = fc.file_id 
     WHERE f.path = :path
     """)
     Optional<CacheInfo> getFileCacheByPath(@Bind String path);
@@ -48,7 +48,8 @@ public interface FileCacheRepository {
             		, f.path
              		, f.size_bytes
              		, sum(f.size_bytes) OVER (ORDER BY expiration_datetime DESC) AS cummulative_size
-            		FROM public.file_cache fc INNER JOIN public.files f
+            		FROM public.file_cache fc 
+            		    INNER JOIN public.file f
             		ON f.file_id  = fc.file_id
             	) subq  -- If cache is bigger than specified limit, additional entries should also be evicted.
             	WHERE subq.expiration_datetime < now() OR cummulative_size > :maxMemoryBytes

@@ -87,7 +87,6 @@ public class AssetService {
                 logger.warn("Failed to set status, request failed with status code: " + httpResponse.statusCode());
             }
             String body = httpResponse.body();
-            Gson gson = new Gson();
             // parse to array to as it is more readable than TypeTokens.
             ObjectMapper objectMapper = new ObjectMapper();
             AssetStatusInfo[] assetStatusInfos = objectMapper.readValue(body, AssetStatusInfo[].class);
