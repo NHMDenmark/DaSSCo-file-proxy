@@ -17,7 +17,7 @@
 
   <changeSet id="1.2.0:Set sync_status" author="Thomas Skov bornerup" context="default">
     <sql>
-      UPDATE files SET sync_status = 'SYNCHRONIZED'::file_sync_status WHERE asset_guid NOT IN (SELECT asset_guid FROM shared_assets)
+      UPDATE files SET sync_status = 'SYNCHRONIZED' WHERE asset_guid NOT IN (SELECT asset_guid FROM shared_assets)
     </sql>
     <rollback></rollback>
   </changeSet>

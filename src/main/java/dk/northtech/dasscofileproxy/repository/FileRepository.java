@@ -2,12 +2,14 @@ package dk.northtech.dasscofileproxy.repository;
 
 import dk.northtech.dasscofileproxy.domain.DasscoFile;
 import org.jdbi.v3.sqlobject.customizer.Bind;
+import org.jdbi.v3.sqlobject.customizer.BindList;
 import org.jdbi.v3.sqlobject.customizer.BindMethods;
 import org.jdbi.v3.sqlobject.statement.GetGeneratedKeys;
 import org.jdbi.v3.sqlobject.statement.SqlQuery;
 import org.jdbi.v3.sqlobject.statement.SqlUpdate;
 
 import java.util.List;
+import java.util.Set;
 
 public interface FileRepository {
     static final String INSERT = """
@@ -34,11 +36,11 @@ public interface FileRepository {
     void deleteFilesMarkedForDeletionByAssetGuid(@Bind String assetGuid);
 
     // For undoing all local changes without syncing to ERDA.
-    @SqlUpdate("DELETE FROM file WHERE asset_guid = :assetGuid AND sync_status = 'NEW_FILE'::file_sync_status")
+    @SqlUpdate("DELETE FROM file WHERE asset_guid = :assetGuid AND sync_status = 'NEW_FILE'")
     void deleteNewFiles(@Bind String assetGuid);
 
     // For undoing all local changes without syncing to ERDA.
-    @SqlUpdate("UPDATE file SET delete_after_sync = false WHERE asset_guid = :assetGuid AND sync_status = 'SYNCHRONIZED'::file_sync_status")
+    @SqlUpdate("UPDATE file SET delete_after_sync = false WHERE asset_guid = :assetGuid AND sync_status = 'SYNCHRONIZED'")
     void resetDeleteFlag(@Bind String assetGuid);
 
     @SqlUpdate("DELETE FROM file WHERE file_id = :fileId AND delete_after_sync = TRUE")
@@ -47,9 +49,9 @@ public interface FileRepository {
     @SqlUpdate("UPDATE file SET delete_after_sync = true WHERE path = :path")
     void markForDeletion(@Bind String path);
 
-    @SqlUpdate("UPDATE file SET sync_status = 'SYNCHRONIZED'::file_sync_status WHERE asset_guid = :assetGuid AND sync_status = 'NEW_FILE'::file_sync_status")
+    @SqlUpdate("UPDATE file SET sync_status = 'SYNCHRONIZED' WHERE asset_guid = :assetGuid AND sync_status = 'NEW_FILE'")
     void setSynchronizedStatus(@Bind String assetGuid);
 
-    @SqlQuery("SELECT sum(size_bytes) as totalAllocated FROM file WHERE asset_guid = :assetGuid AND delete_after_sync = FALSE")
-    long getTotalAllocatedByAsset(String assetGuid);
+    @SqlQuery("SELECT sum(size_bytes) as totalAllocated FROM file WHERE asset_guid IN (<asset_guids>) AND delete_after_sync = FALSE")
+    long getTotalAllocatedByAsset(@BindList Set<String> asset_guids);
 }

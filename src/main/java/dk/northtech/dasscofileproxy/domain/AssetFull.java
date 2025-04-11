@@ -3,10 +3,7 @@ package dk.northtech.dasscofileproxy.domain;
 import io.swagger.v3.oas.annotations.media.Schema;
 
 import java.time.Instant;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 public class AssetFull {
     @Schema(description = "Persistent Identifier for the asset", example = "asdf-12346-3333-100a21")
@@ -49,7 +46,7 @@ public class AssetFull {
     public String institution;
 
     @Schema(description = "Name of the parent media (in most cases, the same as original_parent_name, it can be different if it is a derivative of a derivative)", example = "")
-    public String parent_guid;
+    public Set<String> parent_guids;
     @Schema(description = "The collection name within the institution that holds the specimen", example = "test-collection")
     public String collection;
     @Schema(description = "The location on the storage where asset media can be uploaded")

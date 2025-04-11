@@ -32,10 +32,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.Duration;
 import java.time.Instant;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Optional;
-import java.util.UUID;
+import java.util.*;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 import java.util.zip.ZipOutputStream;
@@ -101,7 +98,7 @@ public class FileServiceTest {
         UserAccess userAccess = new UserAccess(null, null, "Bazviola", "token", Instant.now());
         Directory directory = new Directory(null, "/i1/c1/testUpload/", "localhost:8080", AccessType.WRITE, Instant.now(), 10, false, 0, Arrays.asList(azzet1), Arrays.asList(userAccess));
         Directory directory1 = httpShareService.createDirectory(directory);
-        fileService.createShareFolder(new MinimalAsset("testUpload", "p", "i1", "c1"));
+        fileService.createShareFolder(new MinimalAsset("testUpload", Set.of("p"), "i1", "c1"));
 //        httpShareService.createHttpShare(new CreationObj(Arrays.asList(new MinimalAsset("testUpload", "testUploadP", "i1", "c1")),Arrays.asList("Bazviolas"), 10), new User());
         FileUploadResult upload = fileService.upload(new ByteArrayInputStream("Et håndtag i form af en springende hjort".getBytes()), 1475383058, new FileUploadData("testUpload", "i1", "c1", "/folder/Bibelen 2 Del 1 - Det Moderne testamente.txt", 1));
         FileUploadResult upload2 = fileService.upload(new ByteArrayInputStream("Et håndtag i form af en springende hjort".getBytes()), 1475383058, new FileUploadData("testUpload", "i1", "c1", "/folder/Bibelen 2 Del 2 - Genkomst.txt", 9));
@@ -115,7 +112,7 @@ public class FileServiceTest {
         UserAccess userAccess = new UserAccess(null, null, "Bazviola", "token", Instant.now());
         Directory directory = new Directory(null, "/i1/c1/testDeleteFile/", "localhost:8080", AccessType.WRITE, Instant.now(), 10, false, 0, Arrays.asList(azzet1), Arrays.asList(userAccess));
         Directory directory1 = httpShareService.createDirectory(directory);
-        fileService.createShareFolder(new MinimalAsset("testDeleteFile", "p", "i1", "c1"));
+        fileService.createShareFolder(new MinimalAsset("testDeleteFile", Set.of("p"), "i1", "c1"));
 //        httpShareService.createHttpShare(new CreationObj(Arrays.asList(new MinimalAsset("testUpload", "testUploadP", "i1", "c1")),Arrays.asList("Bazviolas"), 10), new User());
         FileUploadResult upload = fileService.upload(new ByteArrayInputStream("Et håndtag i form af en springende hjort".getBytes()), 1475383058, new FileUploadData("testDeleteFile", "i1", "c1", "/folder/Bibelen 2 Del 1 - Det Moderne testamente.txt", 1));
         FileUploadResult upload2 = fileService.upload(new ByteArrayInputStream("Et håndtag i form af en springende hjort".getBytes()), 1475383058, new FileUploadData("testDeleteFile", "i1", "c1", "/folder/Bibelen 2 Del 2 - Genkomst.txt", 9));
@@ -132,7 +129,7 @@ public class FileServiceTest {
         UserAccess userAccess = new UserAccess(null, null, "Bazviola", "token", Instant.now());
         Directory directory = new Directory(null, "/i1/c1/testDeleteFolderFile/", "localhost:8080", AccessType.WRITE, Instant.now(), 10, false, 0, Arrays.asList(azzet1), Arrays.asList(userAccess));
         Directory directory1 = httpShareService.createDirectory(directory);
-        fileService.createShareFolder(new MinimalAsset("testDeleteFolderFile", "p", "i1", "c1"));
+        fileService.createShareFolder(new MinimalAsset("testDeleteFolderFile", Set.of("p"), "i1", "c1"));
 //        httpShareService.createHttpShare(new CreationObj(Arrays.asList(new MinimalAsset("testUpload", "testUploadP", "i1", "c1")),Arrays.asList("Bazviolas"), 10), new User());
         FileUploadResult upload = fileService.upload(new ByteArrayInputStream("Et håndtag i form af en springende hjort".getBytes()), 1475383058, new FileUploadData("testDeleteFolderFile", "i1", "c1", "/folder/Bibelen 2 Del 1 - Det Moderne testamente.txt", 1));
         FileUploadResult upload2 = fileService.upload(new ByteArrayInputStream("Et håndtag i form af en springende hjort".getBytes()), 1475383058, new FileUploadData("testDeleteFolderFile", "i1", "c1", "/folder/Bibelen 2 Del 2 - Genkomst.txt", 9));
@@ -149,7 +146,7 @@ public class FileServiceTest {
         UserAccess userAccess = new UserAccess(null, null, "Bazviola", "token", Instant.now());
         Directory directory = new Directory(null, "/i1/c1/testUploadOverwrite/", "localhost:8080", AccessType.WRITE, Instant.now(), 10, false, 0, Arrays.asList(azzet1), Arrays.asList(userAccess));
         Directory directory1 = httpShareService.createDirectory(directory);
-        fileService.createShareFolder(new MinimalAsset("testUploadOverwrite", "testUploadOverwriteP", "i1", "c1"));
+        fileService.createShareFolder(new MinimalAsset("testUploadOverwrite", Set.of("testUploadOverwriteP"), "i1", "c1"));
 //        httpShareService.createHttpShare(new CreationObj(Arrays.asList(new MinimalAsset("testUpload", "testUploadP", "i1", "c1")),Arrays.asList("Bazviolas"), 10), new User());
         FileUploadResult upload = fileService.upload(new ByteArrayInputStream("Et håndtag i form af en springende hjort".getBytes()), 1475383058, new FileUploadData("testUploadOverwrite", "i1", "c1", "/folder/Bibelen 2 Del 1 - Det Moderne testamente.txt", 1));
         FileUploadResult upload2 = fileService.upload(new ByteArrayInputStream("Et håndtag i form af en springende hjort!".getBytes()), 1837465108, new FileUploadData("testUploadOverwrite", "i1", "c1", "/folder/Bibelen 2 Del 1 - Det Moderne testamente.txt", 9));
@@ -171,7 +168,7 @@ public class FileServiceTest {
         UserAccess userAccess = new UserAccess(null, null, "Bazviola", "token", Instant.now());
         Directory directory = new Directory(null, "/i1/c1/testUploadNotEnoughSpaceError/", "localhost:8080", AccessType.WRITE, Instant.now(), 10, false, 0, Arrays.asList(azzet1), Arrays.asList(userAccess));
         Directory directory1 = httpShareService.createDirectory(directory);
-        fileService.createShareFolder(new MinimalAsset("testUploadNotEnoughSpaceError", "testUploadNotEnoughSpaceErrorP", "i1", "c1"));
+        fileService.createShareFolder(new MinimalAsset("testUploadNotEnoughSpaceError", Set.of("testUploadNotEnoughSpaceErrorP"), "i1", "c1"));
 //        httpShareService.createHttpShare(new CreationObj(Arrays.asList(new MinimalAsset("testUpload", "testUploadP", "i1", "c1")),Arrays.asList("Bazviolas"), 10), new User());
         FileUploadResult upload = fileService.upload(new ByteArrayInputStream("Et håndtag i form af en springende hjort".getBytes()), 1475383058, new FileUploadData("testUploadNotEnoughSpaceError", "i1", "c1", "/folder/The Kosst Amojan.txt", 1));
         IllegalArgumentException illegalArgumentException =
@@ -213,7 +210,7 @@ public class FileServiceTest {
         assertThat(res3).hasSize(2);
         fileService.jdbi.withHandle(h -> {
             FileRepository attach = h.attach(FileRepository.class);
-            assertThat(attach.getTotalAllocatedByAsset("a2")).isEqualTo(23245L);
+            assertThat(attach.getTotalAllocatedByAsset(Set.of("a2"))).isEqualTo(23245L);
             return h;
         }).close();
     }

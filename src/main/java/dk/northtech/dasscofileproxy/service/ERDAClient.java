@@ -134,7 +134,8 @@ public class ERDAClient implements AutoCloseable {
         try {
             HashSet<String> uploadedFiles = new HashSet<>();
             for (File file : files) {
-                String fullRemotePath = remotePath + file.toPath().toString().replace("\\", "/").replace(localMountFolder, "");
+                String[] split = file.toPath().toString().replace("\\", "/").split(localMountFolder);
+                String fullRemotePath = remotePath + (split.length == 2 ? split[1]:split[0]);
                 logger.info("moving from localPath {}, to remotePath {}", file.getPath(), fullRemotePath);
                 channel.put(file.getPath(), fullRemotePath);
                 uploadedFiles.add(fullRemotePath);

@@ -99,7 +99,7 @@ public class SFTPService {
                         logger.info("Asset {} is locked", sharedAsset.assetGuid());
                         failedGuids.add(new FailedAsset(fullAsset.asset_guid, "Asset is locked"));
                     }
-                    String remotePath = getRemotePath(new MinimalAsset(fullAsset.asset_guid, fullAsset.parent_guid, fullAsset.institution, fullAsset.collection));
+                    String remotePath = getRemotePath(new MinimalAsset(fullAsset.asset_guid, fullAsset.parent_guids, fullAsset.institution, fullAsset.collection));
                     String localMountFolder = this.shareConfig.mountFolder() + directory.uri();
                     File localDirectory = new File(shareConfig.mountFolder() + directory.uri());
                     List<File> files = fileService.listFiles(localDirectory, new ArrayList<>(), false, false);
@@ -107,7 +107,11 @@ public class SFTPService {
                         logger.info("Remote path is: " + remotePath);
                         logger.info("Local base path is: " + localMountFolder);
                         logger.info("File path is: " + file.toPath().toString().replace("\\", "/"));
-                        return Path.of(remotePath + "/" + file.toPath().toString().replace("\\", "/").replace(localMountFolder, ""));
+                        logger.info(file.toPath().toString().replace("\\", "/").split(localMountFolder)[1]);
+//                        logger.info(file.toPath().toString().replace("\\", "/").split(localMountFolder)[1]);
+                        String[] split = file.toPath().toString().replace("\\", "/").split(localMountFolder);
+                        return Path.of(remotePath + "/" + (split.length == 2 ? split[1]:split[0]));
+//                        return Path.of(remotePath + "/" + file.toPath().toString().replace("\\", "/").replace(localMountFolder, ""));
                     }).collect(Collectors.toList());
                     erdaClient.createSubDirsIfNotExists(remoteLocations);
                     List<String> remoteFiles = erdaClient.listAllFiles(remotePath);
@@ -175,16 +179,17 @@ public class SFTPService {
                     erdaClient.downloadFiles(fileNames, sharePath, minimalAsset.asset_guid());
                 }
                 try {
-                    logger.info("Initialising parent folder, parent_guid is {}", minimalAsset.parent_guid());
+                    logger.info("Initialising parent folder, parent_guid is {}", minimalAsset.parent_guids());
 
                     //If asset have parent download into parent folder
                     //We could save a http request here as we dont need the full parent asset to get the remote location, it is in the same collection and institution.
-                    if (minimalAsset.parent_guid() != null) {
-                        AssetFull parent = assetService.getFullAsset(minimalAsset.parent_guid());
+                        minimalAsset.parent_guids().forEach(parent_guid -> {
+
+                        AssetFull parent = assetService.getFullAsset(parent_guid);
                         if(parent == null) {
                             throw new IllegalArgumentException("parent doesnt exist");
                         }
-                        String parentRemotePath = getRemotePath(new MinimalAsset(parent.asset_guid, parent.parent_guid, parent.institution, parent.collection));
+                        String parentRemotePath = getRemotePath(new MinimalAsset(parent.asset_guid, parent.parent_guids, parent.institution, parent.collection));
                         logger.info("Initialising parent folder, remote path is {}", parentRemotePath);
                         try {
                             if (!erdaClient.exists(parentRemotePath, true)) {
@@ -196,8 +201,8 @@ public class SFTPService {
                             throw new RuntimeException(e);
                         }
                         List<String> parentFileNames = erdaClient.listAllFiles(parentRemotePath);
-                        erdaClient.downloadFiles(parentFileNames, sharePath + "/parent", parent.asset_guid);
-                    }
+                        erdaClient.downloadFiles(parentFileNames, sharePath + "/parents/" + parent.asset_guid, parent.asset_guid);
+                        });
                 } catch (Exception e) {
                     throw new RuntimeException(e);
                 }

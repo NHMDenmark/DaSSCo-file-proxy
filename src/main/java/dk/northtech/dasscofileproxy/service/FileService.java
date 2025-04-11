@@ -77,9 +77,9 @@ public class FileService {
                 long assetAllocation = 0;
                 long parentAllocation = 0;
                 FileRepository attach = h.attach(FileRepository.class);
-                assetAllocation = attach.getTotalAllocatedByAsset(minimalAsset.asset_guid());
-                if (minimalAsset.parent_guid() != null) {
-                    parentAllocation = attach.getTotalAllocatedByAsset(minimalAsset.parent_guid());
+                assetAllocation = attach.getTotalAllocatedByAsset(Set.of(minimalAsset.asset_guid()));
+                if (!minimalAsset.parent_guids().isEmpty()) {
+                    parentAllocation = attach.getTotalAllocatedByAsset(minimalAsset.parent_guids());
                 }
                 return new AssetAllocation(assetAllocation, parentAllocation);
             });
@@ -118,8 +118,9 @@ public class FileService {
                 .stream()
                 .map(f -> {
                     String path = f.toString();
-                    String pathWithoutDir = path.replace("\\", "/")
-                            .replace(shareConfig.mountFolder(), "");
+                    String[] splitPath = path.replace("\\", "/")
+                            .split(shareConfig.mountFolder());
+                    String pathWithoutDir = splitPath.length == 2 ? splitPath[1]: splitPath[0];
                     return shareConfig.nodeHost() + "/file_proxy/api" + pathWithoutDir;
                 })
                 .collect(Collectors.toList());
@@ -266,7 +267,7 @@ public class FileService {
 
     public FileUploadResult upload(InputStream file, long crc, FileUploadData fileUploadData) {
         fileUploadData.validate();
-        if (fileUploadData.filePathAndName().toLowerCase().replace("/", "").startsWith("parent")) {
+        if (fileUploadData.filePathAndName().toLowerCase().replace("/", "").startsWith("parents")) {
             throw new IllegalArgumentException("File path cannot start with 'parent'");
         }
         Optional<Directory> directory = getWriteableDirectory(fileUploadData.asset_guid());
@@ -280,7 +281,7 @@ public class FileService {
         }
         return jdbi.inTransaction(h -> {
             FileRepository fileRepository = h.attach(FileRepository.class);
-            long totalAllocatedByAsset = fileRepository.getTotalAllocatedByAsset(fileUploadData.asset_guid());
+            long totalAllocatedByAsset = fileRepository.getTotalAllocatedByAsset(Set.of(fileUploadData.asset_guid()));
             String fullPath = basePath + fileUploadData.filePathAndName();
 //            List<DasscoFile> filesByAssetGuid = fileRepository.getFilesByAssetPath(fullPath);
             if ((totalAllocatedByAsset + fileUploadData.size_mb() * 1000000) / 1000000d > directory.get().allocatedStorageMb()) {

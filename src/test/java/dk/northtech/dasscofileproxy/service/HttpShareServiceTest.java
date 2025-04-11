@@ -33,6 +33,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Set;
 
 import static com.google.common.truth.Truth.assertThat;
 import static org.junit.Assert.assertThrows;
@@ -224,14 +225,14 @@ class HttpShareServiceTest {
     @Test
     void testMapCreationObject() {
         AssetFull assetFull = new AssetFull();
-        MinimalAsset minazzet = new MinimalAsset("1234", "123", "inztitution", "kollection");
+        MinimalAsset minazzet = new MinimalAsset("1234", Set.of("123"), "inztitution", "kollection");
         assetFull.asset_guid = "1234";
         assetFull.collection = "kollection";
         assetFull.institution = "inztitution";
         CreationObj result = HttpShareService.mapCreationObject(new CreationObj(List.of(minazzet), new ArrayList<>(), 123), minazzet, assetFull);
         MinimalAsset minimalAsset = result.assets().getFirst();
         assertThat(minimalAsset.asset_guid()).isEqualTo("1234");
-        assertThat(minimalAsset.parent_guid()).isEqualTo("123");
+        assertThat(minimalAsset.parent_guids()).contains("123");
         assertThat(minimalAsset.collection()).isEqualTo("kollection");
         assertThat(minimalAsset.institution()).isEqualTo("inztitution");
     }
@@ -239,14 +240,14 @@ class HttpShareServiceTest {
     @Test
     void testMapCreationObjectNull() {
         AssetFull assetFull = new AssetFull();
-        MinimalAsset minazzet = new MinimalAsset("1234", "123", null, null);
+        MinimalAsset minazzet = new MinimalAsset("1234", Set.of("123"), null, null);
         assetFull.asset_guid = "1234";
         assetFull.collection = "kollection";
         assetFull.institution = "inztitution";
         CreationObj result = HttpShareService.mapCreationObject(new CreationObj(List.of(minazzet), new ArrayList<>(), 123), minazzet, assetFull);
         MinimalAsset minimalAsset = result.assets().getFirst();
         assertThat(minimalAsset.asset_guid()).isEqualTo("1234");
-        assertThat(minimalAsset.parent_guid()).isEqualTo("123");
+        assertThat(minimalAsset.parent_guids()).contains("123");
         assertThat(minimalAsset.collection()).isEqualTo("kollection");
         assertThat(minimalAsset.institution()).isEqualTo("inztitution");
     }

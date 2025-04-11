@@ -117,10 +117,14 @@ public class HttpShareService {
                 throw new DasscoIllegalActionException("Asset is locked");
             }
             // Prevents people from checking out random assets as parents
-            if (fullAsset != null && fullAsset.parent_guid != null && minimalAsset.parent_guid() != null && !fullAsset.parent_guid.equals(minimalAsset.parent_guid())) {
-                logger.warn("{} is not the parent of {}", minimalAsset.parent_guid(), minimalAsset.asset_guid());
+            if (fullAsset != null && fullAsset.parent_guids != null && (minimalAsset.parent_guids() != null && !minimalAsset.parent_guids().isEmpty())) {
+                minimalAsset.parent_guids().forEach( paretn_guid -> {
+                    if(!fullAsset.parent_guids.contains(paretn_guid)){
+                        throw new DasscoIllegalActionException("Provided parent is different than the actual parent of the asset");
+                    }
+                });
+                logger.warn("{} is not the parent of {}", minimalAsset.parent_guids(), minimalAsset.asset_guid());
                 guids.invalidate(fullAsset.asset_guid);
-                throw new DasscoIllegalActionException("Provided parent is different than the actual parent of the asset");
             }
             LocalDateTime getUsageByAssetStart = LocalDateTime.now();
             FileService.AssetAllocation usageByAsset = fileService.getUsageByAsset(minimalAsset);
@@ -255,16 +259,16 @@ public class HttpShareService {
                 return new HttpInfo("Failed to allocate storage, no writeable directory found", HttpAllocationStatus.BAD_REQUEST);
             }
             Directory directory = writeableDirectory.get();
-            File localDirectory = new File(shareConfig.mountFolder() + directory.uri() + "/parent");
+            File parentDir = new File(shareConfig.mountFolder() + directory.uri() + "/parents");
             long parentSize = 0L;
             FileRepository fileRepository = h.attach(FileRepository.class);
-            if (localDirectory.exists()) {
+            if (parentDir.exists()) {
                 AssetFull fullAsset = assetService.getFullAsset(newAllocation.asset_guid());
-                if (fullAsset.parent_guid != null) {
-                    parentSize = fileRepository.getTotalAllocatedByAsset(fullAsset.parent_guid);
+                if (fullAsset.parent_guids != null) {
+                    parentSize = fileRepository.getTotalAllocatedByAsset(fullAsset.parent_guids);
                 }
             }
-            long totalAllocatedAsset = parentSize + fileRepository.getTotalAllocatedByAsset(newAllocation.asset_guid());
+            long totalAllocatedAsset = parentSize + fileRepository.getTotalAllocatedByAsset(new HashSet<>(Arrays.asList(newAllocation.asset_guid())));
             if (totalAllocatedAsset / 1000000 > newAllocation.new_allocation_mb()) {
                 return new HttpInfo("Size of files in share is greater than the new value", HttpAllocationStatus.BAD_REQUEST);
             }
@@ -384,7 +388,7 @@ public class HttpShareService {
         if (asset.collection() != null && !(asset.collection().equals(fullAsset.collection))) {
             throw new DasscoIllegalActionException("Collection in creation object should match collection of asset with supplied guid or be set to null");
         }
-        MinimalAsset minimalAsset = new MinimalAsset(asset.asset_guid(), asset.parent_guid(), fullAsset.institution, fullAsset.collection);
+        MinimalAsset minimalAsset = new MinimalAsset(asset.asset_guid(), asset.parent_guids(), fullAsset.institution, fullAsset.collection);
         CreationObj mappedCreationObject = new CreationObj(List.of(minimalAsset), creationObj.users(), creationObj.allocation_mb());
         return mappedCreationObject;
     }
