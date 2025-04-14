@@ -71,7 +71,7 @@ class HttpShareServiceTest {
     static {
         postgreSQL.start();
         Slf4jLogConsumer logConsumer = new Slf4jLogConsumer(logger);
-        arsBackend = new GenericContainer(DockerImageName.parse("nhmdenmark/dassco-asset-service:1.3.4"))
+        arsBackend = new GenericContainer(DockerImageName.parse("nhmdenmark/dassco-asset-service:2.0.0"))
                 .withEnv("POSTGRES_URL", "jdbc:postgresql://database:"+5432+"/dassco_file_proxy")
                 .withEnv("LIQUIBASE_CONTEXTS",  "default, development, test")
                 .dependsOn(postgreSQL)
