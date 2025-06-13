@@ -2,7 +2,7 @@ services:
   rabbitmq:
     build:
       dockerfile: rabbitmq/Dockerfile
-    image: nhmdenmark/dassco-rabbitmq:v4.1.1_1.0.1
+    image: nhmdenmark/dassco-rabbitmq:v4.1.1_1.0.2
     ports:
       - 15672:15672
       - 5672:5672
