@@ -26,7 +26,6 @@ import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.utility.DockerImageName;
 
-import javax.validation.constraints.Min;
 import java.io.File;
 import java.time.Duration;
 import java.time.Instant;

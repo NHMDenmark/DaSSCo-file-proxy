@@ -145,7 +145,7 @@ public class SFTPService {
         }
         for (FailedAsset s : failedGuids) {
             logger.error("ERDA sync failed for asset {}, retry attemps exhausted", s.guid);
-            assetService.setAssestStatus(s.guid(), InternalStatus.ERDA_ERROR, s.errorMessage);
+            assetService.setAssestStatus(s.guid(), InternalStatus.ERDA_FAILED, s.errorMessage);
         }
     }
 
@@ -195,7 +195,7 @@ public class SFTPService {
                             if (!erdaClient.exists(parentRemotePath, true)) {
                                 logger.info("Remote parent path {} didnt exist ", parentRemotePath);
                                 throw new RuntimeException("Remote path doesnt exist");
-//                        return;
+//                         return;
                             }
                         } catch (Exception e) {
                             throw new RuntimeException(e);
