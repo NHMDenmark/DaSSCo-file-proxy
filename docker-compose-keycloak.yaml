@@ -6,6 +6,7 @@ services:
       KC_METRICS_ENABLED: true
       KEYCLOAK_ADMIN: admin
       KEYCLOAK_ADMIN_PASSWORD: admin
+      KC_HTTP_RELATIVE_PATH: /keycloak
     volumes:
       - ./keycloak/data:/opt/keycloak/data:rw
       - ./keycloak/themes:/opt/keycloak/themes:rw
