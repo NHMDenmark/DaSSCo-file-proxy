@@ -2,6 +2,7 @@ package dk.northtech.dasscofileproxy.service;
 
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.github.benmanes.caffeine.cache.LoadingCache;
+import com.google.common.net.UrlEscapers;
 import dk.northtech.dasscofileproxy.assets.AssetServiceProperties;
 import dk.northtech.dasscofileproxy.assets.ErdaProperties;
 import dk.northtech.dasscofileproxy.configuration.ShareConfig;
@@ -102,8 +103,8 @@ public class CacheFileService {
                 throw new DasscoIllegalActionException("File is being edited");
             }
             logger.info("File didnt exist in cache, fetching from ERDA");
-            String erdaLocation = Strings.join(new String[]{erdaProperties.httpURL(), institution, collection, assetGuid, filePath}, "/");
-            erdaLocation = UriUtils.encodePath(erdaLocation, "UTF-8");
+            String erdaLocation = UrlEscapers.urlFragmentEscaper().escape(Strings.join(new String[]{erdaProperties.httpURL(), institution, collection, assetGuid, filePath}, "/"));
+//            erdaLocation = UriUtils.encodePath(erdaLocation, "UTF-8");
             logger.info("ERDA location: {}", erdaLocation);
             try (InputStream inputStream = fetchFromERDA(erdaLocation)) {
                 logger.info("got stream");
@@ -134,7 +135,7 @@ public class CacheFileService {
         if (filesByAssetPath.syncStatus() != FileSyncStatus.SYNCHRONIZED || filesByAssetPath.deleteAfterSync()) {
             throw new DasscoIllegalActionException("File is being edited");
         }
-        String erdaLocation = Strings.join(new String[]{erdaProperties.httpURL(), institution, collection, assetGuid, filePath}, "/");
+        String erdaLocation = UrlEscapers.urlFragmentEscaper().escape(Strings.join(new String[]{erdaProperties.httpURL(), institution, collection, assetGuid, filePath}, "/"));
         logger.info("ERDA location: {}", erdaLocation);
 
         try {
@@ -215,12 +216,12 @@ public class CacheFileService {
         }
     }
 
-    public InputStream fetchFromERDA(String path) {
+    public InputStream fetchFromERDA(String erdaUrl) {
         HttpClient httpClient = HttpClient.newBuilder().build();
         try {
             HttpRequest request = HttpRequest.newBuilder()
                     //                .header("Authorization", "Bearer " + user.token)
-                    .uri(new URI(path))
+                    .uri(new URI(erdaUrl))
                     .GET()
                     .build();
             new StreamingOutput() {

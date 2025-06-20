@@ -46,7 +46,7 @@ public class Files {
             , @QueryParam("no-cache") @DefaultValue("false") boolean noCache
     ) {
         final String path = uriInfo.getPathParameters().getFirst("path");
-        logger.info("Getting file");
+        logger.info("Getting file from collection, {}, on path: {}", collection, path);
         if (securityContext == null) {
             return Response.status(401).build();
         }
