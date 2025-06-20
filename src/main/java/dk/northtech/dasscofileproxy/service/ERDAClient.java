@@ -230,6 +230,7 @@ public class ERDAClient implements AutoCloseable {
     //Recursively get all files
     public List<String> listAllFiles(String path) {
         ChannelSftp channel = startChannelSftp();
+        logger.info("ERDA apth {} ", path);
         try {
             return listFolder(new ArrayList<>(), path, channel);
         } catch (SftpException e) {
