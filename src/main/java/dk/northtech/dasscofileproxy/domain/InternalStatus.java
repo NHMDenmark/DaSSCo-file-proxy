@@ -8,7 +8,6 @@ public enum InternalStatus {
     , ASSET_RECEIVED
     , COMPLETED
     , ERDA_FAILED
-    //   , ERDA_ERROR
     , ERDA_SYNCHRONISED
     , SPECIFY_SYNC_SCHEDULED
     , SPECIFY_SYNC_FAILED

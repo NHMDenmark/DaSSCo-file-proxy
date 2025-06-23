@@ -233,7 +233,10 @@ public class FileService {
     public void deleteFilesMarkedAsDeleteByAsset(String asset_guid) {
         jdbi.withHandle(h -> {
             FileRepository attach = h.attach(FileRepository.class);
+            // Hanlde files not in specify
             attach.deleteFilesMarkedForDeletionByAssetGuid(asset_guid);
+            // Handle files in specify
+            attach.markFilesAsDeletedByAssetGuid(asset_guid);
             return h;
         }).close();
     }
