@@ -105,7 +105,6 @@ public class CacheFileService {
             logger.info("File didnt exist in cache, fetching from ERDA");
             String erdaLocation = UrlEscapers.urlFragmentEscaper().escape(Strings.join(new String[]{erdaProperties.httpURL(), institution, collection, assetGuid, filePath}, "/"));
 //            erdaLocation = UriUtils.encodePath(erdaLocation, "UTF-8");
-            logger.info("ERDA location: {}", erdaLocation);
             try (InputStream inputStream = fetchFromERDA(erdaLocation)) {
                 logger.info("got stream");
                 new File(path).mkdirs();
@@ -136,7 +135,6 @@ public class CacheFileService {
             throw new DasscoIllegalActionException("File is being edited");
         }
         String erdaLocation = UrlEscapers.urlFragmentEscaper().escape(Strings.join(new String[]{erdaProperties.httpURL(), institution, collection, assetGuid, filePath}, "/"));
-        logger.info("ERDA location: {}", erdaLocation);
 
         try {
             StreamingOutput streamingOutput = output -> {
