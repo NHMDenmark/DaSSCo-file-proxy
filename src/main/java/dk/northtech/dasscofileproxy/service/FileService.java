@@ -3,6 +3,7 @@ package dk.northtech.dasscofileproxy.service;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Strings;
+import com.google.common.net.UrlEscapers;
 import com.nimbusds.jose.shaded.gson.Gson;
 import dk.northtech.dasscofileproxy.assets.AssetServiceProperties;
 import dk.northtech.dasscofileproxy.configuration.ShareConfig;
@@ -121,7 +122,7 @@ public class FileService {
                     String[] splitPath = path.replace("\\", "/")
                             .split(shareConfig.mountFolder());
                     String pathWithoutDir = splitPath.length == 2 ? splitPath[1]: splitPath[0];
-                    return shareConfig.nodeHost() + "/file_proxy/api" + pathWithoutDir;
+                    return shareConfig.nodeHost() + "/file_proxy/api" + UrlEscapers.urlFragmentEscaper().escape(pathWithoutDir);
                 })
                 .collect(Collectors.toList());
     }
