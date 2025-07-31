@@ -320,6 +320,37 @@ public class FileService {
         });
     }
 
+    public void uploadToParking(InputStream file, String path){
+        String basePath = shareConfig.mountFolder() + "/" + shareConfig.parkingFolder() + "/" + path;
+        File file1 = new File(basePath);
+        if (file1.getParentFile() != null) {
+            file1.getParentFile().mkdirs();
+        }
+
+        long value = writeToDiskAndGetCRC(file, file1);
+        System.out.printf("Uploaded file: %s to parking CRC: %s%n", path, value);
+
+    }
+
+    public Optional<FileResult> readFromParking(String path, Double scale){
+        // check if file exists else
+        // if thumbnail check if original exists else return original
+        // make a thumbnail if valid filetype based on the scale and scale it under thumbnails ->.../thumbnails/<name>_<scale>.<extenstion>
+        // return thumbnail after
+
+        String basePath = shareConfig.mountFolder() + "/" + shareConfig.parkingFolder() + "/" + path;
+        File file = new File(basePath);
+        if (file.exists()) {
+            try {
+                return Optional.of(new FileResult(new FileInputStream(file), file.getName()));
+            } catch (FileNotFoundException e) {
+                throw new RuntimeException(e);
+            }
+        } else {
+            return Optional.empty();
+        }
+    }
+
     private static long writeToDiskAndGetCRC(InputStream file, File tempFile) {
         long value = 0;
         try (FileOutputStream fileOutput = new FileOutputStream(tempFile)) {

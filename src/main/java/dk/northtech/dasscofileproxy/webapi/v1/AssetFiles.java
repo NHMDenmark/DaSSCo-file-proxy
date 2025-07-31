@@ -26,12 +26,15 @@ import org.springframework.web.bind.annotation.RequestBody;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.URLDecoder;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
 import static jakarta.ws.rs.core.MediaType.APPLICATION_JSON;
+import static jakarta.ws.rs.core.MediaType.APPLICATION_OCTET_STREAM;
 
 @Path("/assetfiles")
 @Tag(name = "Asset Files", description = "Endpoints related to assets' files.")
@@ -288,5 +291,36 @@ public class AssetFiles {
             , @Context SecurityContext securityContext
     ) {
         return fileService.listFilesInErda(assetGuid);
+    }
+
+    @POST
+    @Path("/parkedfiles/{path: .+}")
+    @Consumes(APPLICATION_OCTET_STREAM)
+    public Response postFileToParkedFiles(@PathParam("path") String path, InputStream file){
+        String decodedPath = URLDecoder.decode(path, StandardCharsets.UTF_8);
+        fileService.uploadToParking(file, decodedPath);
+        return Response.status(Response.Status.OK).build();
+    }
+
+    @GET
+    @Path("/parkedfiles/{path: .+}")
+    @Produces(APPLICATION_OCTET_STREAM)
+    public Response getFileFromParkedFile(@PathParam("path") String path, @QueryParam("scale") Double scale){
+        String decodedPath = URLDecoder.decode(path, StandardCharsets.UTF_8);
+        Optional<FileService.FileResult> getFileResult = fileService.readFromParking(decodedPath, scale);
+        if (getFileResult.isPresent()) {
+            FileService.FileResult fileResult = getFileResult.get();
+            StreamingOutput streamingOutput = output -> {
+                try (InputStream is = fileResult.is()) {
+                    is.transferTo(output);
+                    output.flush();
+                }
+            };
+
+            return Response.status(200)
+                    .header("Content-Disposition", "attachment; filename=" + fileResult.filename())
+                    .header("Content-Type", new Tika().detect(fileResult.filename())).entity(streamingOutput).build();
+        }
+        return Response.status(404).build();
     }
 }
