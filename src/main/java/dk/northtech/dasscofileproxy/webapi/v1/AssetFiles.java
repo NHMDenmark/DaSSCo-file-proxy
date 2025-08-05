@@ -305,7 +305,7 @@ public class AssetFiles {
     @GET
     @Path("/parkedfiles/{path: .+}")
     @Produces(APPLICATION_OCTET_STREAM)
-    public Response getFileFromParkedFile(@PathParam("path") String path, @QueryParam("scale") Double scale){
+    public Response getFileFromParkedFile(@PathParam("path") String path, @QueryParam("scale") Integer scale){
         String decodedPath = URLDecoder.decode(path, StandardCharsets.UTF_8);
         Optional<FileService.FileResult> getFileResult = fileService.readFromParking(decodedPath, scale);
         if (getFileResult.isPresent()) {

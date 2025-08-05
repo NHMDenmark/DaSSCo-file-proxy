@@ -19,12 +19,20 @@ import io.micrometer.observation.Observation;
 import io.micrometer.observation.ObservationRegistry;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.core.Response;
+import org.apache.pdfbox.Loader;
+import org.apache.pdfbox.pdmodel.PDDocument;
+import org.apache.pdfbox.pdmodel.PDPage;
+import org.apache.pdfbox.rendering.ImageType;
+import org.apache.pdfbox.rendering.PDFRenderer;
 import org.jdbi.v3.core.Jdbi;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.web.util.UriUtils;
 
+import javax.imageio.ImageIO;
+import java.awt.*;
+import java.awt.image.BufferedImage;
 import java.io.*;
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -33,12 +41,15 @@ import java.net.http.HttpResponse;
 import java.nio.file.*;
 import java.security.SecureRandom;
 import java.util.*;
+import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.util.zip.CRC32;
 import java.util.zip.CheckedInputStream;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
+
+import static java.util.stream.Collectors.toList;
 
 @Service
 public class FileService {
@@ -332,23 +343,115 @@ public class FileService {
 
     }
 
-    public Optional<FileResult> readFromParking(String path, Double scale){
+    public Optional<FileResult> readFromParking(String path, Integer scale){
         // check if file exists else
         // if thumbnail check if original exists else return original
         // make a thumbnail if valid filetype based on the scale and scale it under thumbnails ->.../thumbnails/<name>_<scale>.<extenstion>
         // return thumbnail after
 
-        String basePath = shareConfig.mountFolder() + "/" + shareConfig.parkingFolder() + "/" + path;
-        File file = new File(basePath);
-        if (file.exists()) {
-            try {
-                return Optional.of(new FileResult(new FileInputStream(file), file.getName()));
-            } catch (FileNotFoundException e) {
-                throw new RuntimeException(e);
+
+        try {
+            String basePath = shareConfig.mountFolder() + "/" + shareConfig.parkingFolder() + "/" + path;
+            File file = new File(basePath);
+            String mimeType = Files.probeContentType(file.toPath());
+            if(Objects.equals("application/pdf", mimeType) && path.contains("/thumbnails/")){
+                file = new File(basePath.replace(".pdf", ".png"));
             }
-        } else {
+
+            if (file.exists()) {
+                try {
+                    return Optional.of(new FileResult(new FileInputStream(file), file.getName()));
+                } catch (FileNotFoundException e) {
+                    throw new RuntimeException(e);
+                }
+            }
+            else if (path.contains("/thumbnails/") && this.asList(shareConfig.thumbnailMimeTypes()).contains(mimeType) /* && check file extension is one of ... */) {
+                String basePathOriginal = shareConfig.mountFolder() + "/" + shareConfig.parkingFolder() + "/" + path.replace("/thumbnails/", "/originals/").replace("_" + scale + ".", ".");
+                File fileOriginal = new File(basePathOriginal);
+                if (fileOriginal.exists()) {
+                    try {
+                        InputStream scaledInputStream = this.fileToScaledVersion(fileOriginal, scale, mimeType);
+                        if(scaledInputStream == null){
+                            return Optional.empty();
+                        }
+                        if (file.getParentFile() != null) {
+                            file.getParentFile().mkdirs();
+                        }
+                        long crc = writeToDiskAndGetCRC(scaledInputStream, file);
+                        if (crc > 0) {
+                            return Optional.of(new FileResult(new FileInputStream(file), file.getName()));
+                        }
+                    } catch (IOException e) {
+                        throw new RuntimeException(e);
+                    }
+                }
+            }
             return Optional.empty();
         }
+        catch (IOException e){
+            throw new RuntimeException(e);
+        }
+    }
+
+    public InputStream fileToScaledVersion(File inputFile, Integer scale, String mimeType) throws IOException {
+        String fileExtension = inputFile.getName().substring(inputFile.getName().lastIndexOf(".") + 1);
+        if(List.of("image/jpeg","image/png", "image/gif").contains(mimeType)){
+            BufferedImage inputImage = ImageIO.read(inputFile);
+            int scaledHeight = scale;
+            int scaledWidth = (int)(((double) scaledHeight / (double) inputImage.getHeight()) * inputImage.getWidth());
+            BufferedImage outputImage = new BufferedImage(scaledWidth, scaledHeight, inputImage.getType());
+
+            Graphics2D g2d = outputImage.createGraphics();
+            //speed -> g2d.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR);
+            //quality -> g2d.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BICUBIC);
+            g2d.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR);
+            g2d.drawImage(inputImage, 0, 0, scaledWidth, scaledHeight, null);
+            g2d.dispose();
+
+            ByteArrayOutputStream baos = new ByteArrayOutputStream();
+            ImageIO.write(outputImage, fileExtension, baos);
+            baos.flush();
+            return new ByteArrayInputStream(baos.toByteArray());
+
+        }
+        else if(Objects.equals("application/pdf", mimeType)){
+            try (PDDocument document = Loader.loadPDF(new File(inputFile.getPath()))) {
+                if(document.getNumberOfPages() > 0){
+                    PDFRenderer renderer = new PDFRenderer(document);
+                    BufferedImage inputImage = renderer.renderImageWithDPI(0, 150, ImageType.RGB);
+                    /*File file = new File("target/parking/a.png");
+                    file.getParentFile().mkdirs();
+                    ImageIO.write(inputImage, "png", file);*/
+                    int scaledHeight = scale;
+                    int scaledWidth = (int)(((double) scaledHeight / (double) inputImage.getHeight()) * inputImage.getWidth());
+                    BufferedImage outputImage = new BufferedImage(scaledWidth, scaledHeight, BufferedImage.TYPE_INT_ARGB);
+
+                    Graphics2D g2d = outputImage.createGraphics();
+                    //speed -> g2d.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR);
+                    //quality -> g2d.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BICUBIC);
+                    g2d.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR);
+                    g2d.drawImage(inputImage, 0, 0, scaledWidth, scaledHeight, null);
+                    g2d.dispose();
+
+                    ByteArrayOutputStream baos = new ByteArrayOutputStream();
+                    ImageIO.write(outputImage, "png", baos);
+                    baos.flush();
+                    return new ByteArrayInputStream(baos.toByteArray());
+                }
+            }
+
+        }
+        else if(Objects.equals("image/tiff", mimeType)){
+
+        }else{
+
+        }
+
+
+
+
+
+        return null;
     }
 
     private static long writeToDiskAndGetCRC(InputStream file, File tempFile) {
@@ -720,5 +823,11 @@ public class FileService {
             guid.append(characters.charAt(random.nextInt(characters.length())));
         }
         return guid.toString();
+    }
+
+    private List<String> asList(String value) {
+        return value == null || value.isBlank()
+                ? List.of()
+                : Arrays.stream(value.split(",")).map(String::trim).collect(toList());
     }
 }
