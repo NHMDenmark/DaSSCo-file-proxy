@@ -2,7 +2,9 @@ package dk.northtech.dasscofileproxy.service;
 
 import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonParser;
+import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.google.gson.Gson;
 import dk.northtech.dasscofileproxy.assets.AssetServiceProperties;
 import dk.northtech.dasscofileproxy.domain.*;
@@ -35,7 +37,7 @@ public class AssetService {
     private final KeycloakService keycloakService;
     private final AssetServiceProperties assetServiceProperties;
     private final ObservationRegistry observationRegistry;
-
+    ObjectMapper mapper = new ObjectMapper().registerModule(new JavaTimeModule()).configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
     @Inject
     public AssetService(KeycloakService keycloakService, AssetServiceProperties assetServiceProperties,
                         ObservationRegistry observationRegistry) {
@@ -88,8 +90,7 @@ public class AssetService {
             }
             String body = httpResponse.body();
             // parse to array to as it is more readable than TypeTokens.
-            ObjectMapper objectMapper = new ObjectMapper();
-            AssetStatusInfo[] assetStatusInfos = objectMapper.readValue(body, AssetStatusInfo[].class);
+            AssetStatusInfo[] assetStatusInfos = mapper.readValue(body, AssetStatusInfo[].class);
             return new ArrayList<>(Arrays.asList(assetStatusInfos));
         } catch (Exception e) {
             logger.error("Failed to set failed status on asset :^(");
