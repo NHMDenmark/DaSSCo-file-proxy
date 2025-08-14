@@ -23,6 +23,25 @@ services:
     extends:
       file: ./docker-compose-jaeger.yaml
       service: jaeger
+#  adapter:
+#    image: nhmdenmark/specify-adapter:1.0.6
+#    depends_on:
+#      - rabbitmq
+#      - keycloak
+#      - database
+#      - app
+#    ports:
+#      - "8086:8081"
+#    environment:
+#      AMQP_HOST_NAME: rabbitmq
+#      AMQP_SECURE: "false"
+#      KEYCLOAK_REALM: dassco
+#      KEYCLOAK_AUTH_SERVER_URL: http://keycloak:8080/keycloak/
+#      KEYCLOAK_SERVICE_USER_CLIENT_ID: rabbitmq-service-user
+#      KEYCLOAK_SERVICE_USER_CLIENT_SECRET: kbOFBXI9tANgKUq8vXHLhT6YhbivgXxn
+#      FILE_PROXY_ROOT_URL: http://app:8080
+
+
 volumes:
   log-volume:
   asset-service-log-volume:

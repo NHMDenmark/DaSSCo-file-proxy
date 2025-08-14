@@ -286,25 +286,36 @@ public class AssetFiles {
     @Consumes(APPLICATION_JSON)
     @ApiResponse(responseCode = "200", content = @Content(mediaType = APPLICATION_JSON, array = @ArraySchema(schema = @Schema(implementation = String.class)), examples = { @ExampleObject("[\"test-institution/test-collection/nt_asset_19/example.jpg\", \"test-institution/test-collection/nt_asset_19/example2.jpg\"]")}))
     @ApiResponse(responseCode = "400-599", content = @Content(mediaType = APPLICATION_JSON, schema = @Schema(implementation = DaSSCoError.class)))
-    public List<String> listFilesInErda(
-            @PathParam("assetGuid") String assetGuid
-            , @Context SecurityContext securityContext
+    public List<String> listFilesInErda(@PathParam("assetGuid") String assetGuid, @Context SecurityContext securityContext
     ) {
         return fileService.listFilesInErda(assetGuid);
     }
 
     @POST
     @Path("/parkedfiles/{path: .+}")
+    @Operation(summary = "Upload a file to the Parking spot.", description = "Upload a file to the Parking spot.")
     @Consumes(APPLICATION_OCTET_STREAM)
+    @ApiResponse(responseCode = "200", description = "File has been uploaded")
     public Response postFileToParkedFiles(@PathParam("path") String path, InputStream file){
         String decodedPath = URLDecoder.decode(path, StandardCharsets.UTF_8);
         fileService.uploadToParking(file, decodedPath);
         return Response.status(Response.Status.OK).build();
     }
 
+    @DELETE
+    @Path("/parkedfiles/{path: .+}")
+    public Response deleteFileFromParkedFiles(@PathParam("path") String path){
+        String decodedPath = URLDecoder.decode(path, StandardCharsets.UTF_8);
+        boolean result = this.fileService.deleteAllFilesFromOriginalInParked(decodedPath);
+        return Response.status(result ? Response.Status.OK : Response.Status.NOT_FOUND).build();
+    }
+
     @GET
     @Path("/parkedfiles/{path: .+}")
+    @Operation(summary = "Get a file from the Parking spot.", description = "Get a file from the Parking spot. Generates a thumbnail if they are requested and it does not exists and is of support thumbnail mimetypes")
     @Produces(APPLICATION_OCTET_STREAM)
+    @ApiResponse(responseCode = "200", content = @Content(mediaType = APPLICATION_OCTET_STREAM), description = "Sending the image as a Stream")
+    @ApiResponse(responseCode = "404", content = @Content(mediaType = APPLICATION_OCTET_STREAM), description = "Failed to find the image or original image to generate the thumbnail")
     public Response getFileFromParkedFile(@PathParam("path") String path, @QueryParam("scale") Integer scale){
         String decodedPath = URLDecoder.decode(path, StandardCharsets.UTF_8);
         Optional<FileService.FileResult> getFileResult = fileService.readFromParking(decodedPath, scale);
@@ -321,6 +332,6 @@ public class AssetFiles {
                     .header("Content-Disposition", "attachment; filename=" + fileResult.filename())
                     .header("Content-Type", new Tika().detect(fileResult.filename())).entity(streamingOutput).build();
         }
-        return Response.status(404).build();
+        return Response.status(404).entity("Missing file: %s".formatted(decodedPath)).build();
     }
 }

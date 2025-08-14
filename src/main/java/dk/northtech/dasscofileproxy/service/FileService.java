@@ -18,6 +18,7 @@ import dk.northtech.dasscofileproxy.webapi.model.FileUploadResult;
 import io.micrometer.observation.Observation;
 import io.micrometer.observation.ObservationRegistry;
 import jakarta.inject.Inject;
+import jakarta.ws.rs.WebApplicationException;
 import jakarta.ws.rs.core.Response;
 import org.apache.pdfbox.Loader;
 import org.apache.pdfbox.pdmodel.PDDocument;
@@ -42,6 +43,7 @@ import java.nio.file.*;
 import java.security.SecureRandom;
 import java.util.*;
 import java.util.List;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.util.zip.CRC32;
@@ -57,18 +59,21 @@ public class FileService {
     Jdbi jdbi;
     AssetService assetService;
     AssetServiceProperties assetServiceProperties;
+    CacheFileService cacheFileService;
     private static final Logger logger = LoggerFactory.getLogger(FileService.class);
     private final ObservationRegistry observationRegistry;
 
     @Inject
     public FileService(ShareConfig shareConfig, Jdbi jdbi, AssetService assetService,
                        AssetServiceProperties assetServiceProperties,
-                       ObservationRegistry observationRegistry) {
+                       ObservationRegistry observationRegistry,
+                       CacheFileService cacheFileService) {
         this.shareConfig = shareConfig;
         this.assetService = assetService;
         this.jdbi = jdbi;
         this.assetServiceProperties = assetServiceProperties;
         this.observationRegistry = observationRegistry;
+        this.cacheFileService = cacheFileService;
     }
 
 
@@ -149,6 +154,34 @@ public class FileService {
     public boolean deleteFile(String locationOnDisk) {
         File file = new File(locationOnDisk);
         return file.delete();
+    }
+
+    public boolean deleteAllFilesFromOriginalInParked(String path){
+        String originalPath = shareConfig.mountFolder() + "/" + shareConfig.parkingFolder() + "/" + path;
+        String[] pathParts = path.split("/");
+        Path dir = Paths.get(originalPath.replace(pathParts[pathParts.length-1], "").replace("originals", "thumbnails"));
+        String[] filenameParts = pathParts[pathParts.length-1].split("\\.");
+
+        File file = new File(originalPath.replace("thumbnails", "originals"));
+        if(file.exists()) {
+            file.delete();
+        }else{
+            return false;
+        }
+
+        try (DirectoryStream<Path> stream = Files.newDirectoryStream(dir, filenameParts[0] + "_*." + filenameParts[1])) {
+            for (Path entry : stream) {
+                try {
+                    Files.deleteIfExists(entry);
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                }
+            }
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+
+        return true;
     }
 
     public record FileResult(InputStream is, String filename) {
@@ -331,25 +364,49 @@ public class FileService {
         });
     }
 
-    public void uploadToParking(InputStream file, String path){
+    public void uploadToParking(InputStream inputStream, String path){
         String basePath = shareConfig.mountFolder() + "/" + shareConfig.parkingFolder() + "/" + path;
-        File file1 = new File(basePath);
-        if (file1.getParentFile() != null) {
-            file1.getParentFile().mkdirs();
+        File file = new File(basePath);
+        if (file.getParentFile() != null) {
+            file.getParentFile().mkdirs();
         }
+        writeToDiskAndGetCRC(inputStream, file);
+    }
 
-        long value = writeToDiskAndGetCRC(file, file1);
-        System.out.printf("Uploaded file: %s to parking CRC: %s%n", path, value);
+    public void getFileForAdapter(String institution, String collection, String filename, String type, Integer scale){
+        this.jdbi.withHandle(h -> {
+
+            Optional<String> path = h.createQuery("""
+                    select f.path from collection c
+                    inner join asset a on a.collection_id = c.collection_id
+                    inner join file f on f.asset_guid = a.asset_guid
+                    where
+                        c.institution_name = :institution and
+                        c.collection_name = :collection and
+                        f.path ilike '%:filename' and
+                        f.has_thumbnail = true
+                    """)
+                    .bind("institution", institution)
+                    .bind("collection", collection)
+                    .bind("filename", filename)
+                    .mapTo(String.class)
+                    .findOne();
+
+            path.map(value -> {
+                // call cacheFileService and stream the file
+                return null;
+            }).orElseGet(() -> {
+                // call the readFromParking and stream the file
+                return null;
+            });
+
+
+            return null;
+        });
 
     }
 
     public Optional<FileResult> readFromParking(String path, Integer scale){
-        // check if file exists else
-        // if thumbnail check if original exists else return original
-        // make a thumbnail if valid filetype based on the scale and scale it under thumbnails ->.../thumbnails/<name>_<scale>.<extenstion>
-        // return thumbnail after
-
-
         try {
             String basePath = shareConfig.mountFolder() + "/" + shareConfig.parkingFolder() + "/" + path;
             File file = new File(basePath);
@@ -384,6 +441,8 @@ public class FileService {
                     } catch (IOException e) {
                         throw new RuntimeException(e);
                     }
+                }else{
+                    throw new WebApplicationException(Response.status(Response.Status.NOT_FOUND).entity("Missing original: %s".formatted(path)).build());
                 }
             }
             return Optional.empty();
@@ -394,12 +453,13 @@ public class FileService {
     }
 
     public InputStream fileToScaledVersion(File inputFile, Integer scale, String mimeType) throws IOException {
-        String fileExtension = inputFile.getName().substring(inputFile.getName().lastIndexOf(".") + 1);
-        if(List.of("image/jpeg","image/png", "image/gif").contains(mimeType)){
+        String fileExtension = List.of("application/pdf", "image/tiff").contains(mimeType) ? "png" : inputFile.getName().substring(inputFile.getName().lastIndexOf(".") + 1);
+        if(List.of("image/jpeg","image/png", "image/gif", "image/tiff").contains(mimeType)){
             BufferedImage inputImage = ImageIO.read(inputFile);
-            int scaledHeight = scale;
-            int scaledWidth = (int)(((double) scaledHeight / (double) inputImage.getHeight()) * inputImage.getWidth());
-            BufferedImage outputImage = new BufferedImage(scaledWidth, scaledHeight, inputImage.getType());
+            int scaledHeight = inputImage.getHeight() > inputImage.getWidth() ? scale : (int)(((double) scale / (double) inputImage.getWidth()) * inputImage.getHeight());
+            int scaledWidth = inputImage.getWidth() > inputImage.getHeight() ? scale : (int)(((double) scale / (double) inputImage.getHeight()) * inputImage.getWidth());
+            var imageType = inputImage.getType();
+            BufferedImage outputImage = new BufferedImage(scaledWidth, scaledHeight, imageType == 0 ? BufferedImage.TYPE_INT_ARGB : imageType);
 
             Graphics2D g2d = outputImage.createGraphics();
             //speed -> g2d.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR);
@@ -419,11 +479,8 @@ public class FileService {
                 if(document.getNumberOfPages() > 0){
                     PDFRenderer renderer = new PDFRenderer(document);
                     BufferedImage inputImage = renderer.renderImageWithDPI(0, 150, ImageType.RGB);
-                    /*File file = new File("target/parking/a.png");
-                    file.getParentFile().mkdirs();
-                    ImageIO.write(inputImage, "png", file);*/
-                    int scaledHeight = scale;
-                    int scaledWidth = (int)(((double) scaledHeight / (double) inputImage.getHeight()) * inputImage.getWidth());
+                    int scaledHeight = inputImage.getHeight() > inputImage.getWidth() ? scale : (int)(((double) scale / (double) inputImage.getWidth()) * inputImage.getHeight());
+                    int scaledWidth = inputImage.getWidth() > inputImage.getHeight() ? scale : (int)(((double) scale / (double) inputImage.getHeight()) * inputImage.getWidth());
                     BufferedImage outputImage = new BufferedImage(scaledWidth, scaledHeight, BufferedImage.TYPE_INT_ARGB);
 
                     Graphics2D g2d = outputImage.createGraphics();
@@ -434,23 +491,13 @@ public class FileService {
                     g2d.dispose();
 
                     ByteArrayOutputStream baos = new ByteArrayOutputStream();
-                    ImageIO.write(outputImage, "png", baos);
+                    ImageIO.write(outputImage, fileExtension, baos);
                     baos.flush();
                     return new ByteArrayInputStream(baos.toByteArray());
                 }
             }
 
         }
-        else if(Objects.equals("image/tiff", mimeType)){
-
-        }else{
-
-        }
-
-
-
-
-
         return null;
     }
 
