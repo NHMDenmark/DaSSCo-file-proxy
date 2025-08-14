@@ -32,6 +32,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.util.UriUtils;
 
 import javax.imageio.ImageIO;
+import javax.sql.DataSource;
 import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.io.*;
@@ -59,21 +60,18 @@ public class FileService {
     Jdbi jdbi;
     AssetService assetService;
     AssetServiceProperties assetServiceProperties;
-    CacheFileService cacheFileService;
     private static final Logger logger = LoggerFactory.getLogger(FileService.class);
     private final ObservationRegistry observationRegistry;
 
     @Inject
     public FileService(ShareConfig shareConfig, Jdbi jdbi, AssetService assetService,
                        AssetServiceProperties assetServiceProperties,
-                       ObservationRegistry observationRegistry,
-                       CacheFileService cacheFileService) {
+                       ObservationRegistry observationRegistry) {
         this.shareConfig = shareConfig;
         this.assetService = assetService;
-        this.jdbi = jdbi;
         this.assetServiceProperties = assetServiceProperties;
         this.observationRegistry = observationRegistry;
-        this.cacheFileService = cacheFileService;
+        this.jdbi = jdbi;
     }
 
 
@@ -373,37 +371,11 @@ public class FileService {
         writeToDiskAndGetCRC(inputStream, file);
     }
 
-    public void getFileForAdapter(String institution, String collection, String filename, String type, Integer scale){
-        this.jdbi.withHandle(h -> {
-
-            Optional<String> path = h.createQuery("""
-                    select f.path from collection c
-                    inner join asset a on a.collection_id = c.collection_id
-                    inner join file f on f.asset_guid = a.asset_guid
-                    where
-                        c.institution_name = :institution and
-                        c.collection_name = :collection and
-                        f.path ilike '%:filename' and
-                        f.has_thumbnail = true
-                    """)
-                    .bind("institution", institution)
-                    .bind("collection", collection)
-                    .bind("filename", filename)
-                    .mapTo(String.class)
-                    .findOne();
-
-            path.map(value -> {
-                // call cacheFileService and stream the file
-                return null;
-            }).orElseGet(() -> {
-                // call the readFromParking and stream the file
-                return null;
-            });
-
-
-            return null;
+    public Optional<DasscoFile> getFilePathForAdapterFile(String institution, String collection, String filename, String type, Integer scale){
+        return jdbi.withHandle(handle -> {
+           FileRepository fileRepository = handle.attach(FileRepository.class);
+           return fileRepository.getFilePathForAdapterFile(institution, collection, filename, type.equals("thumbnails"));
         });
-
     }
 
     public Optional<FileResult> readFromParking(String path, Integer scale){

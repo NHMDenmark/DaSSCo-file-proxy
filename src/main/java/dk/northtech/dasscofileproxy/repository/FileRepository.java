@@ -9,6 +9,7 @@ import org.jdbi.v3.sqlobject.statement.SqlQuery;
 import org.jdbi.v3.sqlobject.statement.SqlUpdate;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 
 public interface FileRepository {
@@ -54,4 +55,16 @@ public interface FileRepository {
 
     @SqlQuery("SELECT sum(size_bytes) AS totalAllocated FROM file WHERE asset_guid IN (<asset_guids>) AND delete_after_sync = FALSE")
     long getTotalAllocatedByAsset(@BindList Set<String> asset_guids);
+
+     @SqlQuery("""
+        select f.* from collection c
+        inner join asset a on a.collection_id = c.collection_id
+        inner join file f on f.asset_guid = a.asset_guid
+        where
+            c.institution_name = :institution and
+            c.collection_name = :collection and
+            f.path ilike '%' || :filename and
+            f.has_thumbnail = :hasThumbnail
+    """)
+     Optional<DasscoFile> getFilePathForAdapterFile(@Bind String institution, @Bind String collection, @Bind String filename, @Bind boolean hasThumbnail);
 }

@@ -1,5 +1,7 @@
 package dk.northtech.dasscofileproxy.webapi.v1;
 
+import dk.northtech.dasscofileproxy.domain.DasscoFile;
+import dk.northtech.dasscofileproxy.domain.FileSyncStatus;
 import dk.northtech.dasscofileproxy.domain.User;
 import dk.northtech.dasscofileproxy.service.FileService;
 import dk.northtech.dasscofileproxy.webapi.UserMapper;
@@ -311,27 +313,47 @@ public class AssetFiles {
     }
 
     @GET
-    @Path("/parkedfiles/{path: .+}")
+    @Path("/parkedfiles")
     @Operation(summary = "Get a file from the Parking spot.", description = "Get a file from the Parking spot. Generates a thumbnail if they are requested and it does not exists and is of support thumbnail mimetypes")
     @Produces(APPLICATION_OCTET_STREAM)
     @ApiResponse(responseCode = "200", content = @Content(mediaType = APPLICATION_OCTET_STREAM), description = "Sending the image as a Stream")
     @ApiResponse(responseCode = "404", content = @Content(mediaType = APPLICATION_OCTET_STREAM), description = "Failed to find the image or original image to generate the thumbnail")
-    public Response getFileFromParkedFile(@PathParam("path") String path, @QueryParam("scale") Integer scale){
-        String decodedPath = URLDecoder.decode(path, StandardCharsets.UTF_8);
-        Optional<FileService.FileResult> getFileResult = fileService.readFromParking(decodedPath, scale);
-        if (getFileResult.isPresent()) {
-            FileService.FileResult fileResult = getFileResult.get();
-            StreamingOutput streamingOutput = output -> {
-                try (InputStream is = fileResult.is()) {
-                    is.transferTo(output);
-                    output.flush();
-                }
-            };
+    public Response getFileFromParkedFile(@QueryParam("institution") String institution, @QueryParam("collection") String collection, @QueryParam("filename") String filename, @QueryParam("type") String type, @QueryParam("scale") Integer scale){
+        Optional<DasscoFile> dasscoFile = this.fileService.getFilePathForAdapterFile(URLDecoder.decode(institution, StandardCharsets.UTF_8), URLDecoder.decode(collection, StandardCharsets.UTF_8), URLDecoder.decode(filename, StandardCharsets.UTF_8), type, scale);
+        String path = "specify-001/" + collection + "/" + type + "/" + filename;
+        return dasscoFile.map(value -> {
+            FileUploadData fileUploadData = new FileUploadData(value.assetGuid(), institution, collection, value.path(), 0);
+            Optional<FileService.FileResult> getFileResult = fileService.getFile(fileUploadData);
+            if (getFileResult.isPresent()) {
+                FileService.FileResult fileResult = getFileResult.get();
+                StreamingOutput streamingOutput = output -> {
+                    try (InputStream is = fileResult.is()) {
+                        is.transferTo(output);
+                        output.flush();
+                    }
+                };
 
-            return Response.status(200)
-                    .header("Content-Disposition", "attachment; filename=" + fileResult.filename())
-                    .header("Content-Type", new Tika().detect(fileResult.filename())).entity(streamingOutput).build();
-        }
-        return Response.status(404).entity("Missing file: %s".formatted(decodedPath)).build();
+                return Response.status(200)
+                        .header("Content-Disposition", "attachment; filename=" + fileResult.filename())
+                        .header("Content-Type", new Tika().detect(fileResult.filename())).entity(streamingOutput).build();
+            }
+            return Response.status(404).entity("Missing file: %s".formatted(path)).build();
+        }).orElseGet(() -> {
+            Optional<FileService.FileResult> getFileResult = fileService.readFromParking(path, scale);
+            if (getFileResult.isPresent()) {
+                FileService.FileResult fileResult = getFileResult.get();
+                StreamingOutput streamingOutput = output -> {
+                    try (InputStream is = fileResult.is()) {
+                        is.transferTo(output);
+                        output.flush();
+                    }
+                };
+
+                return Response.status(200)
+                        .header("Content-Disposition", "attachment; filename=" + fileResult.filename())
+                        .header("Content-Type", new Tika().detect(fileResult.filename())).entity(streamingOutput).build();
+            }
+            return Response.status(404).entity("Missing file: %s".formatted(path)).build();
+        });
     }
 }
