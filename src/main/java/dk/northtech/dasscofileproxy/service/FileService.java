@@ -394,7 +394,8 @@ public class FileService {
                     throw new RuntimeException(e);
                 }
             }
-            else if (path.contains("/thumbnails/") && this.asList(shareConfig.thumbnailMimeTypes()).contains(mimeType) /* && check file extension is one of ... */) {
+            // Code that generates a Thumbnail
+            /*else if (path.contains("/thumbnails/") && this.asList(shareConfig.thumbnailMimeTypes()).contains(mimeType) *//* && check file extension is one of ... *//*) {
                 String basePathOriginal = shareConfig.mountFolder() + "/" + shareConfig.parkingFolder() + "/" + path.replace("/thumbnails/", "/originals/").replace("_" + scale + ".", ".");
                 File fileOriginal = new File(basePathOriginal);
                 if (fileOriginal.exists()) {
@@ -416,7 +417,7 @@ public class FileService {
                 }else{
                     throw new WebApplicationException(Response.status(Response.Status.NOT_FOUND).entity("Missing original: %s".formatted(path)).build());
                 }
-            }
+            }*/
             return Optional.empty();
         }
         catch (IOException e){
@@ -424,7 +425,8 @@ public class FileService {
         }
     }
 
-    public InputStream fileToScaledVersion(File inputFile, Integer scale, String mimeType) throws IOException {
+    // Code that scale a File
+    /*public InputStream fileToScaledVersion(File inputFile, Integer scale, String mimeType) throws IOException {
         String fileExtension = List.of("application/pdf", "image/tiff").contains(mimeType) ? "png" : inputFile.getName().substring(inputFile.getName().lastIndexOf(".") + 1);
         if(List.of("image/jpeg","image/png", "image/gif", "image/tiff").contains(mimeType)){
             BufferedImage inputImage = ImageIO.read(inputFile);
@@ -471,7 +473,7 @@ public class FileService {
 
         }
         return null;
-    }
+    }*/
 
     private static long writeToDiskAndGetCRC(InputStream file, File tempFile) {
         long value = 0;

@@ -318,9 +318,9 @@ public class AssetFiles {
     @Produces(APPLICATION_OCTET_STREAM)
     @ApiResponse(responseCode = "200", content = @Content(mediaType = APPLICATION_OCTET_STREAM), description = "Sending the image as a Stream")
     @ApiResponse(responseCode = "404", content = @Content(mediaType = APPLICATION_OCTET_STREAM), description = "Failed to find the image or original image to generate the thumbnail")
-    public Response getFileFromParkedFile(@QueryParam("institution") String institution, @QueryParam("collection") String collection, @QueryParam("filename") String filename, @QueryParam("type") String type, @QueryParam("scale") Integer scale){
+    public Response getFileFromParkedFile(@QueryParam("pathPostFix") String pathPostFix, @QueryParam("institution") String institution, @QueryParam("collection") String collection, @QueryParam("filename") String filename, @QueryParam("type") String type, @QueryParam("scale") Integer scale){
         Optional<DasscoFile> dasscoFile = this.fileService.getFilePathForAdapterFile(URLDecoder.decode(institution, StandardCharsets.UTF_8), URLDecoder.decode(collection, StandardCharsets.UTF_8), URLDecoder.decode(filename, StandardCharsets.UTF_8), type, scale);
-        String path = "specify-001/" + collection + "/" + type + "/" + filename;
+        String path = pathPostFix + "/" + collection + "/" + type + "/" + filename;
         return dasscoFile.map(value -> {
             FileUploadData fileUploadData = new FileUploadData(value.assetGuid(), institution, collection, value.path(), 0);
             Optional<FileService.FileResult> getFileResult = fileService.getFile(fileUploadData);
