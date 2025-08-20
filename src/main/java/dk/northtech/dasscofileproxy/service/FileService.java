@@ -386,6 +386,9 @@ public class FileService {
             if(Objects.equals("application/pdf", mimeType) && path.contains("/thumbnails/")){
                 file = new File(basePath.replace(".pdf", ".png"));
             }
+            if(Objects.equals("image/tiff", mimeType) && path.contains("/thumbnails/")){
+                file = new File(basePath.replace(".tiff", ".png"));
+            }
 
             if (file.exists()) {
                 try {
