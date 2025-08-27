@@ -20,6 +20,8 @@ import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.*;
 import org.apache.commons.io.FileUtils;
 import org.apache.tika.Tika;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.security.core.parameters.P;
 import org.springframework.web.bind.annotation.RequestBody;
 
@@ -38,7 +40,7 @@ import static jakarta.ws.rs.core.MediaType.APPLICATION_JSON;
 @SecurityRequirement(name = "dassco-idp")
 public class AssetFiles {
     private FileService fileService;
-
+    private static final Logger logger = LoggerFactory.getLogger(AssetFiles.class);
     @Inject
     public AssetFiles(FileService fileService) {
         this.fileService = fileService;
@@ -52,7 +54,7 @@ public class AssetFiles {
     @Operation(summary = "Upload File", description = "Uploads a file. Requires institution, collection, asset_guid, crc and file size (in mb).\n\n" +
                                                         "Can be called multiple times to upload multiple files to the same asset. If the files are called the same, the file will be overwritten.")
     @Produces(MediaType.APPLICATION_JSON)
-    @Consumes(MediaType.APPLICATION_OCTET_STREAM)
+    //@Consumes(MediaType.APPLICATION_OCTET_STREAM)
     @ApiResponse(responseCode = "200", content = @Content(mediaType = APPLICATION_JSON, schema = @Schema(implementation = FileUploadResult.class)))
     @ApiResponse(responseCode = "400-599", content = @Content(mediaType = APPLICATION_JSON, schema = @Schema(implementation = DaSSCoError.class)))
     public Response putFile(
@@ -62,6 +64,7 @@ public class AssetFiles {
             , @QueryParam("crc") long crc
             , @QueryParam("file_size_mb") int fileSize
             , @Context SecurityContext securityContext
+            , @Context HttpHeaders httpHeaders
             , InputStream file) {
         User user = UserMapper.from(securityContext);
         if (fileSize == 0) {
@@ -72,7 +75,12 @@ public class AssetFiles {
         }
         final String path
                 = uriInfo.getPathParameters().getFirst("path");
-        FileUploadData fileUploadData = new FileUploadData(assetGuid, institutionName, collectionName, path, fileSize);
+        String contentType = httpHeaders.getHeaderString("Content-Type");
+        logger.info("Got Content-Type {}", contentType);
+        if(contentType == null) {
+            contentType = new Tika().detect(path);
+        }
+        FileUploadData fileUploadData = new FileUploadData(assetGuid, institutionName, collectionName, path, fileSize,contentType);
         FileUploadResult upload = fileService.upload(file, crc, fileUploadData);
         return Response.status(upload.getResponseCode()).entity(upload).build();
     }
@@ -95,7 +103,7 @@ public class AssetFiles {
         final String path
                 = uriInfo.getPathParameters().getFirst("path");
         User user = UserMapper.from(securityContext);
-        FileUploadData fileUploadData = new FileUploadData(assetGuid, institutionName, collectionName, path, 0);
+        FileUploadData fileUploadData = new FileUploadData(assetGuid, institutionName, collectionName, path, 0, null);
         Optional<FileService.FileResult> getFileResult = fileService.getFile(fileUploadData);
         if (getFileResult.isPresent()) {
 
@@ -112,10 +120,10 @@ public class AssetFiles {
                     output.flush();
                 }
             };
-
+            String contentType = fileResult.mime_type() != null ? fileResult.mime_type() :  new Tika().detect(fileResult.filename());
             return Response.status(200)
                     .header("Content-Disposition", "attachment; filename=" + fileResult.filename())
-                    .header("Content-Type", new Tika().detect(fileResult.filename())).entity(streamingOutput).build();
+                    .header("Content-Type", contentType).entity(streamingOutput).build();
         }
         return Response.status(404).build();
     }
@@ -135,7 +143,7 @@ public class AssetFiles {
             , @Context SecurityContext securityContext
     ) {
         User user = UserMapper.from(securityContext);
-        List<String> links = fileService.listAvailableFiles(new FileUploadData(assetGuid, institutionName, collectionName, null, 0));
+        List<String> links = fileService.listAvailableFiles(new FileUploadData(assetGuid, institutionName, collectionName, null, 0,null));
         return links;
     }
 
@@ -152,7 +160,7 @@ public class AssetFiles {
         User user = UserMapper.from(securityContext);
         final String path
                 = uriInfo.getPathParameters().getFirst("path");
-        boolean deleted = fileService.deleteFile(new FileUploadData(assetGuid, institutionName, collectionName, path, 0));
+        boolean deleted = fileService.deleteFile(new FileUploadData(assetGuid, institutionName, collectionName, path, 0,null));
         return Response.status(deleted ? 204 : 404).build();
     }
 
@@ -170,7 +178,7 @@ public class AssetFiles {
             , @PathParam("assetGuid") String assetGuid
             , @Context SecurityContext securityContext) {
         User user = UserMapper.from(securityContext);
-        boolean deleted = fileService.deleteFile(new FileUploadData(assetGuid, institutionName, collectionName, null, 0));
+        boolean deleted = fileService.deleteFile(new FileUploadData(assetGuid, institutionName, collectionName, null, 0,null));
         return Response.status(deleted ? 204 : 404).build();
     }
 
@@ -213,7 +221,7 @@ public class AssetFiles {
                                      @PathParam("collection") String collection,
                                      @PathParam("assetGuid") String assetGuid,
                                      @PathParam("file") String file){
-        FileUploadData fileUploadData = new FileUploadData(assetGuid, institution, collection, file, 0);
+        FileUploadData fileUploadData = new FileUploadData(assetGuid, institution, collection, file, 0,null);
         boolean isDeleted = fileService.deleteLocalFiles(fileUploadData.getAssetFilePath(), file);
 
         if (isDeleted){

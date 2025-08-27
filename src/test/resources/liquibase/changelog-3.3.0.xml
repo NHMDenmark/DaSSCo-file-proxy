@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.17.xsd">
+
+
+    <changeSet id="3.3.0:ADD_PREPARATION_TYPES" author="Thomas Skov Bornerup" context="default">
+        <addColumn tableName="specimen">
+            <column name="preparation_types" type="text[]">
+                <constraints nullable="true"/>
+            </column>
+        </addColumn>
+    </changeSet>
+    <changeSet id="3.3.0:ADD_PREPARATION_TYPE" author="Thomas Skov Bornerup" context="default">
+        <addColumn tableName="asset_specimen">
+            <column name="preparation_type" type="text">
+                <constraints nullable="true"/>
+            </column>
+        </addColumn>
+    </changeSet>
+    <changeSet id="3.3.0:MOVE_PREP_TYPE" author="Thomas Skov Bornerup" context="default">
+        <sql>
+            UPDATE specimen SET preparation_types = ARRAY [preparation_type]
+            WHERE preparation_type IS NOT NULL;
+        </sql>
+        <dropColumn tableName="specimen" columnName="preparation_type"/>
+    </changeSet>
+    <changeSet id="3.3.0:ADD_CONSTRAINTS" author="Thomas Skov Bornerup">
+        <addNotNullConstraint tableName="specimen" columnName="preparation_types"/>
+        <addForeignKeyConstraint baseTableName="asset_specimen"
+                                 baseColumnNames="preparation_type"
+                                 constraintName="fk_asset_specimen__preparation_type"
+                                 referencedTableName="preparation_type"
+                                 referencedColumnNames="preparation_type"/>
+    </changeSet>
+    <changeSet id="VERSION-3.3.0" author="Thomas Skov Bornerup" context="default">
+        <tagDatabase tag="VERSION-3.3.0"/>
+    </changeSet>
+
+</databaseChangeLog>

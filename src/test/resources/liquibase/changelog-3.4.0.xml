@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.17.xsd">
+
+
+    <changeSet id="3.4.0:ADD_INTERNAL_STATUS" author="Thomas Skov Bornerup" context="default">
+        <sql>
+            INSERT INTO internal_asset_status(internal_status)
+            VALUES ('SHARE_REOPENED')
+                 , ('ERDA_SYNCHRONISED')
+                 , ('SPECIFY_SYNC_SCHEDULED')
+                 , ('SPECIFY_SYNC_FAILED')
+                 , ('SPECIFY_SYNCHRONISED')
+        </sql>
+    </changeSet>
+
+    <changeSet id="3.4.0:SET_INTERNAL_STATUS" author="Thomas Skov Bornerup" context="default">
+        <sql>
+            UPDATE asset
+            SET internal_status = 'ERDA_FAILED'
+            WHERE internal_status = 'ERDA_ERROR'
+        </sql>
+    </changeSet>
+    <changeSet id="3.4.0:INSERT_SPECIFY_EVENT" author="Thomas Skov Bornerup">
+        <sql>
+            INSERT INTO event_type (event)
+            VALUES ('SYNCHRONISE_SPECIFY');
+        </sql>
+    </changeSet>
+    <changeSet id="3.4.0:SET_INTERNAL_STATUS_ERDA_SYNCHRONISED" author="Thomas Skov Bornerup" context="default">
+        <sql>
+            UPDATE asset
+            SET internal_status = 'ERDA_SYNCHRONISED'
+            WHERE internal_status = 'COMPLETED'
+        </sql>
+    </changeSet>
+    <changeSet id="VERSION-3.4.0" author="Thomas Skov Bornerup" context="default">
+        <tagDatabase tag="VERSION-3.4.0"/>
+    </changeSet>
+</databaseChangeLog>

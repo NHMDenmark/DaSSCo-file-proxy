@@ -6,11 +6,19 @@ import dk.northtech.dasscofileproxy.repository.FileRepository;
 import dk.northtech.dasscofileproxy.webapi.model.AssetStorageAllocation;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.BadRequestException;
+import liquibase.Contexts;
+import liquibase.Liquibase;
+import liquibase.database.Database;
+import liquibase.database.DatabaseFactory;
+import liquibase.database.jvm.JdbcConnection;
+import liquibase.resource.ClassLoaderResourceAccessor;
+import liquibase.resource.FileSystemResourceAccessor;
 import org.checkerframework.checker.units.qual.C;
 import org.jdbi.v3.core.Jdbi;
 import org.junit.Ignore;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
+import org.postgresql.jdbc.PgConnection;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -27,15 +35,16 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.utility.DockerImageName;
 
 import java.io.File;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.SQLException;
 import java.time.Duration;
 import java.time.Instant;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 
 import static com.google.common.truth.Truth.assertThat;
 import static org.junit.Assert.assertThrows;
+import static org.testcontainers.shaded.org.bouncycastle.asn1.x500.style.RFC4519Style.c;
 
 @SpringBootTest
 @Testcontainers
@@ -61,28 +70,32 @@ class HttpShareServiceTest {
             .withExposedPorts(5432)
 //            .waitingFor(Wait.forLogMessage("ready to accept connections",1))
             .withNetwork(network).withNetworkAliases("database");
-    //            .withEnv("POSTGRES_DB", "dassco_file_proxy")
-//            .withEnv("POSTGRES_USER", "dassco_file_proxy")
-//            .withEnv("POSTGRES_PASSWORD", "dassco_file_proxy")
-    @Container
-    static GenericContainer arsBackend;
 
+//
     static {
-        postgreSQL.start();
-        Slf4jLogConsumer logConsumer = new Slf4jLogConsumer(logger);
-        arsBackend = new GenericContainer(DockerImageName.parse("nhmdenmark/dassco-asset-service:2.0.0"))
-                .withEnv("POSTGRES_URL", "jdbc:postgresql://database:"+5432+"/dassco_file_proxy")
-                .withEnv("LIQUIBASE_CONTEXTS",  "default, development, test")
-                .dependsOn(postgreSQL)
-                .withLogConsumer(logConsumer)
-                .waitingFor(Wait.forLogMessage(".*Started DasscoAssetServiceApplication.*\\n", 1)).withStartupTimeout(Duration.ofSeconds(180))
-                .withNetwork(network);
+            postgreSQL.start();
+//        String url =  "jdbc:postgresql://localhost:" + postgreSQL.getFirstMappedPort() + "/dassco_file_proxy";
+//        Properties props = new Properties();
+//        props.setProperty("user", "fred");
+//        props.setProperty("password", "secret");
+//        props.setProperty("ssl", "true");
+//        Connection conn = DriverManager.getConnection(url, props);
 
+        String url =  "jdbc:postgresql://localhost:" + postgreSQL.getFirstMappedPort() + "/dassco_file_proxy?user=dassco_file_proxy&password=dassco_file_proxy";
+        try (Connection conn = DriverManager.getConnection(url);) {
+            Database database = DatabaseFactory.getInstance().findCorrectDatabaseImplementation(new JdbcConnection(conn));
+            Liquibase liquibase  = new Liquibase("/liquibase/changelog-master.xml", new ClassLoaderResourceAccessor(), database);
+            liquibase.update(new Contexts("development", "default") );
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
     }
     @DynamicPropertySource
     static void dataSourceProperties(DynamicPropertyRegistry registry) {
         registry.add("datasource.jdbcUrl", () -> "jdbc:postgresql://localhost:" + postgreSQL.getFirstMappedPort() + "/dassco_file_proxy");
     }
+
+
 
     @Test
     void createDirectory() {
@@ -157,7 +170,7 @@ class HttpShareServiceTest {
         //simulate adding file to newly created asset...
         jdbi.withHandle(h -> {
             FileRepository attach = h.attach(FileRepository.class);
-            attach.insertFile(new DasscoFile(null, "deleteShare_1", "/teztific8", 100000L, 1234, false, FileSyncStatus.NEW_FILE));
+            attach.insertFile(new DasscoFile(null, "deleteShare_1", "/teztific8", 100000L, 1234, false, FileSyncStatus.NEW_FILE,"null"));
             return h;
         });
 
@@ -166,7 +179,7 @@ class HttpShareServiceTest {
         jdbi.withHandle(h -> {
             FileRepository attach = h.attach(FileRepository.class);
             // ...checking out asset and adding additional files to it.
-            attach.insertFile(new DasscoFile(null, "deleteShare_1", "/test/asdf.pdf", 100000L, 1234, false, FileSyncStatus.NEW_FILE));
+            attach.insertFile(new DasscoFile(null, "deleteShare_1", "/test/asdf.pdf", 100000L, 1234, false, FileSyncStatus.NEW_FILE, "application/pdf"));
             return h;
         });
 

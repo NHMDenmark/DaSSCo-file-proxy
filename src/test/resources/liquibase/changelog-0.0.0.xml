@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.17.xsd">
+    <!-- This changelog primarily handles competition setup -->
+
+
+    <changeSet id="VERSION-0.0.0" author="Thomas Skov Bornerup" contextFilter="default">
+        <tagDatabase tag="VERSION-0.0.0" />
+    </changeSet>
+
+</databaseChangeLog>

@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.17.xsd">
+
+
+    <changeSet id="3.0.1:DROP_INITIAL_METADATA_RECORDED_BY" author="Thomas Skov Bornerup" context="default">
+        <dropColumn tableName="asset" columnName="initial_metadata_recorded_by"/>
+    </changeSet>
+
+    <changeSet id="VERSION-3.0.1" author="Thomas Skov Bornerup" context="default">
+        <tagDatabase tag="VERSION-3.0.1"/>
+    </changeSet>
+
+</databaseChangeLog>
