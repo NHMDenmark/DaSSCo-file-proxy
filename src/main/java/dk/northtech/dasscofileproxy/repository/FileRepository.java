@@ -13,7 +13,7 @@ import java.util.Set;
 
 public interface FileRepository {
     static final String INSERT = """
-            INSERT INTO file(asset_guid, size_bytes, path, crc) VALUES (:assetGuid, :sizeBytes, :path, :crc)
+            INSERT INTO file(asset_guid, size_bytes, path, crc, mime_type) VALUES (:assetGuid, :sizeBytes, :path, :crc, :mime_type)
             """;
     @SqlUpdate(INSERT)
     @GetGeneratedKeys

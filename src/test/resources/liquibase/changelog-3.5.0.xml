@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.17.xsd">
+
+
+    <changeSet id="3.5.0:ADD_SPECIFY_ATTACHMENT_ID" author="Thomas Skov Bornerup" context="default">
+        <addColumn tableName="asset">
+            <column name="specify_attachment_id" type="bigint">
+                <constraints nullable="true"/>
+            </column>
+        </addColumn>
+    </changeSet>
+
+    <changeSet id="3.5.0:ADD_SPECIFY_COLLECTION_ATTACHMENT_ID" author="Thomas Skov Bornerup">
+        <dropColumn tableName="asset" columnName="specify_attachment_id"/>
+        <addColumn tableName="asset_specimen">
+            <column name="specify_collection_object_attachment_id" type="bigint">
+                <constraints nullable="true"/>
+            </column>
+        </addColumn>
+        <addColumn tableName="asset_specimen">
+            <column name="asset_detached" type="boolean" defaultValue="false">
+                <constraints nullable="false"/>
+            </column>
+        </addColumn>
+    </changeSet>
+
+    <changeSet id="3.5.0:ADD_MIME_TYPE" author="Thomas Skov Bornerup">
+        <addColumn tableName="file">
+            <column name="mime_type" type="text">
+                <constraints nullable="true"/>
+            </column>
+        </addColumn>
+    </changeSet>
+    <changeSet id="VERSION-3.5.0" author="Thomas Skov Bornerup" context="default">
+        <tagDatabase tag="VERSION-3.5.0"/>
+    </changeSet>
+</databaseChangeLog>

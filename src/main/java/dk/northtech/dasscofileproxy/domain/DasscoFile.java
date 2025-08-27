@@ -17,9 +17,10 @@ public record DasscoFile(
         @Schema(description = "Indicates if it should be deleted after Sync", example = "false")
         boolean deleteAfterSync,
         @Schema(description = "Sync status of the file", example = "SYNCHRONIZED")
-        FileSyncStatus syncStatus) {
+        FileSyncStatus syncStatus,
+        String mime_type) {
     @JdbiConstructor
-    public DasscoFile(Long fileId, String assetGuid, String path, long sizeBytes, long crc, boolean deleteAfterSync, FileSyncStatus syncStatus) {
+    public DasscoFile(Long fileId, String assetGuid, String path, long sizeBytes, long crc, boolean deleteAfterSync, FileSyncStatus syncStatus, String mime_type) {
         this.fileId = fileId;
         this.assetGuid = assetGuid;
         this.path = path;
@@ -27,13 +28,14 @@ public record DasscoFile(
         this.crc = crc;
         this.deleteAfterSync = deleteAfterSync;
         this.syncStatus = syncStatus;
+        this.mime_type = mime_type;
     }
 
     public String getWorkDirFilePath() {
         return "/assetfiles" + path;
     }
 
-    public DasscoFile(Long fileId, String assetGuid, String path, long sizeBytes, long crc, FileSyncStatus fileSyncStatus) {
-        this(fileId, assetGuid, path, sizeBytes, crc, false, fileSyncStatus);
+    public DasscoFile(Long fileId, String assetGuid, String path, long sizeBytes, long crc, FileSyncStatus fileSyncStatus, String mime_type) {
+        this(fileId, assetGuid, path, sizeBytes, crc, false, fileSyncStatus, mime_type);
     }
 }

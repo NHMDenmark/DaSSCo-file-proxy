@@ -1,0 +1,125 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.17.xsd">
+
+    <changeSet id="VERSION-2.0.0" author="Nicolas Jan" contextFilter="default">
+        <sql>
+            CREATE SCHEMA IF NOT EXISTS mappings;
+        </sql>
+    </changeSet>
+    
+    <changeSet id="VERSION-2.0.0-CREATE-INSTITUTIONS-SPECIFY" author="Nicolas Jan" contextFilter="default">
+        <createTable tableName="institutions_specify" schemaName="mappings">
+            <column name="id" type="int" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="name" type="varchar(255)">
+                <constraints nullable="false" />
+            </column>
+        </createTable>
+    </changeSet>
+    
+    <changeSet id="VERSION-2.0.0-CREATE-INSTITUTIONS-ARS" author="Nicolas Jan" contextFilter="default">
+        <createTable tableName="institutions_ars" schemaName="mappings">
+            <column name="id" type="int" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="name" type="varchar(255)">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+    </changeSet>
+
+    <changeSet id="VERSION-2.0.0-CREATE-COLLECTIONS-SPECIFY" author="Nicolas Jan" contextFilter="default">
+        <createTable tableName="collections_specify" schemaName="mappings">
+            <column name="id" type="int" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="name" type="varchar(255)">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+    </changeSet>
+
+    <changeSet id="VERSION-2.0.0-CREATE-COLLECTIONS-ARS" author="Nicolas Jan" contextFilter="default">
+        <createTable tableName="collections_ars" schemaName="mappings">
+            <column name="id" type="int" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="name" type="varchar(255)">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+    </changeSet>
+
+    <changeSet id="VERSION-2.0.0-CREATE-INSTITUTIONS-MAPPING" author="Nicolas Jan" contextFilter="default">
+        <createTable tableName="institutions_mapping" schemaName="mappings">
+            <column name="id" type="int" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="institution_specify_id" type="int">
+                <constraints nullable="false"/>
+            </column>
+            <column name="institution_ars_id" type="int">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+        
+        <addUniqueConstraint schemaName="mappings" tableName="institutions_mapping" columnNames="institution_ars_id" constraintName="unique_institution_ars_id" />
+        
+        <addForeignKeyConstraint
+                baseTableName="institutions_mapping"
+                baseTableSchemaName="mappings"
+                baseColumnNames="institution_specify_id"
+                constraintName="fk_institution_specify"
+                referencedTableSchemaName="mappings"
+                referencedTableName="institutions_specify"
+                referencedColumnNames="id" />
+        <addForeignKeyConstraint
+                baseTableName="institutions_mapping"
+                baseTableSchemaName="mappings"
+                baseColumnNames="institution_ars_id"
+                constraintName="fk_institution_ars"
+                referencedTableSchemaName="mappings"
+                referencedTableName="institutions_ars"
+                referencedColumnNames="id"/>
+    </changeSet>
+    
+    <changeSet id="VERSION-2.0.0-CREATE-COLLECTIONS-MAPPING" author="Nicolas Jan" contextFilter="default">
+        <createTable tableName="collections_mapping" schemaName="mappings">
+            <column name="id" type="int" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="collection_specify_id" type="int">
+                <constraints nullable="false"/>
+            </column>
+            <column name="collection_ars_id" type="int">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <addUniqueConstraint schemaName="mappings" tableName="collections_mapping" columnNames="collection_ars_id" constraintName="unique_collection_ars_id" />
+
+        <addForeignKeyConstraint
+                baseTableName="collections_mapping"
+                baseColumnNames="collection_specify_id"
+                baseTableSchemaName="mappings"
+                constraintName="fk_collection_specify"
+                referencedTableSchemaName="mappings"
+                referencedTableName="collections_specify"
+                referencedColumnNames="id"/>
+        <addForeignKeyConstraint
+                baseTableName="collections_mapping"
+                baseColumnNames="collection_ars_id"
+                baseTableSchemaName="mappings"
+                constraintName="fk_collection_ars"
+                referencedTableName="collections_ars"
+                referencedTableSchemaName="mappings"
+                referencedColumnNames="id"/>
+    </changeSet>
+    
+    <changeSet id="VERSION-2.0.0-TAG-DATABASE" author="Nicolas Jan" context="default">
+        <tagDatabase tag="VERSION-2.0.0"/>
+    </changeSet>
+</databaseChangeLog>

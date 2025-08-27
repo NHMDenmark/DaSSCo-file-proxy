@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.4.xsd">
+    <preConditions>
+        <dbms type="postgresql"/>
+    </preConditions>
+    <include file="/liquibase/changelog-0.0.0.xml"/>
+    <include file="/liquibase/changelog-1.0.0.xml"/>
+    <include file="/liquibase/changelog-1.0.0-test.xml"/>
+    <include file="/liquibase/changelog-2.0.0.xml"/>
+    <include file="/liquibase/changelog-3.0.0.xml"/>
+    <include file="/liquibase/changelog-3.1.0.xml"/>
+    <include file="/liquibase/changelog-3.2.0.xml"/>
+    <include file="/liquibase/changelog-3.3.0.xml"/>
+    <include file="/liquibase/changelog-3.4.0.xml"/>
+    <include file="/liquibase/changelog-3.5.0.xml"/>
+
+</databaseChangeLog>

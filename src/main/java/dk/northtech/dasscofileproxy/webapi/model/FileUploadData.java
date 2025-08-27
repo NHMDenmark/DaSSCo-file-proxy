@@ -2,7 +2,7 @@ package dk.northtech.dasscofileproxy.webapi.model;
 
 import com.google.common.base.Strings;
 
-public record FileUploadData(String asset_guid, String institution, String collection, String filePathAndName, int size_mb)  {
+public record FileUploadData(String asset_guid, String institution, String collection, String filePathAndName, int size_mb, String mime_type)  {
     public String getAssetFilePath() {
         String lastPart = "/";
         if(filePathAndName != null) {

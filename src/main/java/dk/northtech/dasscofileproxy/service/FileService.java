@@ -90,8 +90,10 @@ public class FileService {
     public Optional<FileResult> getFile(FileUploadData fileUploadData) {
         File file = new File(shareConfig.mountFolder() + fileUploadData.getAssetFilePath());
         if (file.exists()) {
+            FileRepository fileRepository = jdbi.onDemand(FileRepository.class);
+            DasscoFile filesByAssetPath = fileRepository.getFilesByAssetPath(fileUploadData.getAssetFilePath());
             try {
-                return Optional.of(new FileResult(new FileInputStream(file), file.getName()));
+                return Optional.of(new FileResult(new FileInputStream(file), file.getName(), filesByAssetPath != null ? filesByAssetPath.mime_type(): null));
             } catch (FileNotFoundException e) {
                 throw new RuntimeException(e);
             }
@@ -103,8 +105,10 @@ public class FileService {
     public Optional<FileResult> getFile(String path) {
         File file = new File(path);
         if (file.exists()) {
+            FileRepository fileRepository = jdbi.onDemand(FileRepository.class);
+            DasscoFile filesByAssetPath = fileRepository.getFilesByAssetPath(path);
             try {
-                return Optional.of(new FileResult(new FileInputStream(file), file.getName()));
+                return Optional.of(new FileResult(new FileInputStream(file), file.getName(),filesByAssetPath != null? filesByAssetPath.mime_type():null));
             } catch (FileNotFoundException e) {
                 throw new RuntimeException(e);
             }
@@ -140,7 +144,8 @@ public class FileService {
         return file.delete();
     }
 
-    public record FileResult(InputStream is, String filename) {
+    public record FileResult(InputStream is, String filename, String mime_type) {
+
     }
 
     record AssetAllocation(long assetBytes, long parentBytes) {
@@ -306,7 +311,7 @@ public class FileService {
                     long fileSize = tempFile.length();
                     // Move to actual location and overwrite existing file if present.
                     Files.move(tempFile.toPath(), file2.toPath(), StandardCopyOption.REPLACE_EXISTING);
-                    fileRepository.insertFile(new DasscoFile(null, fileUploadData.asset_guid(), fileUploadData.getPath(), fileSize, value, FileSyncStatus.NEW_FILE));
+                    fileRepository.insertFile(new DasscoFile(null, fileUploadData.asset_guid(), fileUploadData.getPath(), fileSize, value, FileSyncStatus.NEW_FILE, fileUploadData.mime_type()));
                 }
 
             } catch (IOException e) {
