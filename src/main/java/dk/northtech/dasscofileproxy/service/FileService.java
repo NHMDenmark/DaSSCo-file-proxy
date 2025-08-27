@@ -167,7 +167,8 @@ public class FileService {
             return false;
         }
 
-        try (DirectoryStream<Path> stream = Files.newDirectoryStream(dir, filenameParts[0] + "_*." + filenameParts[1])) {
+        // Thumbnails have been pulled out of the parking spot, no need for this, waiting final confirm.
+        /*try (DirectoryStream<Path> stream = Files.newDirectoryStream(dir, filenameParts[0] + "_*." + filenameParts[1])) {
             for (Path entry : stream) {
                 try {
                     Files.deleteIfExists(entry);
@@ -177,7 +178,7 @@ public class FileService {
             }
         } catch (IOException e) {
             throw new RuntimeException(e);
-        }
+        }*/
 
         return true;
     }

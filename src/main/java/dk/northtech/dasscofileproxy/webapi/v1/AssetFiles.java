@@ -1,8 +1,8 @@
 package dk.northtech.dasscofileproxy.webapi.v1;
 
 import dk.northtech.dasscofileproxy.domain.DasscoFile;
-import dk.northtech.dasscofileproxy.domain.FileSyncStatus;
 import dk.northtech.dasscofileproxy.domain.User;
+import dk.northtech.dasscofileproxy.service.CacheFileService;
 import dk.northtech.dasscofileproxy.service.FileService;
 import dk.northtech.dasscofileproxy.webapi.UserMapper;
 import dk.northtech.dasscofileproxy.webapi.exceptionmappers.DaSSCoError;
@@ -22,8 +22,6 @@ import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.*;
 import org.apache.commons.io.FileUtils;
 import org.apache.tika.Tika;
-import org.springframework.security.core.parameters.P;
-import org.springframework.web.bind.annotation.RequestBody;
 
 import java.io.File;
 import java.io.IOException;
@@ -31,7 +29,6 @@ import java.io.InputStream;
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Paths;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
@@ -42,10 +39,12 @@ import static jakarta.ws.rs.core.MediaType.*;
 @SecurityRequirement(name = "dassco-idp")
 public class AssetFiles {
     private FileService fileService;
+    private CacheFileService cacheFileService;
 
     @Inject
-    public AssetFiles(FileService fileService) {
+    public AssetFiles(FileService fileService, CacheFileService cacheFileService) {
         this.fileService = fileService;
+        this.cacheFileService = cacheFileService;
     }
 
     @Context
@@ -297,6 +296,7 @@ public class AssetFiles {
     @Operation(summary = "Upload a file to the Parking spot.", description = "Upload a file to the Parking spot.")
     @Consumes(APPLICATION_OCTET_STREAM)
     @ApiResponse(responseCode = "200", description = "File has been uploaded")
+    @ApiResponse(responseCode = "500", content = @Content(mediaType = APPLICATION_OCTET_STREAM))
     public Response postFileToParkedFiles(@PathParam("path") String path, InputStream file){
         String decodedPath = URLDecoder.decode(path, StandardCharsets.UTF_8);
         fileService.uploadToParking(file, decodedPath);
@@ -305,6 +305,10 @@ public class AssetFiles {
 
     @DELETE
     @Path("/parkedfiles/{path: .+}")
+    @Operation(summary = "Delete a file from the Parking spot.", description = "Delete a file from the Parking spor")
+    @ApiResponse(responseCode = "200", content = @Content(mediaType = APPLICATION_OCTET_STREAM), description = "File deleted")
+    @ApiResponse(responseCode = "404", content = @Content(mediaType = APPLICATION_OCTET_STREAM), description = "Failed to delete the file")
+    @ApiResponse(responseCode = "500", content = @Content(mediaType = APPLICATION_OCTET_STREAM))
     public Response deleteFileFromParkedFiles(@PathParam("path") String path){
         String decodedPath = URLDecoder.decode(path, StandardCharsets.UTF_8);
         boolean result = this.fileService.deleteAllFilesFromOriginalInParked(decodedPath);
@@ -313,16 +317,18 @@ public class AssetFiles {
 
     @GET
     @Path("/parkedfiles")
-    @Operation(summary = "Get a file from the Parking spot.", description = "Get a file from the Parking spot. Generates a thumbnail if they are requested and it does not exists and is of support thumbnail mimetypes")
+    @Operation(summary = "Get a file from the Parking spot.", description = "Get a file from the Parking spot. Checks the correct placement before it checks the Parking spot")
     @Produces(APPLICATION_OCTET_STREAM)
     @ApiResponse(responseCode = "200", content = @Content(mediaType = APPLICATION_OCTET_STREAM), description = "Sending the image as a Stream")
     @ApiResponse(responseCode = "404", content = @Content(mediaType = APPLICATION_OCTET_STREAM), description = "Failed to find the file")
-    public Response getFileFromParkedFile(@QueryParam("pathPostFix") String pathPostFix, @QueryParam("institution") String institution, @QueryParam("collection") String collection, @QueryParam("filename") String filename, @QueryParam("type") String type, @QueryParam("scale") Integer scale){
+    @ApiResponse(responseCode = "500", content = @Content(mediaType = APPLICATION_OCTET_STREAM))
+    public Response getFileFromParkedFile(@QueryParam("pathPostFix") String pathPostFix, @QueryParam("institution") String institution, @QueryParam("collection") String collection, @QueryParam("filename") String filename, @QueryParam("type") String type, @QueryParam("scale") Integer scale, @Context SecurityContext securityContext){
         Optional<DasscoFile> dasscoFile = this.fileService.getFilePathForAdapterFile(URLDecoder.decode(institution, StandardCharsets.UTF_8), URLDecoder.decode(collection, StandardCharsets.UTF_8), URLDecoder.decode(filename, StandardCharsets.UTF_8), type, scale);
         String path = pathPostFix + "/" + collection + "/" + type + "/" + filename;
         return dasscoFile.map(value -> {
             FileUploadData fileUploadData = new FileUploadData(value.assetGuid(), institution, collection, value.path(), 0);
-            Optional<FileService.FileResult> getFileResult = fileService.getFile(fileUploadData);
+            //cacheFileService.getFile(institution, collection, guid, path, UserMapper.from(securityContext));
+            Optional<FileService.FileResult> getFileResult = cacheFileService.getFile(institution, collection, value.assetGuid(), value.path(), UserMapper.from(securityContext));
             if (getFileResult.isPresent()) {
                 FileService.FileResult fileResult = getFileResult.get();
                 StreamingOutput streamingOutput = output -> {
@@ -360,6 +366,7 @@ public class AssetFiles {
     @Path("/parkedfiles/filepath")
     @ApiResponse(responseCode = "200", content = @Content(mediaType = TEXT_PLAIN), description = "Sending the file path")
     @ApiResponse(responseCode = "404", content = @Content(mediaType = TEXT_PLAIN), description = "Failed to find the file")
+    @ApiResponse(responseCode = "500", content = @Content(mediaType = APPLICATION_OCTET_STREAM))
     public Response checkIfParkedFileIsThere(@QueryParam("pathPostFix") String pathPostFix, @QueryParam("institution") String institution, @QueryParam("collection") String collection, @QueryParam("filename") String filename, @QueryParam("type") String type, @QueryParam("scale") Integer scale){
         Optional<DasscoFile> dasscoFile = this.fileService.getFilePathForAdapterFile(URLDecoder.decode(institution, StandardCharsets.UTF_8), URLDecoder.decode(collection, StandardCharsets.UTF_8), URLDecoder.decode(filename, StandardCharsets.UTF_8), type, scale);
         String path = pathPostFix + "/" + collection + "/" + type + "/" + filename;
