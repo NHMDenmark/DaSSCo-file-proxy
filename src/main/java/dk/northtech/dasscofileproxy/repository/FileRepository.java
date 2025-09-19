@@ -32,6 +32,9 @@ public interface FileRepository {
     @SqlUpdate("DELETE FROM file WHERE asset_guid = :assetGuid")
     void deleteFilesByAssetGuid(@Bind String assetGuid);
 
+    @SqlQuery("SELECT * FROM file WHERE sync_status = 'SYNCHRONIZED' AND asset_guid IN (<asset_guids>)")
+    List<DasscoFile> getSyncFilesByAssetGuids(@BindList Set<String> asset_guids);
+
     @SqlUpdate("DELETE FROM file WHERE delete_after_sync = TRUE AND asset_guid = :assetGuid")
     void deleteFilesMarkedForDeletionByAssetGuid(@Bind String assetGuid);
 

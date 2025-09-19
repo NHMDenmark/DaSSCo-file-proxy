@@ -13,6 +13,7 @@ import dk.northtech.dasscofileproxy.repository.DirectoryRepository;
 import dk.northtech.dasscofileproxy.repository.FileRepository;
 import dk.northtech.dasscofileproxy.repository.SharedAssetRepository;
 import dk.northtech.dasscofileproxy.repository.UserAccessList;
+import dk.northtech.dasscofileproxy.webapi.UserMapper;
 import dk.northtech.dasscofileproxy.webapi.model.FileUploadData;
 import dk.northtech.dasscofileproxy.webapi.model.FileUploadResult;
 import io.micrometer.observation.Observation;
@@ -518,14 +519,15 @@ public class FileService {
             } else if (response.statusCode() == 200){
                 try {
                     // GET FILE LOCATION FROM THE DB:
-                    List<String> assetGuids = objectMapper.readValue(response.body(), new TypeReference<List<String>>() {});
-                    List<String> assetFiles = new ArrayList<>();
-                    for (String asset : assetGuids){
+                    Set<String> assetGuids = objectMapper.readValue(response.body(), new TypeReference<Set<String>>() {});
+                    List<DasscoFile> dasscoFiles = jdbi.onDemand(FileRepository.class).getSyncFilesByAssetGuids(assetGuids);
+                    List<String> assetFiles = dasscoFiles.stream().map(DasscoFile::path).collect(Collectors.toList());
+                    /*for (String asset : assetGuids){
                         List<DasscoFile> foundFiles = jdbi.onDemand(FileRepository.class).getSyncFilesByAssetGuid(asset);
                         for (DasscoFile dasscoFile : foundFiles){
                             assetFiles.add(dasscoFile.path());
                         }
-                    }
+                    }*/
                     if (!assetFiles.isEmpty()){
                         saveFilesTempFolder(assetFiles, user, guid);
                     }
@@ -615,6 +617,22 @@ public class FileService {
             String[] parts = path.split("/");
             String folderName = parts[parts.length - 2];
             String fileName = parts[parts.length - 1];
+
+            /*String institution = parts[1];
+            String collection = parts[2];
+            String assetGuid = parts[3];
+            String filePath = String.join(" ", Arrays.copyOfRange(parts, 4, parts.length));
+            Path outputDir = tempDir.resolve(folderName);
+
+            Optional<FileService.FileResult> file = cacheFileService.getFile(institution, collection, assetGuid, filePath, null);
+            file.ifPresent(f -> {
+                Path outputPath = outputDir.resolve(fileName);
+                try {
+                    Files.copy(f.is, outputPath, StandardCopyOption.REPLACE_EXISTING);
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                }
+            });*/
 
             Path outputDir = tempDir.resolve(folderName);
             Files.createDirectories(outputDir);
