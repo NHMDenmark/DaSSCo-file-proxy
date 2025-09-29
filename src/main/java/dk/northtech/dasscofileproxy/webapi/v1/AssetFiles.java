@@ -1,6 +1,8 @@
 package dk.northtech.dasscofileproxy.webapi.v1;
 
+import dk.northtech.dasscofileproxy.domain.DasscoFile;
 import dk.northtech.dasscofileproxy.domain.User;
+import dk.northtech.dasscofileproxy.service.CacheFileService;
 import dk.northtech.dasscofileproxy.service.FileService;
 import dk.northtech.dasscofileproxy.webapi.UserMapper;
 import dk.northtech.dasscofileproxy.webapi.exceptionmappers.DaSSCoError;
@@ -32,6 +34,7 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 import static jakarta.ws.rs.core.MediaType.APPLICATION_JSON;
 
@@ -40,10 +43,12 @@ import static jakarta.ws.rs.core.MediaType.APPLICATION_JSON;
 @SecurityRequirement(name = "dassco-idp")
 public class AssetFiles {
     private FileService fileService;
+    private CacheFileService cacheFileService;
     private static final Logger logger = LoggerFactory.getLogger(AssetFiles.class);
     @Inject
-    public AssetFiles(FileService fileService) {
+    public AssetFiles(FileService fileService, CacheFileService cacheFileService) {
         this.fileService = fileService;
+        this.cacheFileService = cacheFileService;
     }
 
     @Context
@@ -196,7 +201,22 @@ public class AssetFiles {
                                       List<String> assets,
                               @PathParam("guid") String guid){
 
-        return fileService.checkAccessCreateZip(assets, UserMapper.from(securityContext), guid);
+        var user = UserMapper.from(securityContext);
+        var dasscoFiles = fileService.getDasscoFiles(assets, user, guid);
+        if (!dasscoFiles.isEmpty()) {
+            List<String> assetFiles = dasscoFiles.stream().map(DasscoFile::path).collect(Collectors.toList());
+            cacheFileService.saveFilesTempFolder(assetFiles, user, guid);
+        }
+        try {
+            fileService.createZipFile(guid);
+            return Response.status(200).entity(guid).build();
+        } catch (IOException e) {
+            logger.error(e.getMessage());
+        }
+        return Response.status(500).entity("There was an error downloading the files").build();
+
+
+//        return fileService.checkAccessCreateZip(assets, UserMapper.from(securityContext), guid);
     }
 
     @POST

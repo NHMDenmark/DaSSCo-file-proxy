@@ -491,6 +491,44 @@ public class FileService {
         return false;
     }
 
+    public List<DasscoFile> getDasscoFiles(List<String> assets, User user, String guid){
+        if (assets == null || assets.isEmpty()){
+            return List.of();
+        }
+
+        Gson gson = new Gson();
+        String requestBody = gson.toJson(assets);
+
+        ObjectMapper objectMapper = new ObjectMapper();
+
+        HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create(assetServiceProperties.rootUrl() + "/api/v1/assets/readaccessforzip"))
+                .header("Authorization", "Bearer " + user.token)
+                .header("Content-Type", "application/json")
+                .POST(HttpRequest.BodyPublishers.ofString(requestBody))
+                .build();
+
+        HttpClient httpClient = HttpClient.newHttpClient();
+
+        try {
+            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+            if (response.statusCode() == 403){
+                // throw something
+            }else if (response.statusCode() == 200){
+                Set<String> assetGuids = objectMapper.readValue(response.body(), new TypeReference<Set<String>>() {});
+                return jdbi.onDemand(FileRepository.class).getSyncFilesByAssetGuids(assetGuids);
+            }else{
+                // throw something
+                return List.of();
+            }
+        } catch (Exception e){
+            logger.error(e.getMessage());
+        }
+        // throw something
+        return List.of();
+
+    }
+
     public Response checkAccessCreateZip(List<String> assets, User user, String guid){
 
         if (assets == null || assets.isEmpty()){
@@ -522,12 +560,6 @@ public class FileService {
                     Set<String> assetGuids = objectMapper.readValue(response.body(), new TypeReference<Set<String>>() {});
                     List<DasscoFile> dasscoFiles = jdbi.onDemand(FileRepository.class).getSyncFilesByAssetGuids(assetGuids);
                     List<String> assetFiles = dasscoFiles.stream().map(DasscoFile::path).collect(Collectors.toList());
-                    /*for (String asset : assetGuids){
-                        List<DasscoFile> foundFiles = jdbi.onDemand(FileRepository.class).getSyncFilesByAssetGuid(asset);
-                        for (DasscoFile dasscoFile : foundFiles){
-                            assetFiles.add(dasscoFile.path());
-                        }
-                    }*/
                     if (!assetFiles.isEmpty()){
                         saveFilesTempFolder(assetFiles, user, guid);
                     }
@@ -617,22 +649,6 @@ public class FileService {
             String[] parts = path.split("/");
             String folderName = parts[parts.length - 2];
             String fileName = parts[parts.length - 1];
-
-            /*String institution = parts[1];
-            String collection = parts[2];
-            String assetGuid = parts[3];
-            String filePath = String.join(" ", Arrays.copyOfRange(parts, 4, parts.length));
-            Path outputDir = tempDir.resolve(folderName);
-
-            Optional<FileService.FileResult> file = cacheFileService.getFile(institution, collection, assetGuid, filePath, null);
-            file.ifPresent(f -> {
-                Path outputPath = outputDir.resolve(fileName);
-                try {
-                    Files.copy(f.is, outputPath, StandardCopyOption.REPLACE_EXISTING);
-                } catch (IOException e) {
-                    throw new RuntimeException(e);
-                }
-            });*/
 
             Path outputDir = tempDir.resolve(folderName);
             Files.createDirectories(outputDir);

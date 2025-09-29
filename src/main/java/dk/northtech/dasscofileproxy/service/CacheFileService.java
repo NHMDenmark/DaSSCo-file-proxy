@@ -40,6 +40,7 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.sql.SQLException;
 import java.time.Instant;
@@ -265,6 +266,32 @@ public class CacheFileService {
         } catch (IOException | URISyntaxException | InterruptedException e) {
             System.out.println(e.getClass());
             throw new RuntimeException("Failed to check user access to asset", e);
+        }
+    }
+
+    public void saveFilesTempFolder(List<String> paths, User user, String guid){
+        String projectDir = System.getProperty("user.dir");
+        Path tempDir = Paths.get(projectDir, "target", "temp", guid);
+
+        for (String path : paths) {
+            String[] parts = path.split("/");
+            String folderName = parts[parts.length - 2];
+            String fileName = parts[parts.length - 1];
+            String institution = parts[1];
+            String collection = parts[2];
+            String assetGuid = parts[3];
+            String filePath = String.join(" ", Arrays.copyOfRange(parts, 4, parts.length));
+            Path outputDir = tempDir.resolve(folderName);
+
+            Optional<FileService.FileResult> file = this.getFile(institution, collection, assetGuid, filePath, user);
+            file.ifPresent(f -> {
+                Path outputPath = outputDir.resolve(fileName);
+                try {
+                    Files.copy(f.is(), outputPath, StandardCopyOption.REPLACE_EXISTING);
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                }
+            });
         }
     }
 
