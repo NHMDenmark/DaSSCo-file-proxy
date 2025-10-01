@@ -1,5 +1,6 @@
 package dk.northtech.dasscofileproxy.webapi.v1;
 
+import dk.northtech.dasscofileproxy.configuration.ShareConfig;
 import dk.northtech.dasscofileproxy.domain.DasscoFile;
 import dk.northtech.dasscofileproxy.domain.User;
 import dk.northtech.dasscofileproxy.service.CacheFileService;
@@ -24,14 +25,11 @@ import org.apache.commons.io.FileUtils;
 import org.apache.tika.Tika;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.security.core.parameters.P;
-import org.springframework.web.bind.annotation.RequestBody;
 
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Paths;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -44,11 +42,13 @@ import static jakarta.ws.rs.core.MediaType.APPLICATION_JSON;
 public class AssetFiles {
     private FileService fileService;
     private CacheFileService cacheFileService;
+    private final ShareConfig shareConfig;
     private static final Logger logger = LoggerFactory.getLogger(AssetFiles.class);
     @Inject
-    public AssetFiles(FileService fileService, CacheFileService cacheFileService) {
+    public AssetFiles(FileService fileService, CacheFileService cacheFileService, ShareConfig shareConfig) {
         this.fileService = fileService;
         this.cacheFileService = cacheFileService;
+        this.shareConfig = shareConfig;
     }
 
     @Context
@@ -214,8 +214,6 @@ public class AssetFiles {
             logger.error(e.getMessage());
         }
         return Response.status(500).entity("There was an error downloading the files").build();
-
-
 //        return fileService.checkAccessCreateZip(assets, UserMapper.from(securityContext), guid);
     }
 
@@ -255,8 +253,8 @@ public class AssetFiles {
     @Path("/getTempFile/{guid}/{fileName}")
     @Operation(summary = "Get Temporary File", description = "Gets a file from the Temp Folder (.csv or .zip for downloading assets) used on the query page in the frontend.")
     public Response getTempFile(@PathParam("guid") String guid, @PathParam("fileName") String fileName){
-        String projectDir = System.getProperty("user.dir");
-        java.nio.file.Path tempDir = Paths.get(projectDir, "target", "temp", guid);
+        String basePath = shareConfig.mountFolder();
+        java.nio.file.Path tempDir = Paths.get(basePath, "temp", guid);
         java.nio.file.Path filePath = tempDir.resolve(fileName);
 
         if (java.nio.file.Files.notExists(filePath)){
@@ -289,11 +287,14 @@ public class AssetFiles {
     @ApiResponse(responseCode = "400-599", content = @Content(mediaType = APPLICATION_JSON, schema = @Schema(implementation = DaSSCoError.class)))
     public Response deleteTempFolder(@PathParam("guid") String guid){
 
-        String projectDir = System.getProperty("user.dir");
-        File tempDir = new File(projectDir, "target/temp/" + guid);
+        String basePath = shareConfig.mountFolder();
+        File tempDir = new File(basePath, "temp/" + guid);
 
         try {
             if (tempDir.exists()){
+                for(File file : tempDir.listFiles()){
+                    file.delete();
+                }
                 FileUtils.deleteDirectory(tempDir);
                 return Response.status(Response.Status.NO_CONTENT).build();
             } else  {

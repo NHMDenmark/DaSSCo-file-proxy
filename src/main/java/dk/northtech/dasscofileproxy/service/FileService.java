@@ -13,7 +13,6 @@ import dk.northtech.dasscofileproxy.repository.DirectoryRepository;
 import dk.northtech.dasscofileproxy.repository.FileRepository;
 import dk.northtech.dasscofileproxy.repository.SharedAssetRepository;
 import dk.northtech.dasscofileproxy.repository.UserAccessList;
-import dk.northtech.dasscofileproxy.webapi.UserMapper;
 import dk.northtech.dasscofileproxy.webapi.model.FileUploadData;
 import dk.northtech.dasscofileproxy.webapi.model.FileUploadResult;
 import io.micrometer.observation.Observation;
@@ -619,8 +618,8 @@ public class FileService {
     public void createCsvFile(String csvString, String guid){
         String separatorLine = "sep=,\r\n";
         String fullCsv = separatorLine + csvString;
-        String projectDir = System.getProperty("user.dir");
-        Path tempDir = Paths.get(projectDir, "target", "temp", guid);
+        String basePath = shareConfig.mountFolder();
+        Path tempDir = Paths.get(basePath, "temp", guid);
         try {
             Files.createDirectories(tempDir);
             Path filePath = tempDir.resolve("assets.csv");

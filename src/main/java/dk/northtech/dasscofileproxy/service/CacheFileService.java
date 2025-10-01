@@ -10,27 +10,21 @@ import dk.northtech.dasscofileproxy.domain.CacheInfo;
 import dk.northtech.dasscofileproxy.domain.DasscoFile;
 import dk.northtech.dasscofileproxy.domain.FileSyncStatus;
 import dk.northtech.dasscofileproxy.domain.User;
-import dk.northtech.dasscofileproxy.domain.exceptions.DasscoException;
 import dk.northtech.dasscofileproxy.domain.exceptions.DasscoIllegalActionException;
 import dk.northtech.dasscofileproxy.domain.exceptions.DasscoNotFoundException;
 import dk.northtech.dasscofileproxy.repository.FileCacheRepository;
 import dk.northtech.dasscofileproxy.repository.FileRepository;
-import dk.northtech.dasscofileproxy.webapi.exceptionmappers.DaSSCoError;
-import dk.northtech.dasscofileproxy.webapi.exceptionmappers.DaSSCoErrorCode;
-import dk.northtech.dasscofileproxy.webapi.model.FileUploadData;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.WebApplicationException;
 import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.core.StreamingOutput;
 import joptsimple.internal.Strings;
 import org.apache.commons.io.IOUtils;
-import org.apache.tika.Tika;
 import org.jdbi.v3.core.Jdbi;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
-import org.springframework.web.util.UriUtils;
 
 import java.io.*;
 import java.net.URI;
@@ -42,7 +36,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
-import java.sql.SQLException;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
@@ -270,8 +263,8 @@ public class CacheFileService {
     }
 
     public void saveFilesTempFolder(List<String> paths, User user, String guid){
-        String projectDir = System.getProperty("user.dir");
-        Path tempDir = Paths.get(projectDir, "target", "temp", guid);
+        String basePath = shareConfig.mountFolder();
+        Path tempDir = Paths.get(basePath, "temp", guid);
 
         for (String path : paths) {
             String[] parts = path.split("/");
