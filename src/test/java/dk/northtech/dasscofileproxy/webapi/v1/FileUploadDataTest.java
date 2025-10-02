@@ -8,7 +8,7 @@ import static com.google.common.truth.Truth.assertThat;
 class FileUploadDataTest {
     @Test
     void createPath() {
-        FileUploadData minimalAsset = new FileUploadData("a1",  "i1", "c1", "hej.txt", 12);
+        FileUploadData minimalAsset = new FileUploadData("a1",  "i1", "c1", "hej.txt", 12, "image/png");
         assertThat(minimalAsset.getAssetFilePath()).isEqualTo("/assetfiles/i1/c1/a1/hej.txt");
     }
 }

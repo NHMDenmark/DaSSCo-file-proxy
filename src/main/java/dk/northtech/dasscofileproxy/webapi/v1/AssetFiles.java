@@ -1,5 +1,6 @@
 package dk.northtech.dasscofileproxy.webapi.v1;
 
+import dk.northtech.dasscofileproxy.configuration.ShareConfig;
 import dk.northtech.dasscofileproxy.domain.DasscoFile;
 import dk.northtech.dasscofileproxy.domain.User;
 import dk.northtech.dasscofileproxy.service.CacheFileService;
@@ -22,6 +23,8 @@ import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.*;
 import org.apache.commons.io.FileUtils;
 import org.apache.tika.Tika;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
@@ -31,6 +34,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Paths;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 import static jakarta.ws.rs.core.MediaType.*;
 
@@ -40,11 +44,13 @@ import static jakarta.ws.rs.core.MediaType.*;
 public class AssetFiles {
     private FileService fileService;
     private CacheFileService cacheFileService;
-
+    private final ShareConfig shareConfig;
+    private static final Logger logger = LoggerFactory.getLogger(AssetFiles.class);
     @Inject
-    public AssetFiles(FileService fileService, CacheFileService cacheFileService) {
+    public AssetFiles(FileService fileService, CacheFileService cacheFileService, ShareConfig shareConfig) {
         this.fileService = fileService;
         this.cacheFileService = cacheFileService;
+        this.shareConfig = shareConfig;
     }
 
     @Context
@@ -55,7 +61,7 @@ public class AssetFiles {
     @Operation(summary = "Upload File", description = "Uploads a file. Requires institution, collection, asset_guid, crc and file size (in mb).\n\n" +
                                                         "Can be called multiple times to upload multiple files to the same asset. If the files are called the same, the file will be overwritten.")
     @Produces(MediaType.APPLICATION_JSON)
-    @Consumes(MediaType.APPLICATION_OCTET_STREAM)
+    //@Consumes(MediaType.APPLICATION_OCTET_STREAM)
     @ApiResponse(responseCode = "200", content = @Content(mediaType = APPLICATION_JSON, schema = @Schema(implementation = FileUploadResult.class)))
     @ApiResponse(responseCode = "400-599", content = @Content(mediaType = APPLICATION_JSON, schema = @Schema(implementation = DaSSCoError.class)))
     public Response putFile(
@@ -65,6 +71,7 @@ public class AssetFiles {
             , @QueryParam("crc") long crc
             , @QueryParam("file_size_mb") int fileSize
             , @Context SecurityContext securityContext
+            , @Context HttpHeaders httpHeaders
             , InputStream file) {
         User user = UserMapper.from(securityContext);
         if (fileSize == 0) {
@@ -75,7 +82,12 @@ public class AssetFiles {
         }
         final String path
                 = uriInfo.getPathParameters().getFirst("path");
-        FileUploadData fileUploadData = new FileUploadData(assetGuid, institutionName, collectionName, path, fileSize);
+        String contentType = httpHeaders.getHeaderString("Content-Type");
+        logger.info("Got Content-Type {}", contentType);
+        if(contentType == null) {
+            contentType = new Tika().detect(path);
+        }
+        FileUploadData fileUploadData = new FileUploadData(assetGuid, institutionName, collectionName, path, fileSize,contentType);
         FileUploadResult upload = fileService.upload(file, crc, fileUploadData);
         return Response.status(upload.getResponseCode()).entity(upload).build();
     }
@@ -98,7 +110,7 @@ public class AssetFiles {
         final String path
                 = uriInfo.getPathParameters().getFirst("path");
         User user = UserMapper.from(securityContext);
-        FileUploadData fileUploadData = new FileUploadData(assetGuid, institutionName, collectionName, path, 0);
+        FileUploadData fileUploadData = new FileUploadData(assetGuid, institutionName, collectionName, path, 0, null);
         Optional<FileService.FileResult> getFileResult = fileService.getFile(fileUploadData);
         if (getFileResult.isPresent()) {
 
@@ -115,10 +127,10 @@ public class AssetFiles {
                     output.flush();
                 }
             };
-
+            String contentType = fileResult.mime_type() != null ? fileResult.mime_type() :  new Tika().detect(fileResult.filename());
             return Response.status(200)
                     .header("Content-Disposition", "attachment; filename=" + fileResult.filename())
-                    .header("Content-Type", new Tika().detect(fileResult.filename())).entity(streamingOutput).build();
+                    .header("Content-Type", contentType).entity(streamingOutput).build();
         }
         return Response.status(404).build();
     }
@@ -138,7 +150,7 @@ public class AssetFiles {
             , @Context SecurityContext securityContext
     ) {
         User user = UserMapper.from(securityContext);
-        List<String> links = fileService.listAvailableFiles(new FileUploadData(assetGuid, institutionName, collectionName, null, 0));
+        List<String> links = fileService.listAvailableFiles(new FileUploadData(assetGuid, institutionName, collectionName, null, 0,null));
         return links;
     }
 
@@ -155,7 +167,7 @@ public class AssetFiles {
         User user = UserMapper.from(securityContext);
         final String path
                 = uriInfo.getPathParameters().getFirst("path");
-        boolean deleted = fileService.deleteFile(new FileUploadData(assetGuid, institutionName, collectionName, path, 0));
+        boolean deleted = fileService.deleteFile(new FileUploadData(assetGuid, institutionName, collectionName, path, 0,null));
         return Response.status(deleted ? 204 : 404).build();
     }
 
@@ -173,7 +185,7 @@ public class AssetFiles {
             , @PathParam("assetGuid") String assetGuid
             , @Context SecurityContext securityContext) {
         User user = UserMapper.from(securityContext);
-        boolean deleted = fileService.deleteFile(new FileUploadData(assetGuid, institutionName, collectionName, null, 0));
+        boolean deleted = fileService.deleteFile(new FileUploadData(assetGuid, institutionName, collectionName, null, 0,null));
         return Response.status(deleted ? 204 : 404).build();
     }
 
@@ -191,7 +203,20 @@ public class AssetFiles {
                                       List<String> assets,
                               @PathParam("guid") String guid){
 
-        return fileService.checkAccessCreateZip(assets, UserMapper.from(securityContext), guid);
+        var user = UserMapper.from(securityContext);
+        var dasscoFiles = fileService.getDasscoFiles(assets, user, guid);
+        if (!dasscoFiles.isEmpty()) {
+            List<String> assetFiles = dasscoFiles.stream().map(DasscoFile::path).collect(Collectors.toList());
+            cacheFileService.saveFilesTempFolder(assetFiles, user, guid);
+        }
+        try {
+            fileService.createZipFile(guid);
+            return Response.status(200).entity(guid).build();
+        } catch (IOException e) {
+            logger.error(e.getMessage());
+        }
+        return Response.status(500).entity("There was an error downloading the files").build();
+//        return fileService.checkAccessCreateZip(assets, UserMapper.from(securityContext), guid);
     }
 
     @POST
@@ -216,7 +241,7 @@ public class AssetFiles {
                                      @PathParam("collection") String collection,
                                      @PathParam("assetGuid") String assetGuid,
                                      @PathParam("file") String file){
-        FileUploadData fileUploadData = new FileUploadData(assetGuid, institution, collection, file, 0);
+        FileUploadData fileUploadData = new FileUploadData(assetGuid, institution, collection, file, 0,null);
         boolean isDeleted = fileService.deleteLocalFiles(fileUploadData.getAssetFilePath(), file);
 
         if (isDeleted){
@@ -230,8 +255,8 @@ public class AssetFiles {
     @Path("/getTempFile/{guid}/{fileName}")
     @Operation(summary = "Get Temporary File", description = "Gets a file from the Temp Folder (.csv or .zip for downloading assets) used on the query page in the frontend.")
     public Response getTempFile(@PathParam("guid") String guid, @PathParam("fileName") String fileName){
-        String projectDir = System.getProperty("user.dir");
-        java.nio.file.Path tempDir = Paths.get(projectDir, "target", "temp", guid);
+        String basePath = shareConfig.mountFolder();
+        java.nio.file.Path tempDir = Paths.get(basePath, "temp", guid);
         java.nio.file.Path filePath = tempDir.resolve(fileName);
 
         if (java.nio.file.Files.notExists(filePath)){
@@ -264,11 +289,14 @@ public class AssetFiles {
     @ApiResponse(responseCode = "400-599", content = @Content(mediaType = APPLICATION_JSON, schema = @Schema(implementation = DaSSCoError.class)))
     public Response deleteTempFolder(@PathParam("guid") String guid){
 
-        String projectDir = System.getProperty("user.dir");
-        File tempDir = new File(projectDir, "target/temp/" + guid);
+        String basePath = shareConfig.mountFolder();
+        File tempDir = new File(basePath, "temp/" + guid);
 
         try {
             if (tempDir.exists()){
+                for(File file : tempDir.listFiles()){
+                    file.delete();
+                }
                 FileUtils.deleteDirectory(tempDir);
                 return Response.status(Response.Status.NO_CONTENT).build();
             } else  {
@@ -326,7 +354,7 @@ public class AssetFiles {
         Optional<DasscoFile> dasscoFile = this.fileService.getFilePathForAdapterFile(URLDecoder.decode(institution, StandardCharsets.UTF_8), URLDecoder.decode(collection, StandardCharsets.UTF_8), URLDecoder.decode(filename, StandardCharsets.UTF_8), type, scale);
         String path = pathPostFix + "/" + collection + "/" + type + "/" + filename;
         return dasscoFile.map(value -> {
-            FileUploadData fileUploadData = new FileUploadData(value.assetGuid(), institution, collection, value.path(), 0);
+            FileUploadData fileUploadData = new FileUploadData(value.assetGuid(), institution, collection, value.path(), 0, null);
             //cacheFileService.getFile(institution, collection, guid, path, UserMapper.from(securityContext));
             Optional<FileService.FileResult> getFileResult = cacheFileService.getFile(institution, collection, value.assetGuid(), value.path(), UserMapper.from(securityContext));
             if (getFileResult.isPresent()) {
@@ -371,7 +399,7 @@ public class AssetFiles {
         Optional<DasscoFile> dasscoFile = this.fileService.getFilePathForAdapterFile(URLDecoder.decode(institution, StandardCharsets.UTF_8), URLDecoder.decode(collection, StandardCharsets.UTF_8), URLDecoder.decode(filename, StandardCharsets.UTF_8), type, scale);
         String path = pathPostFix + "/" + collection + "/" + type + "/" + filename;
         return dasscoFile.map(value -> {
-                    FileUploadData fileUploadData = new FileUploadData(value.assetGuid(), institution, collection, value.path(), 0);
+                    FileUploadData fileUploadData = new FileUploadData(value.assetGuid(), institution, collection, value.path(), 0, null);
                     Optional<FileService.FileResult> getFileResult = fileService.getFile(fileUploadData);
                     if(getFileResult.isPresent()) {
                         return Response.status(200).build();

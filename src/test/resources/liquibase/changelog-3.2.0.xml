@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.17.xsd">
+
+
+    <changeSet id="3.2.0:ADD_SPECIFY_FIELDS" author="Thomas Skov Bornerup" context="default">
+        <addColumn tableName="asset">
+            <column name="specify_attachment_remarks" type="text">
+                <constraints nullable="true"/>
+            </column>
+            <column name="specify_attachment_title" type="text">
+                <constraints nullable="true"/>
+            </column>
+        </addColumn>
+    </changeSet>
+    <changeSet id="3.2.0:DROP_PUBLICATION_LINK" author="Thomas Skov Bornerup">
+        <dropTable tableName="publication_link"/>
+    </changeSet>
+    <changeSet id="3.2.0:DROP_TABLE_PUBLISHER" author="Thomas Skov Bornerup">
+        <dropTable tableName="publisher"/>
+    </changeSet>
+
+    <changeSet id="3.2.0:CREATE_PUBLISHER" author="Thomas Skov Bornerup">
+        <createTable tableName="publisher">
+            <column name="publisher" type="text">
+                <constraints primaryKey="true" primaryKeyName="pk_publisher"/>
+            </column>
+        </createTable>
+    </changeSet>
+
+    <changeSet id="3.2.0:CREATE_ASSET_PUBLISHER" author="Thomas Skov Bornerup">
+        <createTable tableName="asset_publisher">
+            <column name="asset_publisher_id" type="bigint" autoIncrement="true">
+                <constraints primaryKey="true" primaryKeyName="pk_asset_publisher"/>
+            </column>
+            <column name="description" type="text">
+                <constraints nullable="true"/>
+            </column>
+            <column name="publisher" type="text">
+                <constraints nullable="false"/>
+            </column>
+            <column name="asset_guid" type="text">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+    </changeSet>
+
+
+    <changeSet id="3.2.0:CREATE_PUBLISHER_FK" author="Thomas Skov Bornerup">
+        <addForeignKeyConstraint baseTableName="asset_publisher"
+                                 baseColumnNames="publisher"
+                                 constraintName="fk_asset_publisher__publisher"
+                                 referencedTableName="publisher"
+                                 referencedColumnNames="publisher"/>
+        <addForeignKeyConstraint baseTableName="asset_publisher"
+                                 baseColumnNames="asset_guid"
+                                 constraintName="fk_asset_publisher__asset"
+                                 referencedTableName="asset"
+                                 referencedColumnNames="asset_guid"/>
+
+    </changeSet>
+    <changeSet id="VERSION-3.2.0" author="Thomas Skov Bornerup" context="default">
+        <tagDatabase tag="VERSION-3.2.0"/>
+    </changeSet>
+
+</databaseChangeLog>

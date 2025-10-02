@@ -18,23 +18,14 @@ import dk.northtech.dasscofileproxy.webapi.model.FileUploadResult;
 import io.micrometer.observation.Observation;
 import io.micrometer.observation.ObservationRegistry;
 import jakarta.inject.Inject;
-import jakarta.ws.rs.WebApplicationException;
 import jakarta.ws.rs.core.Response;
-import org.apache.pdfbox.Loader;
-import org.apache.pdfbox.pdmodel.PDDocument;
-import org.apache.pdfbox.pdmodel.PDPage;
-import org.apache.pdfbox.rendering.ImageType;
-import org.apache.pdfbox.rendering.PDFRenderer;
 import org.jdbi.v3.core.Jdbi;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.web.util.UriUtils;
 
-import javax.imageio.ImageIO;
-import javax.sql.DataSource;
 import java.awt.*;
-import java.awt.image.BufferedImage;
 import java.io.*;
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -44,7 +35,6 @@ import java.nio.file.*;
 import java.security.SecureRandom;
 import java.util.*;
 import java.util.List;
-import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.util.zip.CRC32;
@@ -79,7 +69,7 @@ public class FileService {
         File newDirectory = new File(shareConfig.mountFolder() + "/assetfiles/" + asset.institution() + "/" + asset.collection() + "/" + asset.asset_guid() + "/");
         if (!newDirectory.exists()) {
             boolean mkdirs = newDirectory.mkdirs();
-            if(!mkdirs) {
+            if (!mkdirs) {
                 Optional.empty();
             }
         }
@@ -104,8 +94,10 @@ public class FileService {
     public Optional<FileResult> getFile(FileUploadData fileUploadData) {
         File file = new File(shareConfig.mountFolder() + fileUploadData.getAssetFilePath());
         if (file.exists()) {
+            FileRepository fileRepository = jdbi.onDemand(FileRepository.class);
+            DasscoFile filesByAssetPath = fileRepository.getFilesByAssetPath(fileUploadData.getAssetFilePath());
             try {
-                return Optional.of(new FileResult(new FileInputStream(file), file.getName()));
+                return Optional.of(new FileResult(new FileInputStream(file), file.getName(), filesByAssetPath != null ? filesByAssetPath.mime_type() : null));
             } catch (FileNotFoundException e) {
                 throw new RuntimeException(e);
             }
@@ -117,8 +109,10 @@ public class FileService {
     public Optional<FileResult> getFile(String path) {
         File file = new File(path);
         if (file.exists()) {
+            FileRepository fileRepository = jdbi.onDemand(FileRepository.class);
+            DasscoFile filesByAssetPath = fileRepository.getFilesByAssetPath(path);
             try {
-                return Optional.of(new FileResult(new FileInputStream(file), file.getName()));
+                return Optional.of(new FileResult(new FileInputStream(file), file.getName(), filesByAssetPath != null ? filesByAssetPath.mime_type() : null));
             } catch (FileNotFoundException e) {
                 throw new RuntimeException(e);
             }
@@ -126,6 +120,7 @@ public class FileService {
             return Optional.empty();
         }
     }
+
     public List<String> listAvailableFiles(FileUploadData fileUploadData) {
         List<String> links = new ArrayList<>();
         File file = new File(shareConfig.mountFolder() + fileUploadData.getBasePath());
@@ -135,7 +130,7 @@ public class FileService {
                     String path = f.toString();
                     String[] splitPath = path.replace("\\", "/")
                             .split(shareConfig.mountFolder());
-                    String pathWithoutDir = splitPath.length == 2 ? splitPath[1]: splitPath[0];
+                    String pathWithoutDir = splitPath.length == 2 ? splitPath[1] : splitPath[0];
                     return shareConfig.nodeHost() + "/file_proxy/api" + UrlEscapers.urlFragmentEscaper().escape(pathWithoutDir);
                 })
                 .collect(Collectors.toList());
@@ -154,36 +149,35 @@ public class FileService {
         return file.delete();
     }
 
-    public boolean deleteAllFilesFromOriginalInParked(String path){
+    public record FileResult(InputStream is, String filename, String mime_type) {}
+
+    public boolean deleteAllFilesFromOriginalInParked(String path) {
         String originalPath = shareConfig.mountFolder() + "/" + shareConfig.parkingFolder() + "/" + path;
         String[] pathParts = path.split("/");
-        Path dir = Paths.get(originalPath.replace(pathParts[pathParts.length-1], "").replace("originals", "thumbnails"));
-        String[] filenameParts = pathParts[pathParts.length-1].split("\\.");
+        Path dir = Paths.get(originalPath.replace(pathParts[pathParts.length - 1], "").replace("originals", "thumbnails"));
+        String[] filenameParts = pathParts[pathParts.length - 1].split("\\.");
 
         File file = new File(originalPath.replace("thumbnails", "originals"));
-        if(file.exists()) {
+        if (file.exists()) {
             file.delete();
-        }else{
+        } else {
             return false;
         }
 
         // Thumbnails have been pulled out of the parking spot, no need for this, waiting final confirm.
-        /*try (DirectoryStream<Path> stream = Files.newDirectoryStream(dir, filenameParts[0] + "_*." + filenameParts[1])) {
-            for (Path entry : stream) {
-                try {
-                    Files.deleteIfExists(entry);
-                } catch (IOException e) {
-                    throw new RuntimeException(e);
-                }
+    /*try (DirectoryStream<Path> stream = Files.newDirectoryStream(dir, filenameParts[0] + "_*." + filenameParts[1])) {
+        for (Path entry : stream) {
+            try {
+                Files.deleteIfExists(entry);
+            } catch (IOException e) {
+                throw new RuntimeException(e);
             }
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }*/
+        }
+    } catch (IOException e) {
+        throw new RuntimeException(e);
+    }*/
 
         return true;
-    }
-
-    public record FileResult(InputStream is, String filename) {
     }
 
     record AssetAllocation(long assetBytes, long parentBytes) {
@@ -349,13 +343,12 @@ public class FileService {
                     long fileSize = tempFile.length();
                     // Move to actual location and overwrite existing file if present.
                     Files.move(tempFile.toPath(), file2.toPath(), StandardCopyOption.REPLACE_EXISTING);
-                    fileRepository.insertFile(new DasscoFile(null, fileUploadData.asset_guid(), fileUploadData.getPath(), fileSize, value, FileSyncStatus.NEW_FILE));
+                    fileRepository.insertFile(new DasscoFile(null, fileUploadData.asset_guid(), fileUploadData.getPath(), fileSize, value, FileSyncStatus.NEW_FILE, fileUploadData.mime_type()));
                 }
 
             } catch (IOException e) {
                 throw new RuntimeException("Failed to cleanup temp file", e);
-            }
-            finally {
+            } finally {
                 // always cleanup temp file
                 tempFile.delete();
             }
@@ -363,7 +356,7 @@ public class FileService {
         });
     }
 
-    public void uploadToParking(InputStream inputStream, String path){
+    public void uploadToParking(InputStream inputStream, String path) {
         String basePath = shareConfig.mountFolder() + "/" + shareConfig.parkingFolder() + "/" + path;
         File file = new File(basePath);
         if (file.getParentFile() != null) {
@@ -372,112 +365,111 @@ public class FileService {
         writeToDiskAndGetCRC(inputStream, file);
     }
 
-    public Optional<DasscoFile> getFilePathForAdapterFile(String institution, String collection, String filename, String type, Integer scale){
+    public Optional<DasscoFile> getFilePathForAdapterFile(String institution, String collection, String filename, String type, Integer scale) {
         return jdbi.withHandle(handle -> {
-           FileRepository fileRepository = handle.attach(FileRepository.class);
-           return fileRepository.getFilePathForAdapterFile(institution, collection, filename, type.equals("thumbnails"));
+            FileRepository fileRepository = handle.attach(FileRepository.class);
+            return fileRepository.getFilePathForAdapterFile(institution, collection, filename, type.equals("thumbnails"));
         });
     }
 
-    public Optional<FileResult> readFromParking(String path, Integer scale){
+    public Optional<FileResult> readFromParking(String path, Integer scale) {
         try {
             String basePath = shareConfig.mountFolder() + "/" + shareConfig.parkingFolder() + "/" + path;
             File file = new File(basePath);
             String mimeType = Files.probeContentType(file.toPath());
-            if(Objects.equals("application/pdf", mimeType) && path.contains("/thumbnails/")){
+            if (Objects.equals("application/pdf", mimeType) && path.contains("/thumbnails/")) {
                 file = new File(basePath.replace(".pdf", ".png"));
             }
-            if(Objects.equals("image/tiff", mimeType) && path.contains("/thumbnails/")){
+            if (Objects.equals("image/tiff", mimeType) && path.contains("/thumbnails/")) {
                 file = new File(basePath.replace(".tiff", ".png"));
             }
 
             if (file.exists()) {
                 try {
-                    return Optional.of(new FileResult(new FileInputStream(file), file.getName()));
+                    return Optional.of(new FileResult(new FileInputStream(file), file.getName(), null));
                 } catch (FileNotFoundException e) {
                     throw new RuntimeException(e);
                 }
             }
             // Code that generates a Thumbnail
             /*else if (path.contains("/thumbnails/") && this.asList(shareConfig.thumbnailMimeTypes()).contains(mimeType) *//* && check file extension is one of ... *//*) {
-                String basePathOriginal = shareConfig.mountFolder() + "/" + shareConfig.parkingFolder() + "/" + path.replace("/thumbnails/", "/originals/").replace("_" + scale + ".", ".");
-                File fileOriginal = new File(basePathOriginal);
-                if (fileOriginal.exists()) {
-                    try {
-                        InputStream scaledInputStream = this.fileToScaledVersion(fileOriginal, scale, mimeType);
-                        if(scaledInputStream == null){
-                            return Optional.empty();
-                        }
-                        if (file.getParentFile() != null) {
-                            file.getParentFile().mkdirs();
-                        }
-                        long crc = writeToDiskAndGetCRC(scaledInputStream, file);
-                        if (crc > 0) {
-                            return Optional.of(new FileResult(new FileInputStream(file), file.getName()));
-                        }
-                    } catch (IOException e) {
-                        throw new RuntimeException(e);
+            String basePathOriginal = shareConfig.mountFolder() + "/" + shareConfig.parkingFolder() + "/" + path.replace("/thumbnails/", "/originals/").replace("_" + scale + ".", ".");
+            File fileOriginal = new File(basePathOriginal);
+            if (fileOriginal.exists()) {
+                try {
+                    InputStream scaledInputStream = this.fileToScaledVersion(fileOriginal, scale, mimeType);
+                    if(scaledInputStream == null){
+                        return Optional.empty();
                     }
-                }else{
-                    throw new WebApplicationException(Response.status(Response.Status.NOT_FOUND).entity("Missing original: %s".formatted(path)).build());
+                    if (file.getParentFile() != null) {
+                        file.getParentFile().mkdirs();
+                    }
+                    long crc = writeToDiskAndGetCRC(scaledInputStream, file);
+                    if (crc > 0) {
+                        return Optional.of(new FileResult(new FileInputStream(file), file.getName()));
+                    }
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
                 }
-            }*/
+            }else{
+                throw new WebApplicationException(Response.status(Response.Status.NOT_FOUND).entity("Missing original: %s".formatted(path)).build());
+            }
+        }*/
             return Optional.empty();
-        }
-        catch (IOException e){
+        } catch (IOException e) {
             throw new RuntimeException(e);
         }
     }
 
     // Code that scale a File
-    /*public InputStream fileToScaledVersion(File inputFile, Integer scale, String mimeType) throws IOException {
-        String fileExtension = List.of("application/pdf", "image/tiff").contains(mimeType) ? "png" : inputFile.getName().substring(inputFile.getName().lastIndexOf(".") + 1);
-        if(List.of("image/jpeg","image/png", "image/gif", "image/tiff").contains(mimeType)){
-            BufferedImage inputImage = ImageIO.read(inputFile);
-            int scaledHeight = inputImage.getHeight() > inputImage.getWidth() ? scale : (int)(((double) scale / (double) inputImage.getWidth()) * inputImage.getHeight());
-            int scaledWidth = inputImage.getWidth() > inputImage.getHeight() ? scale : (int)(((double) scale / (double) inputImage.getHeight()) * inputImage.getWidth());
-            var imageType = inputImage.getType();
-            BufferedImage outputImage = new BufferedImage(scaledWidth, scaledHeight, imageType == 0 ? BufferedImage.TYPE_INT_ARGB : imageType);
+/*public InputStream fileToScaledVersion(File inputFile, Integer scale, String mimeType) throws IOException {
+    String fileExtension = List.of("application/pdf", "image/tiff").contains(mimeType) ? "png" : inputFile.getName().substring(inputFile.getName().lastIndexOf(".") + 1);
+    if(List.of("image/jpeg","image/png", "image/gif", "image/tiff").contains(mimeType)){
+        BufferedImage inputImage = ImageIO.read(inputFile);
+        int scaledHeight = inputImage.getHeight() > inputImage.getWidth() ? scale : (int)(((double) scale / (double) inputImage.getWidth()) * inputImage.getHeight());
+        int scaledWidth = inputImage.getWidth() > inputImage.getHeight() ? scale : (int)(((double) scale / (double) inputImage.getHeight()) * inputImage.getWidth());
+        var imageType = inputImage.getType();
+        BufferedImage outputImage = new BufferedImage(scaledWidth, scaledHeight, imageType == 0 ? BufferedImage.TYPE_INT_ARGB : imageType);
 
-            Graphics2D g2d = outputImage.createGraphics();
-            //speed -> g2d.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR);
-            //quality -> g2d.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BICUBIC);
-            g2d.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR);
-            g2d.drawImage(inputImage, 0, 0, scaledWidth, scaledHeight, null);
-            g2d.dispose();
+        Graphics2D g2d = outputImage.createGraphics();
+        //speed -> g2d.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR);
+        //quality -> g2d.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BICUBIC);
+        g2d.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR);
+        g2d.drawImage(inputImage, 0, 0, scaledWidth, scaledHeight, null);
+        g2d.dispose();
 
-            ByteArrayOutputStream baos = new ByteArrayOutputStream();
-            ImageIO.write(outputImage, fileExtension, baos);
-            baos.flush();
-            return new ByteArrayInputStream(baos.toByteArray());
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        ImageIO.write(outputImage, fileExtension, baos);
+        baos.flush();
+        return new ByteArrayInputStream(baos.toByteArray());
 
-        }
-        else if(Objects.equals("application/pdf", mimeType)){
-            try (PDDocument document = Loader.loadPDF(new File(inputFile.getPath()))) {
-                if(document.getNumberOfPages() > 0){
-                    PDFRenderer renderer = new PDFRenderer(document);
-                    BufferedImage inputImage = renderer.renderImageWithDPI(0, 150, ImageType.RGB);
-                    int scaledHeight = inputImage.getHeight() > inputImage.getWidth() ? scale : (int)(((double) scale / (double) inputImage.getWidth()) * inputImage.getHeight());
-                    int scaledWidth = inputImage.getWidth() > inputImage.getHeight() ? scale : (int)(((double) scale / (double) inputImage.getHeight()) * inputImage.getWidth());
-                    BufferedImage outputImage = new BufferedImage(scaledWidth, scaledHeight, BufferedImage.TYPE_INT_ARGB);
+    }
+    else if(Objects.equals("application/pdf", mimeType)){
+        try (PDDocument document = Loader.loadPDF(new File(inputFile.getPath()))) {
+            if(document.getNumberOfPages() > 0){
+                PDFRenderer renderer = new PDFRenderer(document);
+                BufferedImage inputImage = renderer.renderImageWithDPI(0, 150, ImageType.RGB);
+                int scaledHeight = inputImage.getHeight() > inputImage.getWidth() ? scale : (int)(((double) scale / (double) inputImage.getWidth()) * inputImage.getHeight());
+                int scaledWidth = inputImage.getWidth() > inputImage.getHeight() ? scale : (int)(((double) scale / (double) inputImage.getHeight()) * inputImage.getWidth());
+                BufferedImage outputImage = new BufferedImage(scaledWidth, scaledHeight, BufferedImage.TYPE_INT_ARGB);
 
-                    Graphics2D g2d = outputImage.createGraphics();
-                    //speed -> g2d.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR);
-                    //quality -> g2d.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BICUBIC);
-                    g2d.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR);
-                    g2d.drawImage(inputImage, 0, 0, scaledWidth, scaledHeight, null);
-                    g2d.dispose();
+                Graphics2D g2d = outputImage.createGraphics();
+                //speed -> g2d.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR);
+                //quality -> g2d.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BICUBIC);
+                g2d.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR);
+                g2d.drawImage(inputImage, 0, 0, scaledWidth, scaledHeight, null);
+                g2d.dispose();
 
-                    ByteArrayOutputStream baos = new ByteArrayOutputStream();
-                    ImageIO.write(outputImage, fileExtension, baos);
-                    baos.flush();
-                    return new ByteArrayInputStream(baos.toByteArray());
-                }
+                ByteArrayOutputStream baos = new ByteArrayOutputStream();
+                ImageIO.write(outputImage, fileExtension, baos);
+                baos.flush();
+                return new ByteArrayInputStream(baos.toByteArray());
             }
-
         }
-        return null;
-    }*/
+
+    }
+    return null;
+}*/
 
     private static long writeToDiskAndGetCRC(InputStream file, File tempFile) {
         long value = 0;
@@ -569,16 +561,16 @@ public class FileService {
         return true;
     }
 
-    public boolean deleteLocalFiles(String relativePath, String fileName){
+    public boolean deleteLocalFiles(String relativePath, String fileName) {
         String projectDir = System.getProperty("user.dir");
         Path filePath = Paths.get(projectDir, "target", relativePath);
         File file = new File(filePath.toString());
 
-        if (file.exists() && file.getName().equals(fileName)){
+        if (file.exists() && file.getName().equals(fileName)) {
             try {
                 Files.delete(filePath);
                 return true;
-            } catch (IOException e){
+            } catch (IOException e) {
                 logger.error(e.getMessage());
                 return false;
             }
@@ -621,7 +613,7 @@ public class FileService {
         }
     }
 
-    public boolean checkAccess(String assetGuid, User user){
+    public boolean checkAccess(String assetGuid, User user) {
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create(assetServiceProperties.rootUrl() + "/api/v1/assets/readaccess?assetGuid=" + assetGuid))
                 .header("Authorization", "Bearer " + user.token)
@@ -633,20 +625,59 @@ public class FileService {
 
         try {
             HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
-            if (response.statusCode() == 403){
+            if (response.statusCode() == 403) {
                 return false;
-            } else if (response.statusCode() == 204){
+            } else if (response.statusCode() == 204) {
                 return true;
             }
-        } catch (Exception e){
+        } catch (Exception e) {
             logger.error(e.getMessage());
         }
         return false;
     }
 
-    public Response checkAccessCreateZip(List<String> assets, User user, String guid){
+    public List<DasscoFile> getDasscoFiles(List<String> assets, User user, String guid) {
+        if (assets == null || assets.isEmpty()) {
+            return List.of();
+        }
 
-        if (assets == null || assets.isEmpty()){
+        Gson gson = new Gson();
+        String requestBody = gson.toJson(assets);
+
+        ObjectMapper objectMapper = new ObjectMapper();
+
+        HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create(assetServiceProperties.rootUrl() + "/api/v1/assets/readaccessforzip"))
+                .header("Authorization", "Bearer " + user.token)
+                .header("Content-Type", "application/json")
+                .POST(HttpRequest.BodyPublishers.ofString(requestBody))
+                .build();
+
+        HttpClient httpClient = HttpClient.newHttpClient();
+
+        try {
+            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+            if (response.statusCode() == 403) {
+                // throw something
+            } else if (response.statusCode() == 200) {
+                Set<String> assetGuids = objectMapper.readValue(response.body(), new TypeReference<Set<String>>() {
+                });
+                return jdbi.onDemand(FileRepository.class).getSyncFilesByAssetGuids(assetGuids);
+            } else {
+                // throw something
+                return List.of();
+            }
+        } catch (Exception e) {
+            logger.error(e.getMessage());
+        }
+        // throw something
+        return List.of();
+
+    }
+
+    public Response checkAccessCreateZip(List<String> assets, User user, String guid) {
+
+        if (assets == null || assets.isEmpty()) {
             return Response.status(500).entity("Need to pass a list of assets").build();
         }
 
@@ -667,39 +698,35 @@ public class FileService {
         try {
             HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
 
-            if (response.statusCode() == 403){
+            if (response.statusCode() == 403) {
                 return Response.status(403).entity(response.body()).build();
-            } else if (response.statusCode() == 200){
+            } else if (response.statusCode() == 200) {
                 try {
                     // GET FILE LOCATION FROM THE DB:
-                    List<String> assetGuids = objectMapper.readValue(response.body(), new TypeReference<List<String>>() {});
-                    List<String> assetFiles = new ArrayList<>();
-                    for (String asset : assetGuids){
-                        List<DasscoFile> foundFiles = jdbi.onDemand(FileRepository.class).getSyncFilesByAssetGuid(asset);
-                        for (DasscoFile dasscoFile : foundFiles){
-                            assetFiles.add(dasscoFile.path());
-                        }
-                    }
-                    if (!assetFiles.isEmpty()){
+                    Set<String> assetGuids = objectMapper.readValue(response.body(), new TypeReference<Set<String>>() {
+                    });
+                    List<DasscoFile> dasscoFiles = jdbi.onDemand(FileRepository.class).getSyncFilesByAssetGuids(assetGuids);
+                    List<String> assetFiles = dasscoFiles.stream().map(DasscoFile::path).collect(Collectors.toList());
+                    if (!assetFiles.isEmpty()) {
                         saveFilesTempFolder(assetFiles, user, guid);
                     }
                     this.createZipFile(guid);
                     return Response.status(200).entity(guid).build();
-                } catch (Exception e){
+                } catch (Exception e) {
                     logger.error(e.getMessage());
                 }
             } else {
                 return Response.status(500).entity(response.body()).build();
             }
-        } catch (Exception e){
+        } catch (Exception e) {
             logger.error(e.getMessage());
         }
         return Response.status(500).entity("There was an error downloading the files").build();
     }
 
-    public Response checkAccessCreateCSV(List<String> assets, User user){
+    public Response checkAccessCreateCSV(List<String> assets, User user) {
 
-        if (assets == null || assets.isEmpty()){
+        if (assets == null || assets.isEmpty()) {
             return Response.status(500).entity("Need to pass a list of assets").build();
         }
 
@@ -718,9 +745,9 @@ public class FileService {
         try {
             HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
 
-            if (response.statusCode() == 403){
+            if (response.statusCode() == 403) {
                 return Response.status(403).entity(response.body()).build();
-            } else if (response.statusCode() == 200){
+            } else if (response.statusCode() == 200) {
                 // Create a 20 digit guid
                 String guid = randomGuidGenerator(20);
                 // Create the CSV file:
@@ -730,21 +757,21 @@ public class FileService {
                 return Response.status(500).entity(response.body()).build();
             }
 
-        } catch (Exception e){
+        } catch (Exception e) {
             logger.error(e.getMessage());
         }
         return Response.status(500).build();
     }
 
-    public void createCsvFile(String csvString, String guid){
+    public void createCsvFile(String csvString, String guid) {
         String separatorLine = "sep=,\r\n";
         String fullCsv = separatorLine + csvString;
-        String projectDir = System.getProperty("user.dir");
-        Path tempDir = Paths.get(projectDir, "target", "temp", guid);
+        String basePath = shareConfig.mountFolder();
+        Path tempDir = Paths.get(basePath, "temp", guid);
         try {
             Files.createDirectories(tempDir);
             Path filePath = tempDir.resolve("assets.csv");
-            try (FileWriter writer = new FileWriter(filePath.toFile())){
+            try (FileWriter writer = new FileWriter(filePath.toFile())) {
                 writer.write(fullCsv);
             }
         } catch (IOException e) {
@@ -784,15 +811,15 @@ public class FileService {
 
             try {
                 HttpResponse<InputStream> response = httpClient.send(request, HttpResponse.BodyHandlers.ofInputStream());
-                if (response.statusCode() == 200){
+                if (response.statusCode() == 200) {
                     Path outputPath = outputDir.resolve(fileName);
-                    try (InputStream inputStream = response.body()){
+                    try (InputStream inputStream = response.body()) {
                         Files.copy(inputStream, outputPath, StandardCopyOption.REPLACE_EXISTING);
                     }
                 } else {
                     throw new FileNotFoundException("Failed to download image: " + path);
                 }
-            } catch (Exception e){
+            } catch (Exception e) {
                 throw new FileNotFoundException(e.getMessage());
             }
         }
@@ -803,48 +830,48 @@ public class FileService {
         String projectDir = System.getProperty("user.dir");
         Path tempDir = Paths.get(projectDir, "target", "temp");
 
-        if (Files.exists(tempDir)){
+        if (Files.exists(tempDir)) {
             try {
-                try (var stream = Files.list(tempDir)){
+                try (var stream = Files.list(tempDir)) {
                     stream.filter(path -> path.toString().endsWith(".zip"))
                             .forEach(path -> {
                                 try {
                                     Files.deleteIfExists(path);
-                                } catch (IOException e){
+                                } catch (IOException e) {
                                     logger.error(e.getMessage());
                                 }
                             });
                 }
 
-                try (var stream = Files.walk(tempDir)){
+                try (var stream = Files.walk(tempDir)) {
                     stream.sorted(Comparator.reverseOrder())
                             .filter(path -> !path.equals(tempDir))
                             .filter(path -> Files.isDirectory(path) || !path.toString().endsWith(".csv"))
                             .forEach(path -> {
                                 try {
                                     Files.deleteIfExists(path);
-                                } catch (IOException e){
+                                } catch (IOException e) {
                                     logger.error(e.getMessage());
                                 }
                             });
                 }
-            } catch (IOException e){
+            } catch (IOException e) {
                 logger.error(e.getMessage());
             }
         }
     }
 
-    public List<String> listFilesInErda(String assetGuid){
+    public List<String> listFilesInErda(String assetGuid) {
         List<DasscoFile> files = jdbi.onDemand(FileRepository.class).getSyncFilesByAssetGuid(assetGuid);
         return files.stream().map(DasscoFile::getWorkDirFilePath).toList();
     }
 
-    public String randomGuidGenerator(int length){
+    public String randomGuidGenerator(int length) {
         String characters = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
         SecureRandom random = new SecureRandom();
 
         StringBuilder guid = new StringBuilder(length);
-        for (int i = 0; i < length; i++){
+        for (int i = 0; i < length; i++) {
             guid.append(characters.charAt(random.nextInt(characters.length())));
         }
         return guid.toString();

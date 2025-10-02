@@ -1,0 +1,231 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.17.xsd">
+
+    <changeSet id="3.0.0:dassco_file_proxy:access_type_enum" author="Christoffer Grand Hansen" context="default">
+        <sql>CREATE TYPE access_type AS ENUM ('READ','WRITE','ADMIN')</sql>
+    </changeSet>
+
+
+    <changeSet id="3.0.0:dassco_file_proxy:create_shared_assets" author="Christoffer Grand Hansen" context="default">
+        <createTable tableName="shared_assets" remarks="All assets shared on the specific samba server">
+            <column name="shared_asset_id" type="bigint" autoIncrement="true" generationType="always">
+                <constraints nullable="false" primaryKey="true"/>
+            </column>
+            <column name="asset_guid" type="text">
+                <constraints nullable="false"/>
+            </column>
+            <column name="creation_datetime" type="datetime">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+    </changeSet>
+
+    <changeSet id="3.0.0:dassco_file_proxy:user_access" author="Christoffer Grand Hansen" context="default">
+        <createTable tableName="user_access" remarks="All users that have access to the specific Samba server">
+            <column name="user_access_id" type="bigint" autoIncrement="true" generationType="always">
+                <constraints nullable="false" primaryKey="true"/>
+            </column>
+            <column name="username" type="text">
+                <constraints nullable="false"/>
+            </column>
+            <column name="token" type="text">
+                <constraints nullable="false"/>
+            </column>
+            <column name="creation_datetime" type="datetime">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+    </changeSet>
+
+    <changeSet id="3.0.0:dassco_file_proxy:asset_caches" author="Christoffer Grand Hansen" context="default">
+        <createTable tableName="asset_caches" remarks="All users that have access to the specific Samba server">
+            <column name="asset_cache_id" type="bigint" autoIncrement="true" generationType="always">
+                <constraints nullable="false" primaryKey="true"/>
+            </column>
+            <column name="asset_path" type="text">
+                <constraints nullable="false"/>
+            </column>
+            <column name="file_size" type="bigint">
+                <constraints nullable="false"/>
+            </column>
+            <column name="expiration_datetime" type="datetime">
+                <constraints nullable="false"/>
+            </column>
+            <column name="creation_datetime" type="datetime">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+    </changeSet>
+
+    <changeSet id="3.0.0:create_file_table" author="Thomas Skov Bornerup">
+        <createTable tableName="file">
+            <column name="file_id" type="bigint" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false" primaryKeyName="pk_file"/>
+            </column>
+            <column name="asset_guid" type="text">
+                <constraints nullable="false"/>
+            </column>
+            <column name="size_bytes" type="bigint">
+                <constraints nullable="false"/>
+            </column>
+            <column name="path" type="text">
+                <constraints nullable="false"/>
+            </column>
+            <column name="crc" type="bigint">
+                <constraints nullable="false"/>
+            </column>
+            <column name="delete_after_sync" type="boolean" defaultValue="false">
+                <constraints nullable="false"/>
+            </column>
+            <column name="sync_status" type="text" defaultValue="NEW_FILE">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+    </changeSet>
+
+    <changeSet id="3.0.0:create_file_fkey" author="Thomas Skov Bornerup">
+        <addForeignKeyConstraint
+                baseTableName="file"
+                baseColumnNames="asset_guid"
+                constraintName="fk_file__asset"
+                referencedTableName="asset"
+                referencedColumnNames="asset_guid"/>
+    </changeSet>
+
+    <changeSet id="3.0.0:create_directory_table" author="Thomas Skov Bornerup">
+        <createTable tableName="directories">
+            <column name="directory_id" type="bigint" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false" primaryKeyName="pk_directories"/>
+            </column>
+            <column name="uri" type="text">
+                <constraints nullable="false"/>
+            </column>
+            <column name="node_host" type="text">
+                <constraints nullable="false"/>
+            </column>
+            <column name="access" type="access_type">
+                <constraints nullable="false"/>
+            </column>
+            <column name="creation_datetime" type="datetime">
+                <constraints nullable="false"/>
+            </column>
+            <column name="sync_user" type="text">
+                <constraints nullable="true"/>
+            </column>
+            <column name="sync_workstation" type="text">
+                <constraints nullable="true"/>
+            </column>
+            <column name="sync_pipeline" type="text">
+                <constraints nullable="true"/>
+            </column>
+            <column name="allocated_storage_mb" type="int">
+                <constraints nullable="false"/>
+            </column>
+            <column name="awaiting_erda_sync" type="boolean" defaultValue="false">
+                <constraints nullable="false"/>
+            </column>
+            <column name="erda_sync_attempts" type="int" defaultValue="0">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+    </changeSet>
+    <changeSet id="3.0.0:CLEAR_TABLES" author="Thomas Skov Bornerup">
+        <sql>
+            truncate table shared_assets;
+            truncate table user_access;
+        </sql>
+    </changeSet>
+    <changeSet id="3.0.0:add_fks" author="Thomas Skov Bornerup">
+        <addColumn tableName="shared_assets">
+            <column name="directory_id" type="bigint">
+                <constraints nullable="false"
+                             foreignKeyName="fk_shared_assets__directories"
+                             referencedTableName="directories"
+                             referencedColumnNames="directory_id"
+                             deleteCascade="true"
+                />
+            </column>
+        </addColumn>
+        <addColumn tableName="user_access">
+            <column name="directory_id" type="bigint">
+                <constraints nullable="false"
+                             foreignKeyName="fk_user_access__directories"
+                             referencedTableName="directories"
+                             referencedColumnNames="directory_id"
+                             deleteCascade="true"
+                />
+            </column>
+        </addColumn>
+    </changeSet>
+    <changeSet id="3.0.0:create:file_sync_status" author="Thomas Skov Bornerup">
+        <createTable tableName="file_sync_status">
+            <column name="file_sync_status" type="text">
+                <constraints primaryKey="true" primaryKeyName="pk_file_sync_status"/>
+            </column>
+        </createTable>
+        <sql>
+            INSERT INTO file_sync_status(file_sync_status)
+            VALUES ('NEW_FILE'), ('SYNCHRONIZED')
+        </sql>
+    </changeSet>
+
+    <changeSet id="3.0.0:file_fkey" author="Thomas Skov bornerup" context="default">
+        <addForeignKeyConstraint baseTableName="file"
+                                 baseColumnNames="sync_status"
+                                 constraintName="fk_file__file_sync_status"
+                                 referencedTableName="file_sync_status"
+                                 referencedColumnNames="file_sync_status"/>
+    </changeSet>
+
+
+    <changeSet id="3.0.0:CREATE_TABLE FILE_CACHE" author="Thomas Skov Bornerup">
+        <createTable tableName="FILE_CACHE">
+            <column name="FILE_CACHE_ID"
+                    type="bigint"
+                    autoIncrement="true"
+                    generationType="always">
+                <constraints primaryKey="true"
+                             primaryKeyName="pk_file_cache"
+                             nullable="false"
+                />
+            </column>
+            <column name="FILE_ID" type="bigint">
+                <constraints nullable="false"
+                             foreignKeyName="fk_file_cache__file"
+                             referencedTableName="file"
+                             referencedColumnNames="file_id"/>
+            </column>
+            <column name="expiration_datetime" type="datetime"></column>
+            <column name="creation_datetime" type="datetime">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+    </changeSet>
+
+    <!--  <changeSet id="3.0.0:DROP_TABLE ASSET_CACHES" author="Thomas Skov bornerup" context="default">-->
+    <!--    <comment>We can add this again when we actually know what it is for</comment>-->
+    <!--    <dropTable tableName="asset_caches"></dropTable>-->
+    <!--  </changeSet>-->
+    <changeSet id="3.0.0:ADD_INDEX" author="Thomas Skov Bornerup">
+        <createIndex tableName="file" indexName="path_idx">
+            <column name="path"></column>
+        </createIndex>
+        <createIndex tableName="file_cache" indexName="file_cache_expiration_datetime_idx">
+            <column name="expiration_datetime"></column>
+        </createIndex>
+    </changeSet>
+    <changeSet id="3.0.0:REMOVE_PATH_PREFIX" author="Thomas Skov Bornerup">
+        <sql>
+            UPDATE public.file f
+            SET PATH = substring(PATH, 12)
+            WHERE f.PATH LIKE '/assetfiles%'
+        </sql>
+    </changeSet>
+
+    <changeSet id="VERSION-3.0.0" author="Christoffer Grand Hansen" context="default">
+        <tagDatabase tag="VERSION-3.0.0"/>
+    </changeSet>
+
+</databaseChangeLog>

@@ -10,27 +10,21 @@ import dk.northtech.dasscofileproxy.domain.CacheInfo;
 import dk.northtech.dasscofileproxy.domain.DasscoFile;
 import dk.northtech.dasscofileproxy.domain.FileSyncStatus;
 import dk.northtech.dasscofileproxy.domain.User;
-import dk.northtech.dasscofileproxy.domain.exceptions.DasscoException;
 import dk.northtech.dasscofileproxy.domain.exceptions.DasscoIllegalActionException;
 import dk.northtech.dasscofileproxy.domain.exceptions.DasscoNotFoundException;
 import dk.northtech.dasscofileproxy.repository.FileCacheRepository;
 import dk.northtech.dasscofileproxy.repository.FileRepository;
-import dk.northtech.dasscofileproxy.webapi.exceptionmappers.DaSSCoError;
-import dk.northtech.dasscofileproxy.webapi.exceptionmappers.DaSSCoErrorCode;
-import dk.northtech.dasscofileproxy.webapi.model.FileUploadData;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.WebApplicationException;
 import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.core.StreamingOutput;
 import joptsimple.internal.Strings;
 import org.apache.commons.io.IOUtils;
-import org.apache.tika.Tika;
 import org.jdbi.v3.core.Jdbi;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
-import org.springframework.web.util.UriUtils;
 
 import java.io.*;
 import java.net.URI;
@@ -40,8 +34,8 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
-import java.sql.SQLException;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
@@ -265,6 +259,32 @@ public class CacheFileService {
         } catch (IOException | URISyntaxException | InterruptedException e) {
             System.out.println(e.getClass());
             throw new RuntimeException("Failed to check user access to asset", e);
+        }
+    }
+
+    public void saveFilesTempFolder(List<String> paths, User user, String guid){
+        String basePath = shareConfig.mountFolder();
+        Path tempDir = Paths.get(basePath, "temp", guid);
+
+        for (String path : paths) {
+            String[] parts = path.split("/");
+            String folderName = parts[parts.length - 2];
+            String fileName = parts[parts.length - 1];
+            String institution = parts[1];
+            String collection = parts[2];
+            String assetGuid = parts[3];
+            String filePath = String.join(" ", Arrays.copyOfRange(parts, 4, parts.length));
+            Path outputDir = tempDir.resolve(folderName);
+
+            Optional<FileService.FileResult> file = this.getFile(institution, collection, assetGuid, filePath, user);
+            file.ifPresent(f -> {
+                Path outputPath = outputDir.resolve(fileName);
+                try {
+                    Files.copy(f.is(), outputPath, StandardCopyOption.REPLACE_EXISTING);
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                }
+            });
         }
     }
 
