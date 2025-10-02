@@ -2,6 +2,7 @@ package dk.northtech.dasscofileproxy.webapi.v1;
 
 import dk.northtech.dasscofileproxy.configuration.ShareConfig;
 import dk.northtech.dasscofileproxy.domain.DasscoFile;
+import dk.northtech.dasscofileproxy.domain.SecurityRoles;
 import dk.northtech.dasscofileproxy.domain.User;
 import dk.northtech.dasscofileproxy.service.CacheFileService;
 import dk.northtech.dasscofileproxy.service.FileService;
@@ -18,6 +19,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.annotation.security.RolesAllowed;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.*;
@@ -325,6 +327,7 @@ public class AssetFiles {
     @Consumes(APPLICATION_OCTET_STREAM)
     @ApiResponse(responseCode = "200", description = "File has been uploaded")
     @ApiResponse(responseCode = "500", content = @Content(mediaType = APPLICATION_OCTET_STREAM))
+    @RolesAllowed({SecurityRoles.DEVELOPER, SecurityRoles.ADMIN, SecurityRoles.SERVICE})
     public Response postFileToParkedFiles(@PathParam("path") String path, InputStream file){
         String decodedPath = URLDecoder.decode(path, StandardCharsets.UTF_8);
         fileService.uploadToParking(file, decodedPath);
@@ -337,6 +340,7 @@ public class AssetFiles {
     @ApiResponse(responseCode = "200", content = @Content(mediaType = APPLICATION_OCTET_STREAM), description = "File deleted")
     @ApiResponse(responseCode = "404", content = @Content(mediaType = APPLICATION_OCTET_STREAM), description = "Failed to delete the file")
     @ApiResponse(responseCode = "500", content = @Content(mediaType = APPLICATION_OCTET_STREAM))
+    @RolesAllowed({SecurityRoles.DEVELOPER, SecurityRoles.ADMIN, SecurityRoles.SERVICE})
     public Response deleteFileFromParkedFiles(@PathParam("path") String path){
         String decodedPath = URLDecoder.decode(path, StandardCharsets.UTF_8);
         boolean result = this.fileService.deleteAllFilesFromOriginalInParked(decodedPath);
@@ -350,6 +354,7 @@ public class AssetFiles {
     @ApiResponse(responseCode = "200", content = @Content(mediaType = APPLICATION_OCTET_STREAM), description = "Sending the image as a Stream")
     @ApiResponse(responseCode = "404", content = @Content(mediaType = APPLICATION_OCTET_STREAM), description = "Failed to find the file")
     @ApiResponse(responseCode = "500", content = @Content(mediaType = APPLICATION_OCTET_STREAM))
+    @RolesAllowed({SecurityRoles.DEVELOPER, SecurityRoles.ADMIN, SecurityRoles.SERVICE})
     public Response getFileFromParkedFile(@QueryParam("pathPostFix") String pathPostFix, @QueryParam("institution") String institution, @QueryParam("collection") String collection, @QueryParam("filename") String filename, @QueryParam("type") String type, @QueryParam("scale") Integer scale, @Context SecurityContext securityContext){
         Optional<DasscoFile> dasscoFile = this.fileService.getFilePathForAdapterFile(URLDecoder.decode(institution, StandardCharsets.UTF_8), URLDecoder.decode(collection, StandardCharsets.UTF_8), URLDecoder.decode(filename, StandardCharsets.UTF_8), type, scale);
         String path = pathPostFix + "/" + collection + "/" + type + "/" + filename;
@@ -395,6 +400,7 @@ public class AssetFiles {
     @ApiResponse(responseCode = "200", content = @Content(mediaType = TEXT_PLAIN), description = "Sending the file path")
     @ApiResponse(responseCode = "404", content = @Content(mediaType = TEXT_PLAIN), description = "Failed to find the file")
     @ApiResponse(responseCode = "500", content = @Content(mediaType = APPLICATION_OCTET_STREAM))
+    @RolesAllowed({SecurityRoles.DEVELOPER, SecurityRoles.ADMIN, SecurityRoles.SERVICE})
     public Response checkIfParkedFileIsThere(@QueryParam("pathPostFix") String pathPostFix, @QueryParam("institution") String institution, @QueryParam("collection") String collection, @QueryParam("filename") String filename, @QueryParam("type") String type, @QueryParam("scale") Integer scale){
         Optional<DasscoFile> dasscoFile = this.fileService.getFilePathForAdapterFile(URLDecoder.decode(institution, StandardCharsets.UTF_8), URLDecoder.decode(collection, StandardCharsets.UTF_8), URLDecoder.decode(filename, StandardCharsets.UTF_8), type, scale);
         String path = pathPostFix + "/" + collection + "/" + type + "/" + filename;
