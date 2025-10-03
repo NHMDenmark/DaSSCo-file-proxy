@@ -1,6 +1,10 @@
 package dk.northtech.dasscofileproxy.webapi.v1;
 
+import dk.northtech.dasscofileproxy.configuration.ShareConfig;
+import dk.northtech.dasscofileproxy.domain.DasscoFile;
+import dk.northtech.dasscofileproxy.domain.SecurityRoles;
 import dk.northtech.dasscofileproxy.domain.User;
+import dk.northtech.dasscofileproxy.service.CacheFileService;
 import dk.northtech.dasscofileproxy.service.FileService;
 import dk.northtech.dasscofileproxy.webapi.UserMapper;
 import dk.northtech.dasscofileproxy.webapi.exceptionmappers.DaSSCoError;
@@ -15,6 +19,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.annotation.security.RolesAllowed;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.*;
@@ -22,28 +27,32 @@ import org.apache.commons.io.FileUtils;
 import org.apache.tika.Tika;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.security.core.parameters.P;
-import org.springframework.web.bind.annotation.RequestBody;
 
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.URLDecoder;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Paths;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
-import static jakarta.ws.rs.core.MediaType.APPLICATION_JSON;
+import static jakarta.ws.rs.core.MediaType.*;
 
 @Path("/assetfiles")
 @Tag(name = "Asset Files", description = "Endpoints related to assets' files.")
 @SecurityRequirement(name = "dassco-idp")
 public class AssetFiles {
     private FileService fileService;
+    private CacheFileService cacheFileService;
+    private final ShareConfig shareConfig;
     private static final Logger logger = LoggerFactory.getLogger(AssetFiles.class);
     @Inject
-    public AssetFiles(FileService fileService) {
+    public AssetFiles(FileService fileService, CacheFileService cacheFileService, ShareConfig shareConfig) {
         this.fileService = fileService;
+        this.cacheFileService = cacheFileService;
+        this.shareConfig = shareConfig;
     }
 
     @Context
@@ -189,23 +198,36 @@ public class AssetFiles {
     Used by the query page in the frontend in connection with downloading zip file with assets.
     """)
     @Consumes(APPLICATION_JSON)
-    @Produces(MediaType.TEXT_PLAIN)
-    @ApiResponse(responseCode = "200", content = @Content(mediaType = MediaType.TEXT_PLAIN, array = @ArraySchema(schema = @Schema(implementation = String.class)), examples = { @ExampleObject("ZIP File created successfully.")}))
-    @ApiResponse(responseCode = "400-599", content = @Content(mediaType = MediaType.TEXT_PLAIN, array = @ArraySchema(schema = @Schema(implementation = String.class)), examples = { @ExampleObject("Error creating ZIP file.")}))
+    @Produces(TEXT_PLAIN)
+    @ApiResponse(responseCode = "200", content = @Content(mediaType = TEXT_PLAIN, array = @ArraySchema(schema = @Schema(implementation = String.class)), examples = { @ExampleObject("ZIP File created successfully.")}))
+    @ApiResponse(responseCode = "400-599", content = @Content(mediaType = TEXT_PLAIN, array = @ArraySchema(schema = @Schema(implementation = String.class)), examples = { @ExampleObject("Error creating ZIP file.")}))
     public Response createZip(@Context SecurityContext securityContext,
                                       List<String> assets,
                               @PathParam("guid") String guid){
 
-        return fileService.checkAccessCreateZip(assets, UserMapper.from(securityContext), guid);
+        var user = UserMapper.from(securityContext);
+        var dasscoFiles = fileService.getDasscoFiles(assets, user, guid);
+        if (!dasscoFiles.isEmpty()) {
+            List<String> assetFiles = dasscoFiles.stream().map(DasscoFile::path).collect(Collectors.toList());
+            cacheFileService.saveFilesTempFolder(assetFiles, user, guid);
+        }
+        try {
+            fileService.createZipFile(guid);
+            return Response.status(200).entity(guid).build();
+        } catch (IOException e) {
+            logger.error(e.getMessage());
+        }
+        return Response.status(500).entity("There was an error downloading the files").build();
+//        return fileService.checkAccessCreateZip(assets, UserMapper.from(securityContext), guid);
     }
 
     @POST
     @Path("/createCsvFile")
     @Operation(summary = "Create CSV File", description = "Creates a CSV File with Asset metadata in the Temp folder, used by the query page in the frontend in connection with dowloading csv files.")
-    @Produces(MediaType.TEXT_PLAIN)
+    @Produces(TEXT_PLAIN)
     @Consumes(APPLICATION_JSON)
-    @ApiResponse(responseCode = "200", content = @Content(mediaType = MediaType.TEXT_PLAIN, array = @ArraySchema(schema = @Schema(implementation = String.class)), examples = { @ExampleObject("CSV File created successfully.")}))
-    @ApiResponse(responseCode = "400-599", content = @Content(mediaType = MediaType.TEXT_PLAIN, array = @ArraySchema(schema = @Schema(implementation = String.class)), examples = { @ExampleObject("Error creating CSV file: User does not have access to Asset ['asset-1']")}))
+    @ApiResponse(responseCode = "200", content = @Content(mediaType = TEXT_PLAIN, array = @ArraySchema(schema = @Schema(implementation = String.class)), examples = { @ExampleObject("CSV File created successfully.")}))
+    @ApiResponse(responseCode = "400-599", content = @Content(mediaType = TEXT_PLAIN, array = @ArraySchema(schema = @Schema(implementation = String.class)), examples = { @ExampleObject("Error creating CSV file: User does not have access to Asset ['asset-1']")}))
     public Response createCsvFile(@Context SecurityContext securityContext,
                                   List<String> assets) {
 
@@ -235,8 +257,8 @@ public class AssetFiles {
     @Path("/getTempFile/{guid}/{fileName}")
     @Operation(summary = "Get Temporary File", description = "Gets a file from the Temp Folder (.csv or .zip for downloading assets) used on the query page in the frontend.")
     public Response getTempFile(@PathParam("guid") String guid, @PathParam("fileName") String fileName){
-        String projectDir = System.getProperty("user.dir");
-        java.nio.file.Path tempDir = Paths.get(projectDir, "target", "temp", guid);
+        String basePath = shareConfig.mountFolder();
+        java.nio.file.Path tempDir = Paths.get(basePath, "temp", guid);
         java.nio.file.Path filePath = tempDir.resolve(fileName);
 
         if (java.nio.file.Files.notExists(filePath)){
@@ -269,11 +291,14 @@ public class AssetFiles {
     @ApiResponse(responseCode = "400-599", content = @Content(mediaType = APPLICATION_JSON, schema = @Schema(implementation = DaSSCoError.class)))
     public Response deleteTempFolder(@PathParam("guid") String guid){
 
-        String projectDir = System.getProperty("user.dir");
-        File tempDir = new File(projectDir, "target/temp/" + guid);
+        String basePath = shareConfig.mountFolder();
+        File tempDir = new File(basePath, "temp/" + guid);
 
         try {
             if (tempDir.exists()){
+                for(File file : tempDir.listFiles()){
+                    file.delete();
+                }
                 FileUtils.deleteDirectory(tempDir);
                 return Response.status(Response.Status.NO_CONTENT).build();
             } else  {
@@ -291,10 +316,108 @@ public class AssetFiles {
     @Consumes(APPLICATION_JSON)
     @ApiResponse(responseCode = "200", content = @Content(mediaType = APPLICATION_JSON, array = @ArraySchema(schema = @Schema(implementation = String.class)), examples = { @ExampleObject("[\"test-institution/test-collection/nt_asset_19/example.jpg\", \"test-institution/test-collection/nt_asset_19/example2.jpg\"]")}))
     @ApiResponse(responseCode = "400-599", content = @Content(mediaType = APPLICATION_JSON, schema = @Schema(implementation = DaSSCoError.class)))
-    public List<String> listFilesInErda(
-            @PathParam("assetGuid") String assetGuid
-            , @Context SecurityContext securityContext
+    public List<String> listFilesInErda(@PathParam("assetGuid") String assetGuid, @Context SecurityContext securityContext
     ) {
         return fileService.listFilesInErda(assetGuid);
+    }
+
+    @POST
+    @Path("/parkedfiles/{path: .+}")
+    @Operation(summary = "Upload a file to the Parking spot.", description = "Upload a file to the Parking spot.")
+    @Consumes(APPLICATION_OCTET_STREAM)
+    @ApiResponse(responseCode = "200", description = "File has been uploaded")
+    @ApiResponse(responseCode = "500", content = @Content(mediaType = APPLICATION_OCTET_STREAM))
+    @RolesAllowed({SecurityRoles.DEVELOPER, SecurityRoles.ADMIN, SecurityRoles.SERVICE})
+    public Response postFileToParkedFiles(@PathParam("path") String path, InputStream file){
+        String decodedPath = URLDecoder.decode(path, StandardCharsets.UTF_8);
+        fileService.uploadToParking(file, decodedPath);
+        return Response.status(Response.Status.OK).build();
+    }
+
+    @DELETE
+    @Path("/parkedfiles/{path: .+}")
+    @Operation(summary = "Delete a file from the Parking spot.", description = "Delete a file from the Parking spor")
+    @ApiResponse(responseCode = "200", content = @Content(mediaType = APPLICATION_OCTET_STREAM), description = "File deleted")
+    @ApiResponse(responseCode = "404", content = @Content(mediaType = APPLICATION_OCTET_STREAM), description = "Failed to delete the file")
+    @ApiResponse(responseCode = "500", content = @Content(mediaType = APPLICATION_OCTET_STREAM))
+    @RolesAllowed({SecurityRoles.DEVELOPER, SecurityRoles.ADMIN, SecurityRoles.SERVICE})
+    public Response deleteFileFromParkedFiles(@PathParam("path") String path){
+        String decodedPath = URLDecoder.decode(path, StandardCharsets.UTF_8);
+        boolean result = this.fileService.deleteAllFilesFromOriginalInParked(decodedPath);
+        return Response.status(result ? Response.Status.OK : Response.Status.NOT_FOUND).build();
+    }
+
+    @GET
+    @Path("/parkedfiles")
+    @Operation(summary = "Get a file from the Parking spot.", description = "Get a file from the Parking spot. Checks the correct placement before it checks the Parking spot")
+    @Produces(APPLICATION_OCTET_STREAM)
+    @ApiResponse(responseCode = "200", content = @Content(mediaType = APPLICATION_OCTET_STREAM), description = "Sending the image as a Stream")
+    @ApiResponse(responseCode = "404", content = @Content(mediaType = APPLICATION_OCTET_STREAM), description = "Failed to find the file")
+    @ApiResponse(responseCode = "500", content = @Content(mediaType = APPLICATION_OCTET_STREAM))
+    @RolesAllowed({SecurityRoles.DEVELOPER, SecurityRoles.ADMIN, SecurityRoles.SERVICE})
+    public Response getFileFromParkedFile(@QueryParam("pathPostFix") String pathPostFix, @QueryParam("institution") String institution, @QueryParam("collection") String collection, @QueryParam("filename") String filename, @QueryParam("type") String type, @QueryParam("scale") Integer scale, @Context SecurityContext securityContext){
+        Optional<DasscoFile> dasscoFile = this.fileService.getFilePathForAdapterFile(URLDecoder.decode(institution, StandardCharsets.UTF_8), URLDecoder.decode(collection, StandardCharsets.UTF_8), URLDecoder.decode(filename, StandardCharsets.UTF_8), type, scale);
+        String path = pathPostFix + "/" + collection + "/" + type + "/" + filename;
+        return dasscoFile.map(value -> {
+            FileUploadData fileUploadData = new FileUploadData(value.assetGuid(), institution, collection, value.path(), 0, null);
+            //cacheFileService.getFile(institution, collection, guid, path, UserMapper.from(securityContext));
+            Optional<FileService.FileResult> getFileResult = cacheFileService.getFile(institution, collection, value.assetGuid(), value.path(), UserMapper.from(securityContext));
+            if (getFileResult.isPresent()) {
+                FileService.FileResult fileResult = getFileResult.get();
+                StreamingOutput streamingOutput = output -> {
+                    try (InputStream is = fileResult.is()) {
+                        is.transferTo(output);
+                        output.flush();
+                    }
+                };
+
+                return Response.status(200)
+                        .header("Content-Disposition", "attachment; filename=" + fileResult.filename())
+                        .header("Content-Type", new Tika().detect(fileResult.filename())).entity(streamingOutput).build();
+            }
+            return Response.status(404).entity("Missing file: %s".formatted(path)).build();
+        }).orElseGet(() -> {
+            Optional<FileService.FileResult> getFileResult = fileService.readFromParking(path, scale);
+            if (getFileResult.isPresent()) {
+                FileService.FileResult fileResult = getFileResult.get();
+                StreamingOutput streamingOutput = output -> {
+                    try (InputStream is = fileResult.is()) {
+                        is.transferTo(output);
+                        output.flush();
+                    }
+                };
+
+                return Response.status(200)
+                        .header("Content-Disposition", "attachment; filename=" + fileResult.filename())
+                        .header("Content-Type", new Tika().detect(fileResult.filename())).entity(streamingOutput).build();
+            }
+            return Response.status(404).entity("Missing file: %s".formatted(path)).build();
+        });
+    }
+
+    @GET
+    @Path("/parkedfiles/filepath")
+    @ApiResponse(responseCode = "200", content = @Content(mediaType = TEXT_PLAIN), description = "Sending the file path")
+    @ApiResponse(responseCode = "404", content = @Content(mediaType = TEXT_PLAIN), description = "Failed to find the file")
+    @ApiResponse(responseCode = "500", content = @Content(mediaType = APPLICATION_OCTET_STREAM))
+    @RolesAllowed({SecurityRoles.DEVELOPER, SecurityRoles.ADMIN, SecurityRoles.SERVICE})
+    public Response checkIfParkedFileIsThere(@QueryParam("pathPostFix") String pathPostFix, @QueryParam("institution") String institution, @QueryParam("collection") String collection, @QueryParam("filename") String filename, @QueryParam("type") String type, @QueryParam("scale") Integer scale){
+        Optional<DasscoFile> dasscoFile = this.fileService.getFilePathForAdapterFile(URLDecoder.decode(institution, StandardCharsets.UTF_8), URLDecoder.decode(collection, StandardCharsets.UTF_8), URLDecoder.decode(filename, StandardCharsets.UTF_8), type, scale);
+        String path = pathPostFix + "/" + collection + "/" + type + "/" + filename;
+        return dasscoFile.map(value -> {
+                    FileUploadData fileUploadData = new FileUploadData(value.assetGuid(), institution, collection, value.path(), 0, null);
+                    Optional<FileService.FileResult> getFileResult = fileService.getFile(fileUploadData);
+                    if(getFileResult.isPresent()) {
+                        return Response.status(200).build();
+                    }
+                    return Response.status(404).entity("Missing file: %s".formatted(path)).build();
+        })
+        .orElseGet(() -> {
+            Optional<FileService.FileResult> getFileResult = fileService.readFromParking(path, scale);
+            if(getFileResult.isPresent()) {
+                return Response.status(200).build();
+            }
+            return Response.status(404).entity("Missing file: %s".formatted(path)).build();
+        });
     }
 }
