@@ -635,6 +635,9 @@ public class FileService {
         }
         return false;
     }
+    public Optional<DasscoFile> getDasscoFileThumbnailForGuid(String assetGuid) {
+        return this.jdbi.onDemand(FileRepository.class).getFileThumbnailByAssetGuid(assetGuid);
+    }
 
     public List<DasscoFile> getDasscoFiles(List<String> assets, User user, String guid) {
         if (assets == null || assets.isEmpty()) {

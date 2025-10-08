@@ -112,7 +112,7 @@ public class CacheFileService {
         }
     }
 
-    public Response streamFile(String institution, String collection, String assetGuid, String filePath, User user){
+    public Response streamFile(String institution, String collection, String assetGuid, String filePath, User user, boolean inline){
         logger.info("validating access");
         if (!validateAccess(user, assetGuid)) {
             throw new DasscoIllegalActionException("User does not have access");
@@ -141,7 +141,7 @@ public class CacheFileService {
             };
 
             return Response.ok(streamingOutput)
-                    .header("Content-Disposition", "attachment; filename=" + filePath + "/")
+                    .header("Content-Disposition", inline ? "inline; attachment; filename=" + filePath + "/" : "attachment; filename=" + filePath + "/")
                     .header("Content-Type", "image/png")
                     .build();
 
@@ -238,10 +238,14 @@ public class CacheFileService {
 //        var token = this.keycloakService.getAdminToken();
 
         try (HttpClient httpClient = HttpClient.newBuilder().build();) {
-            HttpRequest request = HttpRequest.newBuilder()
-                    .header("Authorization", "Bearer " + user.token).uri(new URI(this.assetServiceProperties.rootUrl() + "/api/v1/assets/readaccess?assetGuid=" + assetGuid))
+            HttpRequest.Builder requestBuilder = HttpRequest.newBuilder()
                     .POST(HttpRequest.BodyPublishers.noBody())
-                    .build();
+                    .uri(new URI(this.assetServiceProperties.rootUrl() + "/api/v1/assets/readaccess?assetGuid=" + assetGuid));
+            if(user.token != null) {
+                requestBuilder.header("Authorization", "Bearer " + user.token);
+            }
+
+            HttpRequest request = requestBuilder.build();
             HttpResponse<String> send = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
             if (send.statusCode() > 199 && send.statusCode() < 300) {
                 return true;

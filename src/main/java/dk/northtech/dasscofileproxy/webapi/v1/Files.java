@@ -1,5 +1,6 @@
 package dk.northtech.dasscofileproxy.webapi.v1;
 
+import dk.northtech.dasscofileproxy.domain.DasscoFile;
 import dk.northtech.dasscofileproxy.domain.User;
 import dk.northtech.dasscofileproxy.service.CacheFileService;
 import dk.northtech.dasscofileproxy.service.FileService;
@@ -13,6 +14,8 @@ import jakarta.ws.rs.core.*;
 import org.apache.tika.Tika;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.util.List;
 import java.util.Optional;
 
 
@@ -70,7 +73,29 @@ public class Files {
                 return Response.status(404).build();
             }
         } else {
-            return cacheFileService.streamFile(institution, collection, guid, path, UserMapper.from(securityContext));
+            return cacheFileService.streamFile(institution, collection, guid, path, UserMapper.from(securityContext), false);
         }
+    }
+
+    @GET
+    @Path("/assets/{institutionName}/{collectionName}/{assetGuid}/thumbnail")
+    public Response getFileFromGuid(@PathParam("institutionName") String institutionName, @PathParam("collectionName") String collectionName, @PathParam("assetGuid") String assetGuid, @Context SecurityContext securityContext) {
+        User user = securityContext.getUserPrincipal() == null ? new User("anonymous") : UserMapper.from(securityContext);
+        Optional<DasscoFile> dasscoFile = this.fileService.getDasscoFileThumbnailForGuid(assetGuid);
+        if(dasscoFile.isPresent()) {
+            String path = dasscoFile.get().path();
+            if(!(path.toLowerCase().endsWith(".jpeg") || path.toLowerCase().endsWith(".jpg") || path.toLowerCase().endsWith(".png"))) {
+                return Response.status(404).build();
+            }
+            try{
+                String fileName = List.of(path.split("/")).getLast();
+                return cacheFileService.streamFile(institutionName, collectionName, assetGuid, fileName, user, true);
+            }
+            catch (Exception e) {
+                logger.error(e.toString());
+            }
+        }
+
+        return Response.status(404).build();
     }
 }
