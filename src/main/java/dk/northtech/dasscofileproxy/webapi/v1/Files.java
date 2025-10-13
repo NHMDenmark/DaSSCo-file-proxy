@@ -79,7 +79,7 @@ public class Files {
 
     @GET
     @Path("/assets/{institutionName}/{collectionName}/{assetGuid}/thumbnail")
-    public Response getFileFromGuid(@PathParam("institutionName") String institutionName, @PathParam("collectionName") String collectionName, @PathParam("assetGuid") String assetGuid, @Context SecurityContext securityContext) {
+    public Response getFileFromGuid(@PathParam("institutionName") String institutionName, @PathParam("collectionName") String collectionName, @PathParam("assetGuid") String assetGuid, @Context SecurityContext securityContext, @QueryParam("no-cache") @DefaultValue("false") boolean noCache) {
         User user = securityContext.getUserPrincipal() == null ? new User("anonymous") : UserMapper.from(securityContext);
         Optional<DasscoFile> dasscoFile = this.fileService.getDasscoFileThumbnailForGuid(assetGuid);
         if(dasscoFile.isPresent()) {
@@ -89,7 +89,26 @@ public class Files {
             }
             try{
                 String fileName = List.of(path.split("/")).getLast();
-                return cacheFileService.streamFile(institutionName, collectionName, assetGuid, fileName, user, true);
+
+                if (!noCache){
+                    Optional<FileService.FileResult> file = cacheFileService.getFile(institutionName, collectionName, assetGuid, fileName, user);
+                    if (file.isPresent()) {
+                        FileService.FileResult fileResult = file.get();
+                        StreamingOutput streamingOutput = output -> {
+                            fileResult.is().transferTo(output);
+                            output.flush();
+                        };
+
+                        return Response.status(200)
+                                .header("Content-Disposition", "inline; attachment; filename=" + fileResult.filename())
+                                .header("Content-Type", new Tika().detect(fileResult.filename())).entity(streamingOutput).build();
+                    } else {
+                        return Response.status(404).build();
+                    }
+                }
+                else{
+                    return cacheFileService.streamFile(institutionName, collectionName, assetGuid, fileName, user, true);
+                }
             }
             catch (Exception e) {
                 logger.error(e.toString());
