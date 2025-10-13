@@ -1,7 +1,9 @@
 package dk.northtech.dasscofileproxy.webapi.v1;
 
+import dk.northtech.dasscofileproxy.assets.AssetServiceProperties;
 import dk.northtech.dasscofileproxy.domain.DasscoFile;
 import dk.northtech.dasscofileproxy.domain.User;
+import dk.northtech.dasscofileproxy.domain.exceptions.DasscoUnauthorizedException;
 import dk.northtech.dasscofileproxy.service.CacheFileService;
 import dk.northtech.dasscofileproxy.service.FileService;
 import dk.northtech.dasscofileproxy.webapi.UserMapper;
@@ -15,6 +17,7 @@ import org.apache.tika.Tika;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.net.URI;
 import java.util.List;
 import java.util.Optional;
 
@@ -26,13 +29,15 @@ public class Files {
     private static final Logger logger = LoggerFactory.getLogger(Files.class);
     private final CacheFileService cacheFileService;
     private FileService fileService;
+    private final AssetServiceProperties assetServiceProperties;
     @Context
     UriInfo uriInfo;
 
     @Inject
-    public Files(CacheFileService cacheFileService, FileService fileService) {
+    public Files(CacheFileService cacheFileService, FileService fileService, AssetServiceProperties assetServiceProperties) {
         this.cacheFileService = cacheFileService;
         this.fileService = fileService;
+        this.assetServiceProperties = assetServiceProperties;
     }
 
 
@@ -50,30 +55,32 @@ public class Files {
     ) {
         final String path = uriInfo.getPathParameters().getFirst("path");
         logger.info("Getting file from collection, {}, on path: {}", collection, path);
-        if (securityContext == null) {
-            return Response.status(401).build();
-        }
+        User user = securityContext.getUserPrincipal() == null ? new User("anonymous") : UserMapper.from(securityContext);
+        try{
+            if (!noCache){
+                Optional<FileService.FileResult> file = cacheFileService.getFile(institution, collection, guid, path, user);
+                logger.info("got file");
 
-        if (!noCache){
-            Optional<FileService.FileResult> file = cacheFileService.getFile(institution, collection, guid, path, UserMapper.from(securityContext));
-            logger.info("got file");
+                if (file.isPresent()) {
+                    FileService.FileResult fileResult = file.get();
+                    StreamingOutput streamingOutput = output -> {
+                        fileResult.is().transferTo(output);
+                        output.flush();
+                    };
 
-            if (file.isPresent()) {
-//            try {
-                FileService.FileResult fileResult = file.get();
-                StreamingOutput streamingOutput = output -> {
-                    fileResult.is().transferTo(output);
-                    output.flush();
-                };
-
-                return Response.status(200)
-                        .header("Content-Disposition", "attachment; filename=" + fileResult.filename())
-                        .header("Content-Type", new Tika().detect(fileResult.filename())).entity(streamingOutput).build();
+                    return Response.status(200)
+                            .header("Content-Disposition", "attachment; filename=" + fileResult.filename())
+                            .header("Content-Type", new Tika().detect(fileResult.filename())).entity(streamingOutput).build();
+                } else {
+                    return Response.status(404).build();
+                }
             } else {
-                return Response.status(404).build();
+                return cacheFileService.streamFile(institution, collection, guid, path, user, false);
             }
-        } else {
-            return cacheFileService.streamFile(institution, collection, guid, path, UserMapper.from(securityContext), false);
+        }
+        catch (DasscoUnauthorizedException e) {
+            String redirectUrl = assetServiceProperties.rootUrl() + "/detailed-view/" + guid;
+            return Response.status(Response.Status.TEMPORARY_REDIRECT).location(URI.create(redirectUrl)).build();
         }
     }
 

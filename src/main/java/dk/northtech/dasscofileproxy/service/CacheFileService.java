@@ -12,6 +12,7 @@ import dk.northtech.dasscofileproxy.domain.FileSyncStatus;
 import dk.northtech.dasscofileproxy.domain.User;
 import dk.northtech.dasscofileproxy.domain.exceptions.DasscoIllegalActionException;
 import dk.northtech.dasscofileproxy.domain.exceptions.DasscoNotFoundException;
+import dk.northtech.dasscofileproxy.domain.exceptions.DasscoUnauthorizedException;
 import dk.northtech.dasscofileproxy.repository.FileCacheRepository;
 import dk.northtech.dasscofileproxy.repository.FileRepository;
 import jakarta.inject.Inject;
@@ -71,7 +72,7 @@ public class CacheFileService {
     public Optional<FileService.FileResult> getFile(String institution, String collection, String assetGuid, String filePath, User user) {
         logger.info("validating access");
         if (!validateAccess(user, assetGuid)) {
-            throw new DasscoIllegalActionException("User does not have access");
+            throw new DasscoUnauthorizedException("User does not have access");
         }
         logger.info("finished validating access");
         //Check cache first
@@ -115,7 +116,7 @@ public class CacheFileService {
     public Response streamFile(String institution, String collection, String assetGuid, String filePath, User user, boolean inline){
         logger.info("validating access");
         if (!validateAccess(user, assetGuid)) {
-            throw new DasscoIllegalActionException("User does not have access");
+            throw new DasscoUnauthorizedException("User does not have access");
         }
         logger.info("finished validating access");
 
