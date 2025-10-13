@@ -282,6 +282,7 @@ public class CacheFileService {
             file.ifPresent(f -> {
                 Path outputPath = outputDir.resolve(fileName);
                 try {
+                    Files.createDirectories(outputPath);
                     Files.copy(f.is(), outputPath, StandardCopyOption.REPLACE_EXISTING);
                 } catch (IOException e) {
                     throw new RuntimeException(e);
