@@ -33,6 +33,15 @@
             </column>
         </addColumn>
     </changeSet>
+
+    <changeSet id="3.5.0:ADD_THUMBNAIL_FLAG" author="Elias Z. Laghouila">
+        <addColumn tableName="file">
+            <column name="has_thumbnail" type="bool" defaultValue="false">
+                <constraints nullable="false"/>
+            </column>
+        </addColumn>
+    </changeSet>
+
     <changeSet id="VERSION-3.5.0" author="Thomas Skov Bornerup" context="default">
         <tagDatabase tag="VERSION-3.5.0"/>
     </changeSet>

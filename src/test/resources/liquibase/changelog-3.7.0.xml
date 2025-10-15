@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.17.xsd">
+
+
+    <changeSet id="3.7.0:CREATE_SAVED_QUERIES" author="Magnus Granno" context="default">
+        <createTable tableName="saved_query">
+            <column name="username" type="text">
+                <constraints nullable="false"/>
+            </column>
+
+            <column name="name" type="text">
+                <constraints nullable="false"/>
+            </column>
+
+            <column name="query" type="JSONB">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+    </changeSet>
+
+    <changeSet id="3.7.0:CREATE_SAVED_QUERIES_FKEYS" author="Magnus Granno">
+        <addForeignKeyConstraint
+                baseTableName="saved_query"
+                baseColumnNames="username"
+                referencedTableName="dassco_user"
+                referencedColumnNames="username"
+                onDelete="CASCADE"
+                constraintName="fk_saved_query_user"/>
+    </changeSet>
+
+    <changeSet id="3.7.0:CREATE_SAVED_QUERIES_INDEX" author="Magnus Granno">
+        <createIndex
+                indexName="idx_saved_query_username"
+                tableName="saved_query">
+            <column name="username"/>
+        </createIndex>
+    </changeSet>
+    <changeSet id="3.7.0:CREATE_SAVED_QUERIES_UNIQUE_CONSTRAINT" author="Magnus Granno">
+        <addUniqueConstraint
+                tableName="saved_query"
+                columnNames="username, name"
+                constraintName="uq_saved_query_username_name"/>
+    </changeSet>
+
+
+    <changeSet id="VERSION-3.7.0" author="Magnus Granno" context="default">
+        <tagDatabase tag="VERSION-3.7.0"/>
+    </changeSet>
+</databaseChangeLog>

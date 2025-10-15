@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.17.xsd">
+    <changeSet id="3.8.0:DROP-OLD-ASSET-GROUP-FKS" author="Magnus Granno">
+        <dropForeignKeyConstraint
+                baseTableName="asset_group_access"
+                constraintName="fk_asset_group_access__asset_group"/>
+        <dropForeignKeyConstraint
+                baseTableName="asset_group_access"
+                constraintName="fk_asset_group_access__dassco_user"/>
+
+        <dropForeignKeyConstraint
+                baseTableName="asset_group_asset"
+                constraintName="fk_asset_group_asset__asset_group"/>
+        <dropForeignKeyConstraint
+                baseTableName="asset_group_asset"
+                constraintName="fk_asset_group_asset__asset"/>
+    </changeSet>
+
+    <changeSet id="3.8.0:RECREATE-ASSET-GROUP-FKS-CASCADE" author="Magnus Granno">
+
+        <!-- asset_group_access → asset_group -->
+        <!-- When asset_group is deleted, remove asset_group_access row -->
+        <addForeignKeyConstraint
+                baseTableName="asset_group_access"
+                baseColumnNames="asset_group_id"
+                constraintName="fk_asset_group_access__asset_group"
+                referencedTableName="asset_group"
+                referencedColumnNames="asset_group_id"
+                onDelete="CASCADE"/>
+
+        <!-- asset_group_access → dassco_user -->
+        <!-- When user is deleted, remove asset_group_access row -->
+        <addForeignKeyConstraint
+                baseTableName="asset_group_access"
+                baseColumnNames="dassco_user_id"
+                constraintName="fk_asset_group_access__dassco_user"
+                referencedTableName="dassco_user"
+                referencedColumnNames="dassco_user_id"
+                onDelete="CASCADE"/>
+
+        <!-- asset_group_asset → asset_group -->
+        <!-- When asset_group is deleted, remove asset_group_asset row -->
+        <addForeignKeyConstraint
+                baseTableName="asset_group_asset"
+                baseColumnNames="asset_group_id"
+                constraintName="fk_asset_group_asset__asset_group"
+                referencedTableName="asset_group"
+                referencedColumnNames="asset_group_id"
+                onDelete="CASCADE"/>
+
+        <!-- asset_group_asset → asset -->
+        <!-- When asset is deleted, remove asset_group_asset row -->
+        <addForeignKeyConstraint
+                baseTableName="asset_group_asset"
+                baseColumnNames="asset_guid"
+                constraintName="fk_asset_group_asset__asset"
+                referencedTableName="asset"
+                referencedColumnNames="asset_guid"
+                onDelete="CASCADE"/>
+    </changeSet>
+
+    <changeSet id="VERSION-3.8.0" author="Magnus Granno" context="default">
+        <tagDatabase tag="VERSION-3.8.0"/>
+    </changeSet>
+</databaseChangeLog>
