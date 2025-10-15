@@ -100,8 +100,8 @@ public class FileServiceTest {
         Directory directory1 = httpShareService.createDirectory(directory);
         fileService.createShareFolder(new MinimalAsset("testUpload", Set.of("p"), "i1", "c1"));
 //        httpShareService.createHttpShare(new CreationObj(Arrays.asList(new MinimalAsset("testUpload", "testUploadP", "i1", "c1")),Arrays.asList("Bazviolas"), 10), new User());
-        FileUploadResult upload = fileService.upload(new ByteArrayInputStream("Et håndtag i form af en springende hjort".getBytes()), 1475383058, new FileUploadData("testUpload", "i1", "c1", "/folder/Bibelen 2 Del 1 - Det Moderne testamente.txt", 1, "text/plain"));
-        FileUploadResult upload2 = fileService.upload(new ByteArrayInputStream("Et håndtag i form af en springende hjort".getBytes()), 1475383058, new FileUploadData("testUpload", "i1", "c1", "/folder/Bibelen 2 Del 2 - Genkomst.txt", 9,"text/plain"));
+        FileUploadResult upload = fileService.upload(new ByteArrayInputStream("Et håndtag i form af en springende hjort".getBytes()), 1475383058, new FileUploadData("testUpload", "i1", "c1", "/folder/Bibelen 2 Del 1 - Det Moderne testamente.txt", 1, "text/plain"), false);
+        FileUploadResult upload2 = fileService.upload(new ByteArrayInputStream("Et håndtag i form af en springende hjort".getBytes()), 1475383058, new FileUploadData("testUpload", "i1", "c1", "/folder/Bibelen 2 Del 2 - Genkomst.txt", 9,"text/plain"), false);
         List<DasscoFile> testUpload = fileService.listFilesByAssetGuid("testUpload");
         assertThat(testUpload.size()).isEqualTo(2);
     }
@@ -114,8 +114,8 @@ public class FileServiceTest {
         Directory directory1 = httpShareService.createDirectory(directory);
         fileService.createShareFolder(new MinimalAsset("testDeleteFile", Set.of("p"), "i1", "c1"));
 //        httpShareService.createHttpShare(new CreationObj(Arrays.asList(new MinimalAsset("testUpload", "testUploadP", "i1", "c1")),Arrays.asList("Bazviolas"), 10), new User());
-        FileUploadResult upload = fileService.upload(new ByteArrayInputStream("Et håndtag i form af en springende hjort".getBytes()), 1475383058, new FileUploadData("testDeleteFile", "i1", "c1", "/folder/Bibelen 2 Del 1 - Det Moderne testamente.txt", 1,"text/plain"));
-        FileUploadResult upload2 = fileService.upload(new ByteArrayInputStream("Et håndtag i form af en springende hjort".getBytes()), 1475383058, new FileUploadData("testDeleteFile", "i1", "c1", "/folder/Bibelen 2 Del 2 - Genkomst.txt", 9,"text/plain"));
+        FileUploadResult upload = fileService.upload(new ByteArrayInputStream("Et håndtag i form af en springende hjort".getBytes()), 1475383058, new FileUploadData("testDeleteFile", "i1", "c1", "/folder/Bibelen 2 Del 1 - Det Moderne testamente.txt", 1,"text/plain"), false);
+        FileUploadResult upload2 = fileService.upload(new ByteArrayInputStream("Et håndtag i form af en springende hjort".getBytes()), 1475383058, new FileUploadData("testDeleteFile", "i1", "c1", "/folder/Bibelen 2 Del 2 - Genkomst.txt", 9,"text/plain"), false);
         fileService.deleteFile(new FileUploadData("testDeleteFile", "i1", "c1", "/folder/Bibelen 2 Del 1 - Det Moderne testamente.txt", 9,"text/plain"));
         List<DasscoFile> testUpload = fileService.listFilesByAssetGuid("testDeleteFile");
         assertThat(testUpload.size()).isEqualTo(2);
@@ -131,8 +131,8 @@ public class FileServiceTest {
         Directory directory1 = httpShareService.createDirectory(directory);
         fileService.createShareFolder(new MinimalAsset("testDeleteFolderFile", Set.of("p"), "i1", "c1"));
 //        httpShareService.createHttpShare(new CreationObj(Arrays.asList(new MinimalAsset("testUpload", "testUploadP", "i1", "c1")),Arrays.asList("Bazviolas"), 10), new User());
-        FileUploadResult upload = fileService.upload(new ByteArrayInputStream("Et håndtag i form af en springende hjort".getBytes()), 1475383058, new FileUploadData("testDeleteFolderFile", "i1", "c1", "/folder/Bibelen 2 Del 1 - Det Moderne testamente.txt", 1,"text/plain"));
-        FileUploadResult upload2 = fileService.upload(new ByteArrayInputStream("Et håndtag i form af en springende hjort".getBytes()), 1475383058, new FileUploadData("testDeleteFolderFile", "i1", "c1", "/folder/Bibelen 2 Del 2 - Genkomst.txt", 9,"text/plain"));
+        FileUploadResult upload = fileService.upload(new ByteArrayInputStream("Et håndtag i form af en springende hjort".getBytes()), 1475383058, new FileUploadData("testDeleteFolderFile", "i1", "c1", "/folder/Bibelen 2 Del 1 - Det Moderne testamente.txt", 1,"text/plain"), false);
+        FileUploadResult upload2 = fileService.upload(new ByteArrayInputStream("Et håndtag i form af en springende hjort".getBytes()), 1475383058, new FileUploadData("testDeleteFolderFile", "i1", "c1", "/folder/Bibelen 2 Del 2 - Genkomst.txt", 9,"text/plain"), false);
         fileService.deleteFile(new FileUploadData("testDeleteFolderFile", "i1", "c1", null, 9,"text/plain"));
         List<DasscoFile> testUpload = fileService.listFilesByAssetGuid("testDeleteFolderFile");
         assertThat(testUpload.size()).isEqualTo(2);
@@ -148,8 +148,8 @@ public class FileServiceTest {
         Directory directory1 = httpShareService.createDirectory(directory);
         fileService.createShareFolder(new MinimalAsset("testUploadOverwrite", Set.of("testUploadOverwriteP"), "i1", "c1"));
 //        httpShareService.createHttpShare(new CreationObj(Arrays.asList(new MinimalAsset("testUpload", "testUploadP", "i1", "c1")),Arrays.asList("Bazviolas"), 10), new User());
-        FileUploadResult upload = fileService.upload(new ByteArrayInputStream("Et håndtag i form af en springende hjort".getBytes()), 1475383058, new FileUploadData("testUploadOverwrite", "i1", "c1", "/folder/Bibelen 2 Del 1 - Det Moderne testamente.txt", 1,"text/plain"));
-        FileUploadResult upload2 = fileService.upload(new ByteArrayInputStream("Et håndtag i form af en springende hjort!".getBytes()), 1837465108, new FileUploadData("testUploadOverwrite", "i1", "c1", "/folder/Bibelen 2 Del 1 - Det Moderne testamente.txt", 9,"text/plain"));
+        FileUploadResult upload = fileService.upload(new ByteArrayInputStream("Et håndtag i form af en springende hjort".getBytes()), 1475383058, new FileUploadData("testUploadOverwrite", "i1", "c1", "/folder/Bibelen 2 Del 1 - Det Moderne testamente.txt", 1,"text/plain"), false);
+        FileUploadResult upload2 = fileService.upload(new ByteArrayInputStream("Et håndtag i form af en springende hjort!".getBytes()), 1837465108, new FileUploadData("testUploadOverwrite", "i1", "c1", "/folder/Bibelen 2 Del 1 - Det Moderne testamente.txt", 9,"text/plain"), false);
         System.out.println(upload.actual_crc());
         System.out.println(upload2.actual_crc());
         List<DasscoFile> testUpload = fileService.listFilesByAssetGuid("testUploadOverwrite");
@@ -170,13 +170,13 @@ public class FileServiceTest {
         Directory directory1 = httpShareService.createDirectory(directory);
         fileService.createShareFolder(new MinimalAsset("testUploadNotEnoughSpaceError", Set.of("testUploadNotEnoughSpaceErrorP"), "i1", "c1"));
 //        httpShareService.createHttpShare(new CreationObj(Arrays.asList(new MinimalAsset("testUpload", "testUploadP", "i1", "c1")),Arrays.asList("Bazviolas"), 10), new User());
-        FileUploadResult upload = fileService.upload(new ByteArrayInputStream("Et håndtag i form af en springende hjort".getBytes()), 1475383058, new FileUploadData("testUploadNotEnoughSpaceError", "i1", "c1", "/folder/The Kosst Amojan.txt", 1,"text/plain"));
+        FileUploadResult upload = fileService.upload(new ByteArrayInputStream("Et håndtag i form af en springende hjort".getBytes()), 1475383058, new FileUploadData("testUploadNotEnoughSpaceError", "i1", "c1", "/folder/The Kosst Amojan.txt", 1,"text/plain"), false);
         IllegalArgumentException illegalArgumentException =
                 assertThrows(IllegalArgumentException.class
                         , () -> fileService.upload(
                                 new ByteArrayInputStream("Tezttezttezt".getBytes())
                                 , 139372
-                                , new FileUploadData("testUploadNotEnoughSpaceError", "i1", "c1", "/The.Navidson.Record.1080p.BluRay.x264.AC3.erdatv.mp4", 10,null)));
+                                , new FileUploadData("testUploadNotEnoughSpaceError", "i1", "c1", "/The.Navidson.Record.1080p.BluRay.x264.AC3.erdatv.mp4", 10,null), false));
         assertThat(illegalArgumentException.getMessage()).isEqualTo("Total size of asset files exceeds allocated disk space");
         List<DasscoFile> testUpload = fileService.listFilesByAssetGuid("testUploadNotEnoughSpaceError");
         assertThat(testUpload.size()).isEqualTo(1);
@@ -185,9 +185,9 @@ public class FileServiceTest {
     public void testListFilesByGuid() {
         fileService.jdbi.withHandle(h -> {
             FileRepository attach = h.attach(FileRepository.class);
-            attach.insertFile(new DasscoFile(null, "a1", "/file.jpg", 13245L, 123, FileSyncStatus.NEW_FILE, "image/jpeg"));
-            attach.insertFile(new DasscoFile(null, "a2", "/test/tezt.txt", 13245L, 123, FileSyncStatus.NEW_FILE, null));
-            attach.insertFile(new DasscoFile(null, "a2", "/test/tezt2.txt", 10000L, 12332, FileSyncStatus.NEW_FILE, "text/plain"));
+            attach.insertFile(new DasscoFile(null, "a1", "/file.jpg", 13245L, 123, FileSyncStatus.NEW_FILE, "image/jpeg", false));
+            attach.insertFile(new DasscoFile(null, "a2", "/test/tezt.txt", 13245L, 123, FileSyncStatus.NEW_FILE, null, false));
+            attach.insertFile(new DasscoFile(null, "a2", "/test/tezt2.txt", 10000L, 12332, FileSyncStatus.NEW_FILE, "text/plain", false));
             return h;
         }).close();
         List<DasscoFile> result = fileService.listFilesByAssetGuid("a1");

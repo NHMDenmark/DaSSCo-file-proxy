@@ -303,7 +303,7 @@ public class FileService {
         }).close();
     }
 
-    public FileUploadResult upload(InputStream file, long crc, FileUploadData fileUploadData) {
+    public FileUploadResult upload(InputStream file, long crc, FileUploadData fileUploadData, boolean hasThumbnail) {
         fileUploadData.validate();
         if (fileUploadData.filePathAndName().toLowerCase().replace("/", "").startsWith("parents")) {
             throw new IllegalArgumentException("File path cannot start with 'parent'");
@@ -343,7 +343,7 @@ public class FileService {
                     long fileSize = tempFile.length();
                     // Move to actual location and overwrite existing file if present.
                     Files.move(tempFile.toPath(), file2.toPath(), StandardCopyOption.REPLACE_EXISTING);
-                    fileRepository.insertFile(new DasscoFile(null, fileUploadData.asset_guid(), fileUploadData.getPath(), fileSize, value, FileSyncStatus.NEW_FILE, fileUploadData.mime_type()));
+                    fileRepository.insertFile(new DasscoFile(null, fileUploadData.asset_guid(), fileUploadData.getPath(), fileSize, value, FileSyncStatus.NEW_FILE, fileUploadData.mime_type(), hasThumbnail));
                 }
 
             } catch (IOException e) {
@@ -634,6 +634,9 @@ public class FileService {
             logger.error(e.getMessage());
         }
         return false;
+    }
+    public Optional<DasscoFile> getDasscoFileThumbnailForGuid(String assetGuid) {
+        return this.jdbi.onDemand(FileRepository.class).getFileThumbnailByAssetGuid(assetGuid);
     }
 
     public List<DasscoFile> getDasscoFiles(List<String> assets, User user, String guid) {

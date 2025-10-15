@@ -72,6 +72,7 @@ public class AssetFiles {
             , @PathParam("assetGuid") String assetGuid
             , @QueryParam("crc") long crc
             , @QueryParam("file_size_mb") int fileSize
+            , @QueryParam("has-thumbnail") @DefaultValue("false") boolean hasThumbnail
             , @Context SecurityContext securityContext
             , @Context HttpHeaders httpHeaders
             , InputStream file) {
@@ -90,7 +91,7 @@ public class AssetFiles {
             contentType = new Tika().detect(path);
         }
         FileUploadData fileUploadData = new FileUploadData(assetGuid, institutionName, collectionName, path, fileSize,contentType);
-        FileUploadResult upload = fileService.upload(file, crc, fileUploadData);
+        FileUploadResult upload = fileService.upload(file, crc, fileUploadData, hasThumbnail);
         return Response.status(upload.getResponseCode()).entity(upload).build();
     }
 

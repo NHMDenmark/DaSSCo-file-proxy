@@ -12,6 +12,7 @@ import dk.northtech.dasscofileproxy.domain.FileSyncStatus;
 import dk.northtech.dasscofileproxy.domain.User;
 import dk.northtech.dasscofileproxy.domain.exceptions.DasscoIllegalActionException;
 import dk.northtech.dasscofileproxy.domain.exceptions.DasscoNotFoundException;
+import dk.northtech.dasscofileproxy.domain.exceptions.DasscoUnauthorizedException;
 import dk.northtech.dasscofileproxy.repository.FileCacheRepository;
 import dk.northtech.dasscofileproxy.repository.FileRepository;
 import jakarta.inject.Inject;
@@ -71,7 +72,7 @@ public class CacheFileService {
     public Optional<FileService.FileResult> getFile(String institution, String collection, String assetGuid, String filePath, User user) {
         logger.info("validating access");
         if (!validateAccess(user, assetGuid)) {
-            throw new DasscoIllegalActionException("User does not have access");
+            throw new DasscoUnauthorizedException("User does not have access");
         }
         logger.info("finished validating access");
         //Check cache first
@@ -112,10 +113,10 @@ public class CacheFileService {
         }
     }
 
-    public Response streamFile(String institution, String collection, String assetGuid, String filePath, User user){
+    public Response streamFile(String institution, String collection, String assetGuid, String filePath, User user, boolean inline){
         logger.info("validating access");
         if (!validateAccess(user, assetGuid)) {
-            throw new DasscoIllegalActionException("User does not have access");
+            throw new DasscoUnauthorizedException("User does not have access");
         }
         logger.info("finished validating access");
 
@@ -141,7 +142,7 @@ public class CacheFileService {
             };
 
             return Response.ok(streamingOutput)
-                    .header("Content-Disposition", "attachment; filename=" + filePath + "/")
+                    .header("Content-Disposition", inline ? "inline; attachment; filename=" + filePath + "/" : "attachment; filename=" + filePath + "/")
                     .header("Content-Type", "image/png")
                     .build();
 
@@ -238,10 +239,14 @@ public class CacheFileService {
 //        var token = this.keycloakService.getAdminToken();
 
         try (HttpClient httpClient = HttpClient.newBuilder().build();) {
-            HttpRequest request = HttpRequest.newBuilder()
-                    .header("Authorization", "Bearer " + user.token).uri(new URI(this.assetServiceProperties.rootUrl() + "/api/v1/assets/readaccess?assetGuid=" + assetGuid))
+            HttpRequest.Builder requestBuilder = HttpRequest.newBuilder()
                     .POST(HttpRequest.BodyPublishers.noBody())
-                    .build();
+                    .uri(new URI(this.assetServiceProperties.rootUrl() + "/api/v1/assets/readaccess?assetGuid=" + assetGuid));
+            if(user.token != null) {
+                requestBuilder.header("Authorization", "Bearer " + user.token);
+            }
+
+            HttpRequest request = requestBuilder.build();
             HttpResponse<String> send = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
             if (send.statusCode() > 199 && send.statusCode() < 300) {
                 return true;
@@ -278,6 +283,7 @@ public class CacheFileService {
             file.ifPresent(f -> {
                 Path outputPath = outputDir.resolve(fileName);
                 try {
+                    Files.createDirectories(outputPath);
                     Files.copy(f.is(), outputPath, StandardCopyOption.REPLACE_EXISTING);
                 } catch (IOException e) {
                     throw new RuntimeException(e);

@@ -12,4 +12,10 @@ public class User {
     public String keycloakId;
     @Schema(description = "Role/s for the user", example = "ADMIN")
     public Set<String> roles = new HashSet<>();
+
+    public User() {}
+
+    public User(String username) {
+        this.username = username;
+    }
 }
