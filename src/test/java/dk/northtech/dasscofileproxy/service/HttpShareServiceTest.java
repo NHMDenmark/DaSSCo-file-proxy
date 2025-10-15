@@ -170,7 +170,7 @@ class HttpShareServiceTest {
         //simulate adding file to newly created asset...
         jdbi.withHandle(h -> {
             FileRepository attach = h.attach(FileRepository.class);
-            attach.insertFile(new DasscoFile(null, "deleteShare_1", "/teztific8", 100000L, 1234, false, FileSyncStatus.NEW_FILE,"null"));
+            attach.insertFile(new DasscoFile(null, "deleteShare_1", "/teztific8", 100000L, 1234, false, FileSyncStatus.NEW_FILE,"null", false));
             return h;
         });
 
@@ -179,7 +179,7 @@ class HttpShareServiceTest {
         jdbi.withHandle(h -> {
             FileRepository attach = h.attach(FileRepository.class);
             // ...checking out asset and adding additional files to it.
-            attach.insertFile(new DasscoFile(null, "deleteShare_1", "/test/asdf.pdf", 100000L, 1234, false, FileSyncStatus.NEW_FILE, "application/pdf"));
+            attach.insertFile(new DasscoFile(null, "deleteShare_1", "/test/asdf.pdf", 100000L, 1234, false, FileSyncStatus.NEW_FILE, "application/pdf", false));
             return h;
         });
 

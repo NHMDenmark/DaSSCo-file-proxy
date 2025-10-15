@@ -1,6 +1,7 @@
 package dk.northtech.dasscofileproxy.domain;
 
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.annotation.Nullable;
 import org.jdbi.v3.core.mapper.reflect.JdbiConstructor;
 
 public record DasscoFile(
@@ -18,9 +19,11 @@ public record DasscoFile(
         boolean deleteAfterSync,
         @Schema(description = "Sync status of the file", example = "SYNCHRONIZED")
         FileSyncStatus syncStatus,
-        String mime_type) {
+        String mime_type,
+        boolean has_thumbnail) {
+
     @JdbiConstructor
-    public DasscoFile(Long fileId, String assetGuid, String path, long sizeBytes, long crc, boolean deleteAfterSync, FileSyncStatus syncStatus, String mime_type) {
+    public DasscoFile(Long fileId, String assetGuid, String path, long sizeBytes, long crc, boolean deleteAfterSync, FileSyncStatus syncStatus, String mime_type, boolean has_thumbnail) {
         this.fileId = fileId;
         this.assetGuid = assetGuid;
         this.path = path;
@@ -29,13 +32,14 @@ public record DasscoFile(
         this.deleteAfterSync = deleteAfterSync;
         this.syncStatus = syncStatus;
         this.mime_type = mime_type;
+        this.has_thumbnail = has_thumbnail;
     }
 
     public String getWorkDirFilePath() {
         return "/assetfiles" + path;
     }
 
-    public DasscoFile(Long fileId, String assetGuid, String path, long sizeBytes, long crc, FileSyncStatus fileSyncStatus, String mime_type) {
-        this(fileId, assetGuid, path, sizeBytes, crc, false, fileSyncStatus, mime_type);
+    public DasscoFile(Long fileId, String assetGuid, String path, long sizeBytes, long crc, FileSyncStatus fileSyncStatus, String mime_type, boolean has_thumbnail) {
+        this(fileId, assetGuid, path, sizeBytes, crc, false, fileSyncStatus, mime_type, has_thumbnail);
     }
 }
