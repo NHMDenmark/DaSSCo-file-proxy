@@ -30,7 +30,7 @@ public interface FileRepository {
     @SqlQuery("SELECT * FROM file WHERE path = :path AND delete_after_sync = FALSE ")
     DasscoFile getFilesByAssetPath(@Bind String path);
 
-    @SqlQuery("SELECT * FROM file WHERE asset_guid = :assetGuid and (has_thumbnail is true or size_bytes <= 200000) order by has_thumbnail DESC LIMIT 1")
+    @SqlQuery("SELECT * FROM file WHERE asset_guid = :assetGuid and (has_thumbnail is true or size_bytes <= 1000000) order by has_thumbnail DESC LIMIT 1")
     Optional<DasscoFile> getFileThumbnailByAssetGuid(String assetGuid);
 
     @SqlUpdate("DELETE FROM file WHERE asset_guid = :assetGuid")
