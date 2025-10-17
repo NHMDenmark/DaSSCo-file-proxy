@@ -98,4 +98,22 @@ public class Files {
 
         return Response.status(404).build();
     }
+
+    @GET
+    @Path("/assets/extern/{institutionName}/{collectionName}/{assetGuid}")
+    public Response getExternFileFromGuid(@PathParam("institutionName") String institutionName, @PathParam("collectionName") String collectionName, @PathParam("assetGuid") String assetGuid, @Context SecurityContext securityContext) {
+        User user = securityContext.getUserPrincipal() == null ? new User("anonymous") : UserMapper.from(securityContext);
+        Optional<DasscoFile> dasscoFile = this.fileService.getDasscoFileForGuid(assetGuid);
+        if (dasscoFile.isPresent()) {
+            String path = dasscoFile.get().path();
+            try {
+                String fileName = List.of(path.split("/")).getLast();
+                return cacheFileService.streamFile(institutionName, collectionName, assetGuid, fileName, user, true);
+            } catch (Exception e) {
+                logger.error(e.toString());
+            }
+        }
+
+        return Response.status(404).build();
+    }
 }

@@ -33,6 +33,11 @@ public interface FileRepository {
     @SqlQuery("SELECT * FROM file WHERE asset_guid = :assetGuid and (has_thumbnail is true or size_bytes <= 200000) order by has_thumbnail DESC LIMIT 1")
     Optional<DasscoFile> getFileThumbnailByAssetGuid(String assetGuid);
 
+
+    @SqlQuery("SELECT * FROM file WHERE asset_guid = :assetGuid AND has_thumbnail IS false ORDER BY file_id ASC LIMIT 1")
+    Optional<DasscoFile> getFileByAssetGuid(String assetGuid);
+
+
     @SqlUpdate("DELETE FROM file WHERE asset_guid = :assetGuid")
     void deleteFilesByAssetGuid(@Bind String assetGuid);
 
