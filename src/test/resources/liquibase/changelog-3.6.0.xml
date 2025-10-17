@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.17.xsd">
+
+
+    <changeSet id="3.6.0:CREATE_SPECIMEN_ROLE_RESTRICTION" author="Thomas Skov Bornerup" context="default">
+        <createTable tableName="specimen_role_restriction">
+            <column name="specimen_role_restriction_id" autoIncrement="true" type="int">
+                <constraints primaryKeyName="pk_specimen_role_restriction"
+                             primaryKey="true"/>
+            </column>
+            <column name="role" type="text">
+                <constraints nullable="false"/>
+            </column>
+            <column name="specimen_id" type="int">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+    </changeSet>
+
+    <changeSet id="3.6.0:CREATE_ASSET_ROLE_RESTRICTION" author="Thomas Skov Bornerup" context="default">
+        <createTable tableName="asset_role_restriction">
+            <column name="asset_role_restriction_id" autoIncrement="true" type="int">
+                <constraints primaryKeyName="pk_asset_role_restriction"
+                             primaryKey="true"/>
+            </column>
+            <column name="role" type="text">
+                <constraints nullable="false"/>
+            </column>
+            <column name="asset_guid" type="text">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+    </changeSet>
+
+    <changeSet id="3.6.0:CREATE_ROLE_RESTRICTION_FKEYS" author="Thomas Skov Bornerup">
+        <addForeignKeyConstraint baseTableName="specimen_role_restriction"
+                                 baseColumnNames="role"
+                                 constraintName="fk_specimen_role_restriction__role"
+                                 referencedTableName="role"
+                                 referencedColumnNames="role"/>
+        <addForeignKeyConstraint baseTableName="specimen_role_restriction"
+                                 baseColumnNames="specimen_id"
+                                 constraintName="fk_specimen_role_restriction__specimen"
+                                 referencedTableName="specimen"
+                                 referencedColumnNames="specimen_id"/>
+        <addForeignKeyConstraint baseTableName="asset_role_restriction"
+                                 baseColumnNames="role"
+                                 constraintName="fk_asset_role_restriction__role"
+                                 referencedTableName="role"
+                                 referencedColumnNames="role"/>
+        <addForeignKeyConstraint baseTableName="asset_role_restriction"
+                                 baseColumnNames="asset_guid"
+                                 constraintName="fk_asset_role_restriction__asset"
+                                 referencedTableName="asset"
+                                 referencedColumnNames="asset_guid"/>
+    </changeSet>
+
+
+    <!--    <changeSet id="VERSION-3.6.0" author="Thomas Skov Bornerup" context="default">-->
+<!--        <tagDatabase tag="VERSION-3.6.0"/>-->
+<!--    </changeSet>-->
+</databaseChangeLog>

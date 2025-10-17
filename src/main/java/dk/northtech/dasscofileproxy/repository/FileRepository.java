@@ -14,7 +14,7 @@ import java.util.Set;
 
 public interface FileRepository {
     static final String INSERT = """
-            INSERT INTO file(asset_guid, size_bytes, path, crc, mime_type) VALUES (:assetGuid, :sizeBytes, :path, :crc, :mime_type)
+            INSERT INTO file(asset_guid, size_bytes, path, crc, mime_type, has_thumbnail) VALUES (:assetGuid, :sizeBytes, :path, :crc, :mime_type, :has_thumbnail)
             """;
     @SqlUpdate(INSERT)
     @GetGeneratedKeys
@@ -30,7 +30,7 @@ public interface FileRepository {
     @SqlQuery("SELECT * FROM file WHERE path = :path AND delete_after_sync = FALSE ")
     DasscoFile getFilesByAssetPath(@Bind String path);
 
-    @SqlQuery("SELECT * FROM file WHERE asset_guid = :assetGuid and (has_thumbnail is true or size_bytes <= 200000) order by has_thumbnail DESC LIMIT 1")
+    @SqlQuery("SELECT * FROM file WHERE asset_guid = :assetGuid and (has_thumbnail is true or size_bytes <= 1000000) order by has_thumbnail DESC LIMIT 1")
     Optional<DasscoFile> getFileThumbnailByAssetGuid(String assetGuid);
 
 
