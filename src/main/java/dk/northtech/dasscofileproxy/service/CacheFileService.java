@@ -159,6 +159,10 @@ public class CacheFileService {
         cachedFiles.put(dasscoFile.path(), fileCacheByPath.orElseThrow(() -> new RuntimeException("Some thing went wrong :^(")));
     }
 
+    public void invalidateFileFromCache(String path) {
+        this.cachedFiles.invalidate(path);
+    }
+
     // WARNING WARNING WARNING
     // If we are going to run in more than one instance we should create a lock in the db so only one instance runs the eviction code.
     // We can use SELECT FOR UPDATE.

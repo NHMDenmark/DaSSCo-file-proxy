@@ -31,6 +31,7 @@ public class SFTPService {
     private final Jdbi jdbi;
 
     private final FileService fileService;
+    private final CacheFileService cacheFileService;
     private final ShareConfig shareConfig;
     private final AssetService assetService;
 
@@ -40,11 +41,12 @@ public class SFTPService {
     private final ObservationRegistry observationRegistry;
 
     @Inject
-    public SFTPService(SFTPConfig sftpConfig, FileService fileService, ShareConfig shareConfig, AssetService assetService,
+    public SFTPService(SFTPConfig sftpConfig, FileService fileService, CacheFileService cacheFileService, ShareConfig shareConfig, AssetService assetService,
                        Jdbi jdbi, ErdaDataSource erdaDataSource, ObservationRegistry observationRegistry) {
         this.sftpConfig = sftpConfig;
         this.assetService = assetService;
         this.fileService = fileService;
+        this.cacheFileService = cacheFileService;
         this.shareConfig = shareConfig;
         this.jdbi = jdbi;
         this.erdaDataSource = erdaDataSource;
@@ -120,6 +122,9 @@ public class SFTPService {
                     //handle files that have been deleted
                     List<String> filesToDelete = remoteFiles.stream().filter(f -> !uploadedFiles.contains(f)).collect(Collectors.toList());
                     erdaClient.deleteFiles(filesToDelete);
+                    for (String path : filesToDelete) {
+                        this.cacheFileService.invalidateFileFromCache(path);
+                    }
                     fileService.markFilesAsSynced(fullAsset.asset_guid);
                     if (assetService.completeAsset(new AssetUpdateRequest(new MinimalAsset(sharedAsset.assetGuid(), null, null, null), directory.syncWorkstation(), directory.syncPipeline(), directory.syncUser()))) {
                         //Clean up local dir and its metadata

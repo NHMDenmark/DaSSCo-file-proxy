@@ -9,10 +9,7 @@ import dk.northtech.dasscofileproxy.assets.AssetServiceProperties;
 import dk.northtech.dasscofileproxy.configuration.ShareConfig;
 import dk.northtech.dasscofileproxy.domain.*;
 import dk.northtech.dasscofileproxy.domain.exceptions.DasscoInternalErrorException;
-import dk.northtech.dasscofileproxy.repository.DirectoryRepository;
-import dk.northtech.dasscofileproxy.repository.FileRepository;
-import dk.northtech.dasscofileproxy.repository.SharedAssetRepository;
-import dk.northtech.dasscofileproxy.repository.UserAccessList;
+import dk.northtech.dasscofileproxy.repository.*;
 import dk.northtech.dasscofileproxy.webapi.model.FileUploadData;
 import dk.northtech.dasscofileproxy.webapi.model.FileUploadResult;
 import io.micrometer.observation.Observation;
@@ -271,6 +268,11 @@ public class FileService {
     public void deleteFilesMarkedAsDeleteByAsset(String asset_guid) {
         jdbi.withHandle(h -> {
             FileRepository attach = h.attach(FileRepository.class);
+            FileCacheRepository attachCache = h.attach(FileCacheRepository.class);
+            List<DasscoFile> files = attach.getFilesByAssetGuidMarkedForDelete(asset_guid);
+            if(!files.isEmpty()) {
+                attachCache.deleteFileCacheByFileIds(files.stream().map(DasscoFile::fileId).toList());
+            }
             attach.deleteFilesMarkedForDeletionByAssetGuid(asset_guid);
             return h;
         }).close();

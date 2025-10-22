@@ -34,6 +34,9 @@ public interface FileCacheRepository {
             """)
     void insertCache(@BindMethods CacheInfo cacheInfo);
 
+    @SqlUpdate("delete from file_cache where file_id in (<fileIds>)")
+    void deleteFileCacheByFileIds(@BindList List<Long> fileIds);
+
     @SqlUpdate("""
             UPDATE file_cache f SET expiration_datetime = :expirationDate 
             WHERE f.file_cache_id IN (<ids>)
