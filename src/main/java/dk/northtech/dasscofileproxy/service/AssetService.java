@@ -6,6 +6,7 @@ import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 import dk.northtech.dasscofileproxy.assets.AssetServiceProperties;
 import dk.northtech.dasscofileproxy.domain.*;
 import io.micrometer.observation.Observation;
@@ -22,6 +23,7 @@ import org.springframework.http.HttpEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
+import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
@@ -152,4 +154,47 @@ public class AssetService {
             return response.getBody();
         });
     }
+
+    public void addAssetChange(AssetChange assetChange){
+        var token = this.keycloakService.getAdminToken();
+        try {
+            Gson gson = new GsonBuilder().excludeFieldsWithoutExposeAnnotation().create();
+            HttpRequest request = HttpRequest.newBuilder()
+                    .header("Authorization", "Bearer " + token)
+                    .header("Content-Type", "application/json")
+                    .uri(new URI(this.assetServiceProperties.rootUrl() + "/api/v1/event/change"))
+                    .POST(HttpRequest.BodyPublishers.ofString(gson.toJson(assetChange)))
+                    .build();
+            HttpClient httpClient = HttpClient.newBuilder().build();
+            HttpResponse httpResponse = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+            if (!(httpResponse.statusCode() > 199 && httpResponse.statusCode() < 300)) {
+                logger.warn("Failed to add asset change for directory %s, request failed with status code: %s".formatted(assetChange.directory_id(), httpResponse.statusCode()));
+            }
+
+        } catch (Exception e) {
+            logger.error("Failed to add asset change for directory %s".formatted(assetChange.directory_id()));
+            throw new RuntimeException(e);
+        }
+    }
+    /*public void syncAssetChange(Long directoryId, String asset_guid){
+        var token = this.keycloakService.getAdminToken();
+        try {
+            Gson gson = new GsonBuilder().excludeFieldsWithoutExposeAnnotation().create();
+            HttpRequest request = HttpRequest.newBuilder()
+                    .header("Authorization", "Bearer " + token)
+                    .header("Content-Type", "application/json")
+                    .uri(new URI(this.assetServiceProperties.rootUrl() + "/api/v1/event/change/sync/" + directoryId + "/" + asset_guid))
+                    .POST(HttpRequest.BodyPublishers.noBody())
+                    .build();
+            HttpClient httpClient = HttpClient.newBuilder().build();
+            HttpResponse httpResponse = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+            if (!(httpResponse.statusCode() > 199 && httpResponse.statusCode() < 300)) {
+                logger.warn("Failed to sync asset changes to an event for directory %s, request failed with status code: %s".formatted(directoryId, httpResponse.statusCode()));
+            }
+
+        } catch (Exception e) {
+            logger.error("FFailed to sync asset changes to an event for directory %s".formatted(directoryId));
+            throw new RuntimeException(e);
+        }
+    }*/
 }

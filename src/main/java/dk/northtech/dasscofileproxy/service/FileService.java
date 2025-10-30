@@ -22,7 +22,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.web.util.UriUtils;
 
-import java.awt.*;
 import java.io.*;
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -32,6 +31,7 @@ import java.nio.file.*;
 import java.security.SecureRandom;
 import java.util.*;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.util.zip.CRC32;
@@ -305,7 +305,7 @@ public class FileService {
         }).close();
     }
 
-    public FileUploadResult upload(InputStream file, long crc, FileUploadData fileUploadData, boolean hasThumbnail) {
+    public FileUploadResult upload(InputStream file, long crc, FileUploadData fileUploadData, boolean hasThumbnail, String keycloakId) {
         fileUploadData.validate();
         if (fileUploadData.filePathAndName().toLowerCase().replace("/", "").startsWith("parents")) {
             throw new IllegalArgumentException("File path cannot start with 'parent'");
@@ -346,6 +346,18 @@ public class FileService {
                     // Move to actual location and overwrite existing file if present.
                     Files.move(tempFile.toPath(), file2.toPath(), StandardCopyOption.REPLACE_EXISTING);
                     fileRepository.insertFile(new DasscoFile(null, fileUploadData.asset_guid(), fileUploadData.getPath(), fileSize, value, FileSyncStatus.NEW_FILE, fileUploadData.mime_type(), hasThumbnail));
+
+                    DirectoryRepository directoryRepository = h.attach(DirectoryRepository.class);
+                    List<Directory> writeableDirectoriesByAsset = directoryRepository.getWriteableDirectoriesByAsset(fileUploadData.asset_guid());
+                    if(writeableDirectoriesByAsset.size() == 1) {
+                        var dasscoUserId = h.createQuery("select dassco_user_id from dassco_user where keycloak_id = :keycloakId").bind("keycloakId", keycloakId).mapTo(Long.class).findOne();
+                        var directoryId = writeableDirectoriesByAsset.getFirst().directoryId();
+                        if(directoryId != null && dasscoUserId.isPresent()) {
+                            this.assetService.addAssetChange(new AssetChange(null, markForDeletion ? "file_updated" : "file_added", dasscoUserId.get(), directoryId, fileUploadData.asset_guid(), null));
+                        }else{
+                            logger.warn("directory_id (%s) or dassco_user_id (%s) not found".formatted(directoryId, dasscoUserId.orElse(null)));
+                        }
+                    }
                 }
 
             } catch (IOException e) {
@@ -502,14 +514,19 @@ public class FileService {
         }).close();
     }
 
-    public boolean deleteFile(FileUploadData fileUploadData) {
+    public boolean deleteFile(FileUploadData fileUploadData, String keycloakId) {
         File file = new File(shareConfig.mountFolder() + fileUploadData.getAssetFilePath());
+        AtomicReference<Long> directoryId = new AtomicReference<>(null);
+        AtomicReference<Long> dasscoUserId = new AtomicReference<>(null);
         jdbi.withHandle(h -> {
             DirectoryRepository directoryRepository = h.attach(DirectoryRepository.class);
             List<Directory> writeableDirectoriesByAsset = directoryRepository.getWriteableDirectoriesByAsset(fileUploadData.asset_guid());
             if (writeableDirectoriesByAsset.size() != 1) {
                 throw new IllegalArgumentException("No writable directory was found for asset");
             }
+            directoryId.set(writeableDirectoriesByAsset.getFirst().directoryId());
+            var id = h.createQuery("select dassco_user_id from dassco_user where keycloak_id = :keycloakId").bind("keycloakId", keycloakId).mapTo(Long.class).findOne();
+            id.ifPresent(dasscoUserId::set);
             return h;
         }).close();
         System.out.println(file);
@@ -547,6 +564,11 @@ public class FileService {
                                 String normalisedPath = file1.toString().replace('\\', '/');
                                 if (pathFileMap.containsKey(normalisedPath)) {
                                     markDasscoFileToBeDeleted(pathFileMap.get(normalisedPath).path());
+                                    if(directoryId.get() != null && dasscoUserId.get() != null) {
+                                        this.assetService.addAssetChange(new AssetChange(null, "file_deleted", dasscoUserId.get(), directoryId.get(), fileUploadData.asset_guid(), null));
+                                    }else{
+                                        logger.warn("directory_id (%s) or dassco_user_id (%s) not found".formatted(directoryId.get(), dasscoUserId.get()));
+                                    }
                                 }
                             }
                         });
@@ -558,6 +580,12 @@ public class FileService {
             String normalisedPath = file.toString().replace('\\', '/');
             if (pathFileMap.containsKey(normalisedPath)) {
                 markDasscoFileToBeDeleted(pathFileMap.get(normalisedPath).path());
+                if(directoryId.get() != null && dasscoUserId.get() != null) {
+                    this.assetService.addAssetChange(new AssetChange(null, "file_deleted", dasscoUserId.get(), directoryId.get(), fileUploadData.asset_guid(), null));
+                }
+                else{
+                    logger.warn("directory_id (%s) or dassco_user_id (%s) not found".formatted(directoryId.get(), dasscoUserId.get()));
+                }
             }
         }
         return true;

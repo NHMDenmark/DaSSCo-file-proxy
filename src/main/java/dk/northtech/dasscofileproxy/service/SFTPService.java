@@ -126,7 +126,7 @@ public class SFTPService {
                         this.cacheFileService.invalidateFileFromCache(path);
                     }
                     fileService.markFilesAsSynced(fullAsset.asset_guid);
-                    if (assetService.completeAsset(new AssetUpdateRequest(new MinimalAsset(sharedAsset.assetGuid(), null, null, null), directory.syncWorkstation(), directory.syncPipeline(), directory.syncUser()))) {
+                    if (assetService.completeAsset(new AssetUpdateRequest(new MinimalAsset(sharedAsset.assetGuid(), null, null, null), directory.syncWorkstation(), directory.syncPipeline(), directory.syncUser(), fullAsset.asset_guid, directory.directoryId()))) {
                         //Clean up local dir and its metadata
                         fileService.deleteDirectory(directory.directoryId());
                         fileService.removeShareFolder(directory);

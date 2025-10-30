@@ -91,7 +91,7 @@ public class AssetFiles {
             contentType = new Tika().detect(path);
         }
         FileUploadData fileUploadData = new FileUploadData(assetGuid, institutionName, collectionName, path, fileSize,contentType);
-        FileUploadResult upload = fileService.upload(file, crc, fileUploadData, hasThumbnail);
+        FileUploadResult upload = fileService.upload(file, crc, fileUploadData, hasThumbnail, user.keycloakId);
         return Response.status(upload.getResponseCode()).entity(upload).build();
     }
 
@@ -170,7 +170,7 @@ public class AssetFiles {
         User user = UserMapper.from(securityContext);
         final String path
                 = uriInfo.getPathParameters().getFirst("path");
-        boolean deleted = fileService.deleteFile(new FileUploadData(assetGuid, institutionName, collectionName, path, 0,null));
+        boolean deleted = fileService.deleteFile(new FileUploadData(assetGuid, institutionName, collectionName, path, 0,null), user.keycloakId);
         return Response.status(deleted ? 204 : 404).build();
     }
 
@@ -188,7 +188,7 @@ public class AssetFiles {
             , @PathParam("assetGuid") String assetGuid
             , @Context SecurityContext securityContext) {
         User user = UserMapper.from(securityContext);
-        boolean deleted = fileService.deleteFile(new FileUploadData(assetGuid, institutionName, collectionName, null, 0,null));
+        boolean deleted = fileService.deleteFile(new FileUploadData(assetGuid, institutionName, collectionName, null, 0,null), user.keycloakId);
         return Response.status(deleted ? 204 : 404).build();
     }
 
