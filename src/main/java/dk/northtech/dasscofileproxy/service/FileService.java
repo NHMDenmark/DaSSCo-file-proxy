@@ -353,7 +353,7 @@ public class FileService {
                         var dasscoUserId = h.createQuery("select dassco_user_id from dassco_user where keycloak_id = :keycloakId").bind("keycloakId", keycloakId).mapTo(Long.class).findOne();
                         var directoryId = writeableDirectoriesByAsset.getFirst().directoryId();
                         if(directoryId != null && dasscoUserId.isPresent()) {
-                            this.assetService.addAssetChange(new AssetChange(null, markForDeletion ? "file_updated" : "file_added", dasscoUserId.get(), directoryId, fileUploadData.asset_guid(), null));
+                            this.assetService.addAssetChange(new AssetChange(null, markForDeletion ? "FILE_UPDATED" : "FILE_ADDED", dasscoUserId.get(), directoryId, fileUploadData.asset_guid(), null));
                         }else{
                             logger.warn("directory_id (%s) or dassco_user_id (%s) not found".formatted(directoryId, dasscoUserId.orElse(null)));
                         }
@@ -565,7 +565,7 @@ public class FileService {
                                 if (pathFileMap.containsKey(normalisedPath)) {
                                     markDasscoFileToBeDeleted(pathFileMap.get(normalisedPath).path());
                                     if(directoryId.get() != null && dasscoUserId.get() != null) {
-                                        this.assetService.addAssetChange(new AssetChange(null, "file_deleted", dasscoUserId.get(), directoryId.get(), fileUploadData.asset_guid(), null));
+                                        this.assetService.addAssetChange(new AssetChange(null, "FILE_DELETED", dasscoUserId.get(), directoryId.get(), fileUploadData.asset_guid(), null));
                                     }else{
                                         logger.warn("directory_id (%s) or dassco_user_id (%s) not found".formatted(directoryId.get(), dasscoUserId.get()));
                                     }
@@ -581,7 +581,7 @@ public class FileService {
             if (pathFileMap.containsKey(normalisedPath)) {
                 markDasscoFileToBeDeleted(pathFileMap.get(normalisedPath).path());
                 if(directoryId.get() != null && dasscoUserId.get() != null) {
-                    this.assetService.addAssetChange(new AssetChange(null, "file_deleted", dasscoUserId.get(), directoryId.get(), fileUploadData.asset_guid(), null));
+                    this.assetService.addAssetChange(new AssetChange(null, "FILE_DELETED", dasscoUserId.get(), directoryId.get(), fileUploadData.asset_guid(), null));
                 }
                 else{
                     logger.warn("directory_id (%s) or dassco_user_id (%s) not found".formatted(directoryId.get(), dasscoUserId.get()));
