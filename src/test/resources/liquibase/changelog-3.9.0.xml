@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.17.xsd">
+
+    <changeSet id="3.9.0:CREATE_ASSET_CHANGE" author="EZL">
+        <createTable tableName="asset_change">
+            <column name="asset_change_id" type="int" autoIncrement="true">
+                <constraints primaryKey="true" primaryKeyName="pk_asset_change"/>
+            </column>
+            <column name="change" type="text">
+                <constraints nullable="false"/>
+            </column>
+            <column name="dassco_user_id" type="int">
+                <constraints nullable="false"/>
+            </column>
+            <column name="directory_id" type="bigint">
+                <constraints nullable="false"
+                             foreignKeyName="fk_asset_change__directories"
+                             referencedTableName="directories"
+                             referencedColumnNames="directory_id"
+                             deleteCascade="true"
+                />
+            </column>
+            <column name="asset_guid" type="text">
+                <constraints nullable="false"/>
+            </column>
+            <column name="timestamp" type="timestamp" defaultValue="now()">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+    </changeSet>
+    <changeSet id="3.9.0:UPDATE_EVENT_CHANGE_LIST" author="EZL">
+        <addColumn tableName="event">
+            <column name="change_list" type="text[]">
+                <constraints nullable="true"/>
+            </column>
+        </addColumn>
+    </changeSet>
+
+    <changeSet id="VERSION-3.9.0" author="EZL" context="default">
+        <tagDatabase tag="VERSION-3.9.0"/>
+    </changeSet>
+</databaseChangeLog>
