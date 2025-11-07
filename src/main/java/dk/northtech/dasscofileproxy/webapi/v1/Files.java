@@ -85,6 +85,9 @@ public class Files {
     }
 
     @GET
+    @Operation(summary = "Get Asset Thumbnail (without login)", description = """
+    Gets the thumbnail for the given asset for external users. This can be called without a token.
+    """)
     @Path("/assets/{institutionName}/{collectionName}/{assetGuid}/thumbnail")
     public Response getFileFromGuid(@PathParam("institutionName") String institutionName, @PathParam("collectionName") String collectionName, @PathParam("assetGuid") String assetGuid, @Context SecurityContext securityContext, @QueryParam("no-cache") @DefaultValue("false") boolean noCache) {
         User user = securityContext.getUserPrincipal() == null ? new User("anonymous") : UserMapper.from(securityContext);
@@ -127,6 +130,9 @@ public class Files {
 
     @GET
     @Path("/assets/extern/{institutionName}/{collectionName}/{assetGuid}")
+    @Operation(summary = "Get Latest File From ERDA as External (without login)", description = """
+    Gets the latest file uploaded to ERDA for the given asset for external users. This can be called without a token.
+    """)
     public Response getExternFileFromGuid(@PathParam("institutionName") String institutionName, @PathParam("collectionName") String collectionName, @PathParam("assetGuid") String assetGuid, @Context SecurityContext securityContext) {
         User user = securityContext.getUserPrincipal() == null ? new User("anonymous") : UserMapper.from(securityContext);
         Optional<DasscoFile> dasscoFile = this.fileService.getDasscoFileForGuid(assetGuid);
