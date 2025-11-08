@@ -112,7 +112,108 @@ public class CacheFileService {
             throw new RuntimeException(e);
         }
     }
+    /**
+     * Safe, standalone implementation that never throws and does not delegate
+     * to fileService.getFile(...).
+     *
+     * It checks local cache, consults metadata, and fetches from ERDA if necessary.
+     * Returns Optional.empty() when a file cannot be retrieved.
+     */
+    public Optional<FileService.FileResult> tryGetFile(
+            String institution,
+            String collection,
+            String assetGuid,
+            String filePath,
+            User user) {
 
+        try {
+            logger.debug("tryGetFile called for institution={}, collection={}, asset={}, filePath={}",
+                    institution, collection, assetGuid, filePath);
+
+            boolean anonymous = user == null
+                    || user.username == null
+                    || user.username.equalsIgnoreCase("anonymous");
+
+            if (!anonymous && !validateAccess(user, assetGuid)) {
+                logger.warn("Access denied for asset {}, user {}", assetGuid, user.username);
+                return Optional.empty();
+            }
+            String normalizedFilePath = filePath.startsWith("/") ? filePath.substring(1) : filePath;
+            String cachePath = Paths.get(
+                    shareConfig.cacheFolder(), institution, collection, assetGuid, normalizedFilePath
+            ).toString();
+            File cachedFile = new File(cachePath);
+
+            String assetPath = "/" + institution + "/" + collection + "/" + assetGuid + "/" + normalizedFilePath;
+
+            if (cachedFile.exists() && cachedFile.isFile() && cachedFile.canRead()) {
+                String mime = Files.probeContentType(cachedFile.toPath());
+                if (mime == null) mime = "application/octet-stream";
+                logger.debug("Serving cached file for {} from {}", assetGuid, cachePath);
+                return Optional.of(new FileService.FileResult(
+                        new FileInputStream(cachedFile),
+                        cachedFile.getName(),
+                        mime
+                ));
+            }
+
+            // 4. Attempt to locate metadata record (optional step; log only)
+            DasscoFile meta = null;
+            try {
+                FileRepository repo = jdbi.onDemand(FileRepository.class);
+                meta = repo.getFilesByAssetPath(assetPath);
+            } catch (Exception e) {
+                logger.warn("Metadata lookup failed for {}: {}", assetPath, e.getMessage());
+            }
+
+            if (meta == null) {
+                logger.warn("No metadata found for path {} — cannot fetch file", assetPath);
+                return Optional.empty();
+            }
+
+            if (meta.syncStatus() != FileSyncStatus.SYNCHRONIZED || meta.deleteAfterSync()) {
+                logger.warn("File {} not synchronized or flagged for deletion. Skipping.", assetPath);
+                return Optional.empty();
+            }
+
+            // 5. Attempt to fetch from ERDA and write to cache
+            try {
+                String erdaUrl = String.join("/",
+                        erdaProperties.httpURL(), institution, collection, assetGuid, normalizedFilePath);
+                erdaUrl = erdaUrl.replaceAll("/{2,}", "/");
+                logger.debug("Fetching asset from ERDA: {}", erdaUrl);
+
+                try (InputStream remote = fetchFromERDA(erdaUrl)) {
+                    if (remote == null) {
+                        logger.warn("fetchFromERDA returned null InputStream for {}", erdaUrl);
+                        return Optional.empty();
+                    }
+
+                    cachedFile.getParentFile().mkdirs();
+                    Files.copy(remote, cachedFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
+                    cacheFile(meta);
+                    logger.debug("Cached file written to {}", cachePath);
+                }
+
+                String mime = Files.probeContentType(cachedFile.toPath());
+                if (mime == null) mime = "application/octet-stream";
+                return Optional.of(new FileService.FileResult(
+                        new FileInputStream(cachedFile),
+                        cachedFile.getName(),
+                        mime
+                ));
+            } catch (Exception e) {
+                logger.warn("Error fetching or caching from ERDA for {}: {}", assetGuid, e.getMessage());
+                return Optional.empty();
+            }
+
+        } catch (Exception outer) {
+            // absolutely no exceptions escape this method
+            logger.error("Unexpected error in tryGetFile for asset {}, file {}: {}",
+                    assetGuid, filePath, outer.getMessage(), outer);
+            return Optional.empty();
+        }
+    }
     public Response streamFile(String institution, String collection, String assetGuid, String filePath, User user, boolean inline){
         logger.info("validating access");
         if (!validateAccess(user, assetGuid)) {
