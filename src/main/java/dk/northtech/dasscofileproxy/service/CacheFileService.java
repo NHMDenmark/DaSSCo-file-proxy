@@ -112,13 +112,7 @@ public class CacheFileService {
             throw new RuntimeException(e);
         }
     }
-    /**
-     * Safe, standalone implementation that never throws and does not delegate
-     * to fileService.getFile(...).
-     *
-     * It checks local cache, consults metadata, and fetches from ERDA if necessary.
-     * Returns Optional.empty() when a file cannot be retrieved.
-     */
+
     public Optional<FileService.FileResult> tryGetFile(
             String institution,
             String collection,
@@ -127,14 +121,7 @@ public class CacheFileService {
             User user) {
 
         try {
-            logger.debug("tryGetFile called for institution={}, collection={}, asset={}, filePath={}",
-                    institution, collection, assetGuid, filePath);
-
-            boolean anonymous = user == null
-                    || user.username == null
-                    || user.username.equalsIgnoreCase("anonymous");
-
-            if (!anonymous && !validateAccess(user, assetGuid)) {
+            if (!validateAccess(user, assetGuid)) {
                 logger.warn("Access denied for asset {}, user {}", assetGuid, user.username);
                 return Optional.empty();
             }
@@ -149,7 +136,6 @@ public class CacheFileService {
             if (cachedFile.exists() && cachedFile.isFile() && cachedFile.canRead()) {
                 String mime = Files.probeContentType(cachedFile.toPath());
                 if (mime == null) mime = "application/octet-stream";
-                logger.debug("Serving cached file for {} from {}", assetGuid, cachePath);
                 return Optional.of(new FileService.FileResult(
                         new FileInputStream(cachedFile),
                         cachedFile.getName(),
@@ -157,7 +143,6 @@ public class CacheFileService {
                 ));
             }
 
-            // 4. Attempt to locate metadata record (optional step; log only)
             DasscoFile meta = null;
             try {
                 FileRepository repo = jdbi.onDemand(FileRepository.class);
@@ -208,7 +193,6 @@ public class CacheFileService {
             }
 
         } catch (Exception outer) {
-            // absolutely no exceptions escape this method
             logger.error("Unexpected error in tryGetFile for asset {}, file {}: {}",
                     assetGuid, filePath, outer.getMessage(), outer);
             return Optional.empty();
@@ -242,9 +226,13 @@ public class CacheFileService {
                 }
             };
 
+            String disposition = inline
+                    ? "inline; filename=\"" + filePath + "\""
+                    : "attachment; filename=\"" + filePath + "\"";
+
             return Response.ok(streamingOutput)
-                    .header("Content-Disposition", inline ? "inline; attachment; filename=" + filePath + "/" : "attachment; filename=" + filePath + "/")
-                    .header("Content-Type", "image/png")
+                    .header("Content-Disposition", disposition)
+                    .header("Content-Type", "application/octet-stream")
                     .build();
 
         } catch (Exception e) {

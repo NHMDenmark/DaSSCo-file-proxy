@@ -144,14 +144,13 @@ public class Files {
     Gets the latest file uploaded to ERDA for the given asset for external users. This can be called without a token.
     """)
     public Response getExternFileFromGuid(@PathParam("institutionName") String institutionName, @PathParam("collectionName") String collectionName, @PathParam("assetGuid") String assetGuid, @Context SecurityContext securityContext) {
-        System.out.println("YO");
         User user = securityContext.getUserPrincipal() == null ? new User("anonymous") : UserMapper.from(securityContext);
         Optional<DasscoFile> dasscoFile = this.fileService.getDasscoFileForGuid(assetGuid);
         if (dasscoFile.isPresent()) {
             String path = dasscoFile.get().path();
             try {
                 String fileName = List.of(path.split("/")).getLast();
-                return cacheFileService.streamFile(institutionName, collectionName, assetGuid, fileName, user, true);
+                return cacheFileService.streamFile(institutionName, collectionName, assetGuid, fileName, user, false);
             } catch (Exception e) {
                 logger.error(e.toString());
             }
@@ -199,7 +198,6 @@ public class Files {
         final Optional<DasscoFile> thumbnail = thumbOpt;
         final String guidForStream = assetGuid;
 
-        System.out.println(existingPaths);
         StreamingOutput stream = output -> {
             try (ZipOutputStream zip = new ZipOutputStream(output)) {
 
