@@ -278,6 +278,13 @@ public class FileService {
         }).close();
     }
 
+    public List<DasscoFile> getFilesMarkedAsDeleteByAsset(String asset_guid) {
+        return jdbi.withHandle(h -> {
+            FileRepository attach = h.attach(FileRepository.class);
+            return attach.getFilesByAssetGuidMarkedForDelete(asset_guid);
+        });
+    }
+
     public void deleteDirectory(long directoryId) {
         jdbi.inTransaction(h -> {
             SharedAssetRepository sharedAssetRepository = h.attach(SharedAssetRepository.class);
