@@ -278,6 +278,13 @@ public class FileService {
         }).close();
     }
 
+    public List<DasscoFile> getFilesMarkedAsDeleteByAsset(String asset_guid) {
+        return jdbi.withHandle(h -> {
+            FileRepository attach = h.attach(FileRepository.class);
+            return attach.getFilesByAssetGuidMarkedForDelete(asset_guid);
+        });
+    }
+
     public void deleteDirectory(long directoryId) {
         jdbi.inTransaction(h -> {
             SharedAssetRepository sharedAssetRepository = h.attach(SharedAssetRepository.class);
@@ -592,8 +599,8 @@ public class FileService {
     }
 
     public boolean deleteLocalFiles(String relativePath, String fileName) {
-        String projectDir = System.getProperty("user.dir");
-        Path filePath = Paths.get(projectDir, "target", relativePath);
+        String basePath = shareConfig.mountFolder();
+        Path filePath = Paths.get(basePath, "temp", relativePath);
         File file = new File(filePath.toString());
 
         if (file.exists() && file.getName().equals(fileName)) {
@@ -611,8 +618,8 @@ public class FileService {
 
     public void createZipFile(String guid) throws IOException {
 
-        String projectDir = System.getProperty("user.dir");
-        Path tempDir = Paths.get(projectDir, "target", "temp", guid);
+        String basePath = shareConfig.mountFolder();
+        Path tempDir = Paths.get(basePath, "temp", guid);
         Path zipFilePath = tempDir.resolve("assets.zip");
 
         try (FileOutputStream fos = new FileOutputStream(zipFilePath.toFile());

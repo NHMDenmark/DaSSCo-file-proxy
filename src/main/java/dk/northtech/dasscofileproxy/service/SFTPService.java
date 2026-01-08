@@ -122,16 +122,22 @@ public class SFTPService {
                     //handle files that have been deleted
                     List<String> filesToDelete = remoteFiles.stream().filter(f -> !uploadedFiles.contains(f)).collect(Collectors.toList());
                     erdaClient.deleteFiles(filesToDelete);
-                    for (String path : filesToDelete) {
+                    /*for (String path : filesToDelete) {
                         this.cacheFileService.invalidateFileFromCache(path);
-                    }
+                    }*/
                     fileService.markFilesAsSynced(fullAsset.asset_guid);
                     if (assetService.completeAsset(new AssetUpdateRequest(new MinimalAsset(sharedAsset.assetGuid(), null, null, null), directory.syncWorkstation(), directory.syncPipeline(), directory.syncUser(), fullAsset.asset_guid, directory.directoryId()))) {
                         //Clean up local dir and its metadata
                         fileService.deleteDirectory(directory.directoryId());
                         fileService.removeShareFolder(directory);
                         //Clean up files
+
+                        var dasscoFilesToDelete = fileService.getFilesMarkedAsDeleteByAsset(sharedAsset.assetGuid());
+                        for (DasscoFile dasscoFile : dasscoFilesToDelete) {
+                            this.cacheFileService.invalidateFileFromCache(dasscoFile.path());
+                        }
                         fileService.deleteFilesMarkedAsDeleteByAsset(sharedAsset.assetGuid());
+                        this.cacheFileService.invalidateFileFromCache("");
                     }
                 } catch (Exception e) {
                     logger.warn("ERDA export failed, failed asset guid: {}", sharedAsset.assetGuid());
