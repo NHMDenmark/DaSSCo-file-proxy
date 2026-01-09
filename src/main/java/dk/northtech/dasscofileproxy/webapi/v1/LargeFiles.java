@@ -15,7 +15,7 @@ import java.io.InputStream;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 
-@Path("/large-files/upload{path: (/.*)?}")
+@Path("/large-files/{institution}/upload{path: (/.*)?}")
 public class LargeFiles {
     private static final Logger logger = LoggerFactory.getLogger(LargeFiles.class);
     private final TusFileUploadService tusFileUploadService;
@@ -24,7 +24,7 @@ public class LargeFiles {
     public LargeFiles() {
         this.tusFileUploadService = new TusFileUploadService()
                 .withStoragePath("/temp/upload/tus")
-                .withUploadUri("/file_proxy/api/large-files/upload");
+                .withUploadUri("/file_proxy/api/large-files/[A-Za-z0-9]+/upload");
         this.uploadDirectory = Paths.get("/temp/upload/app");
         try {
             java.nio.file.Files.createDirectories(this.uploadDirectory);
@@ -32,11 +32,6 @@ public class LargeFiles {
         catch (IOException e) {
             logger.error("create upload directory", e);
         }
-    }
-
-    @GET
-    public void tusGet(@Context HttpServletRequest request, @Context HttpServletResponse response) {
-        this.handleTusFileUpload(request, response);
     }
 
     @POST
@@ -55,12 +50,13 @@ public class LargeFiles {
     }
 
     @PATCH
-    @Consumes("application/offset+octet-stream")
+    @Consumes("*/*")
     public void tusPatch(@Context HttpServletRequest request, @Context HttpServletResponse response){
         this.handleTusFileUpload(request, response);
     }
 
     @HEAD
+    @Consumes("*/*")
     public void tusHead(@Context HttpServletRequest request, @Context HttpServletResponse response){
         this.handleTusFileUpload(request, response);
     }
