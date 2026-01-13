@@ -10,3 +10,25 @@
 ## Run the application
 * Click the run button or use the command ``mvn spring-boot:run`` 
 * You can add the ``docker-compose-app.yaml`` file to the ``docker-compose.yaml`` file if you want to run it with the keycloak and database instead 
+
+
+## Large file upload
+For all API's the following headers are required
+* `Tus-Resumable: 1.0.0`
+
+### POST
+For this API the following headers are 
+* `Upload-Length: <total bytes>` (required)
+* `Upload-Metadata: filename <filename base64 encoded>` (not required)
+
+### PATCH
+For this API the following headers are
+* `Upload-Offset: <total bytes>` (required)
+* `Content-Length: <total bytes>` (required)
+* `Content-Type: application/offset+octet-stream` (required)
+
+### HEAD
+
+### DELETE
+
+## Large file download

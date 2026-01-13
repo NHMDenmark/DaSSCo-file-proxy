@@ -17,6 +17,7 @@ import io.micrometer.observation.ObservationRegistry;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.core.Response;
 import org.jdbi.v3.core.Jdbi;
+import org.jdbi.v3.sqlobject.customizer.Bind;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -377,6 +378,66 @@ public class FileService {
         });
     }
 
+    public void largeFileUpload(InputStream file, FileUploadData fileUploadData, String keycloakId) {
+        fileUploadData.validate();
+        if (fileUploadData.filePathAndName().toLowerCase().replace("/", "").startsWith("parents")) {
+            throw new IllegalArgumentException("File path cannot start with 'parent'");
+        }
+        Optional<Directory> directory = getWriteableDirectory(fileUploadData.asset_guid());
+        if (directory.isEmpty()) {
+            throw new IllegalArgumentException("There is no writeable directory for this asset");
+        }
+        String basePath = shareConfig.mountFolder() + "/" + fileUploadData.getBasePath();
+        File file1 = new File(basePath);
+        if (!file1.exists()) {
+            throw new IllegalArgumentException("Share directory doesnt exist");
+        }
+        jdbi.useTransaction(h -> {
+            FileRepository fileRepository = h.attach(FileRepository.class);
+            long totalAllocatedByAsset = fileRepository.getTotalAllocatedByAsset(Set.of(fileUploadData.asset_guid()));
+            String fullPath = basePath + fileUploadData.filePathAndName();
+            if ((totalAllocatedByAsset + fileUploadData.size_mb() * 1000000) / 1000000d > directory.get().allocatedStorageMb()) {
+                throw new IllegalArgumentException("Total size of asset files exceeds allocated disk space");
+            }
+            File file2 = new File(fullPath);
+            file2.getParentFile().mkdirs();
+            boolean markForDeletion = file2.exists();
+            String tempName = "." + System.currentTimeMillis() + ".temp";
+            logger.info("Receiving: " + fullPath);
+            // Use tempfile so we dont overwrite existing files when crc doesnt match
+            File tempFile = new File(fullPath + tempName);
+            writeToDiskAndGetCRC(file, tempFile);
+            try {
+                if (markForDeletion) {
+                    logger.info("Marking overwritten file for deletion upon sync");
+                    fileRepository.markForDeletion(fileUploadData.getPath());
+                }
+                long fileSize = tempFile.length();
+                // Move to actual location and overwrite existing file if present.
+                Files.move(tempFile.toPath(), file2.toPath(), StandardCopyOption.REPLACE_EXISTING);
+                fileRepository.insertFile(new DasscoFile(null, fileUploadData.asset_guid(), fileUploadData.getPath(), fileSize, 0, FileSyncStatus.NEW_FILE, fileUploadData.mime_type(), false));
+
+                DirectoryRepository directoryRepository = h.attach(DirectoryRepository.class);
+                List<Directory> writeableDirectoriesByAsset = directoryRepository.getWriteableDirectoriesByAsset(fileUploadData.asset_guid());
+                if(writeableDirectoriesByAsset.size() == 1) {
+                    var dasscoUserId = h.createQuery("select dassco_user_id from dassco_user where keycloak_id = :keycloakId").bind("keycloakId", keycloakId).mapTo(Long.class).findOne();
+                    var directoryId = writeableDirectoriesByAsset.getFirst().directoryId();
+                    if(directoryId != null && dasscoUserId.isPresent()) {
+                        this.assetService.addAssetChange(new AssetChange(null, markForDeletion ? "FILE_UPDATED" : "FILE_ADDED", dasscoUserId.get(), directoryId, fileUploadData.asset_guid(), null));
+                    }else{
+                        logger.warn("directory_id (%s) or dassco_user_id (%s) not found".formatted(directoryId, dasscoUserId.orElse(null)));
+                    }
+                }
+
+            } catch (IOException e) {
+                throw new RuntimeException("Failed to cleanup temp file", e);
+            } finally {
+                // always cleanup temp file
+                tempFile.delete();
+            }
+        });
+    }
+
     public void uploadToParking(InputStream inputStream, String path) {
         String basePath = shareConfig.mountFolder() + "/" + shareConfig.parkingFolder() + "/" + path;
         File file = new File(basePath);
@@ -504,6 +565,10 @@ public class FileService {
             throw new RuntimeException("Failed to write file", e);
         }
         return value;
+    }
+
+    private void copyFromTusToPermanentPlace(InputStream file, File tempFile){
+
     }
 
     public List<DasscoFile> listFilesByAssetGuid(String assetGuid) {
@@ -925,4 +990,13 @@ public class FileService {
                 ? List.of()
                 : Arrays.stream(value.split(",")).map(String::trim).collect(toList());
     }
+
+    public String createLargeFileUploadInfo(@Bind String tusId, @Bind String assetGuid, @Bind long sizeBytes, @Bind String path){
+        FileRepository fileRepository = jdbi.onDemand(FileRepository.class);
+        return fileRepository.createLargeFileUploadInfo(tusId, assetGuid, sizeBytes, path);
+    }
+
+
+
+
 }

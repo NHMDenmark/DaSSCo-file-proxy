@@ -81,4 +81,8 @@ public interface FileRepository {
             f.has_thumbnail = :hasThumbnail
     """)
      Optional<DasscoFile> getFilePathForAdapterFile(@Bind String institution, @Bind String collection, @Bind String filename, @Bind boolean hasThumbnail);
+
+     @SqlUpdate("insert into large_file_upload_info (tus_id, asset_guid, size_bytes, path) values (:tusId, :assetGuid, :sizeBytes, :path)")
+     @GetGeneratedKeys
+     String createLargeFileUploadInfo(@Bind String tusId, @Bind String assetGuid, @Bind long sizeBytes,  @Bind String path);
 }

@@ -90,7 +90,7 @@ public class AssetFiles {
         if(contentType == null) {
             contentType = new Tika().detect(path);
         }
-        FileUploadData fileUploadData = new FileUploadData(assetGuid, institutionName, collectionName, path, fileSize,contentType);
+            FileUploadData fileUploadData = new FileUploadData(assetGuid, institutionName, collectionName, path, fileSize,contentType);
         FileUploadResult upload = fileService.upload(file, crc, fileUploadData, hasThumbnail, user.keycloakId);
         return Response.status(upload.getResponseCode()).entity(upload).build();
     }
