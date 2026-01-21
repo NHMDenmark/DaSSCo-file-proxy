@@ -69,6 +69,77 @@ public class CacheFileService {
 
     LoadingCache<String, CacheInfo> cachedFiles;
 
+    /**
+     * Record containing cached file information for range request support.
+     */
+    public record CachedFileInfo(File file, String filename) {}
+
+    /**
+     * Gets a cached file with its File handle for range request support.
+     * This method caches the file from ERDA if not already cached, then returns the File object
+     * which can be used with RandomAccessFile for efficient range requests.
+     */
+    public Optional<CachedFileInfo> getCachedFile(String institution, String collection, String assetGuid, String filePath, User user) {
+        logger.info("validating access for cached file download");
+        if (!validateAccess(user, assetGuid)) {
+            throw new DasscoUnauthorizedException("User does not have access");
+        }
+        logger.info("finished validating access");
+
+        String path = Strings.join(new String[]{shareConfig.cacheFolder(), institution, collection, assetGuid, filePath}, "/");
+        try {
+            String assetPath = "/" + Strings.join(new String[]{institution, collection, assetGuid, filePath}, "/");
+            CacheInfo cacheInfo = cachedFiles.get(assetPath);
+
+            File cachedFile = new File(path);
+
+            // Check if already in cache and file exists
+            if (cacheInfo != null && cachedFile.exists() && cachedFile.isFile() && cachedFile.canRead()) {
+                idsToRefresh.add(cacheInfo.fileCacheId());
+                return Optional.of(new CachedFileInfo(cachedFile, cachedFile.getName()));
+            }
+
+            // Invalidate if cache entry exists but file doesn't
+            if (cacheInfo != null) {
+                cachedFiles.invalidate(cacheInfo.path());
+            }
+
+            FileRepository fileRepository = jdbi.onDemand(FileRepository.class);
+            DasscoFile filesByAssetPath = fileRepository.getFilesByAssetPath(assetPath);
+            if (filesByAssetPath == null) {
+                throw new DasscoNotFoundException("The asset does not have this file");
+            }
+            if (filesByAssetPath.syncStatus() != FileSyncStatus.SYNCHRONIZED || filesByAssetPath.deleteAfterSync()) {
+                throw new DasscoIllegalActionException("File is being edited");
+            }
+
+            logger.info("File didn't exist in cache, fetching from ERDA for resumable download");
+            String erdaLocation = UrlEscapers.urlFragmentEscaper().escape(Strings.join(new String[]{erdaProperties.httpURL(), institution, collection, assetGuid, filePath}, "/"));
+
+            try (InputStream inputStream = fetchFromERDA(erdaLocation)) {
+                if (inputStream == null) {
+                    return Optional.empty();
+                }
+                logger.info("got stream from ERDA");
+                cachedFile.getParentFile().mkdirs();
+                Files.copy(inputStream, Path.of(path), StandardCopyOption.REPLACE_EXISTING);
+            }
+
+            cacheFile(filesByAssetPath);
+
+            if (cachedFile.exists() && cachedFile.isFile() && cachedFile.canRead()) {
+                return Optional.of(new CachedFileInfo(cachedFile, cachedFile.getName()));
+            }
+
+            return Optional.empty();
+        } catch (DasscoUnauthorizedException | DasscoNotFoundException | DasscoIllegalActionException e) {
+            throw e;
+        } catch (Exception e) {
+            logger.error("error fetching cached file", e);
+            throw new RuntimeException(e);
+        }
+    }
+
     public Optional<FileService.FileResult> getFile(String institution, String collection, String assetGuid, String filePath, User user) {
         logger.info("validating access");
         if (!validateAccess(user, assetGuid)) {
