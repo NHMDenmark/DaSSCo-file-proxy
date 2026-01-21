@@ -1,5 +1,6 @@
 package dk.northtech.dasscofileproxy.webapi.v1;
 
+import dk.northtech.dasscofileproxy.configuration.ShareConfig;
 import dk.northtech.dasscofileproxy.domain.User;
 import dk.northtech.dasscofileproxy.service.FileService;
 import dk.northtech.dasscofileproxy.webapi.UserMapper;
@@ -27,28 +28,30 @@ import java.util.Base64;
 @Path("/large-files/{institutionName}/{collectionName}/{assetGuid}/upload{path: (/.*)?}")
 public class LargeFiles {
     private static final Logger logger = LoggerFactory.getLogger(LargeFiles.class);
+    ShareConfig shareConfig;
     private final FileService fileService;
     private final TusFileUploadService tusFileUploadService;
-    private final java.nio.file.Path uploadDirectory;
 
     @Inject
-    public LargeFiles(FileService fileService) {
+    public LargeFiles(ShareConfig shareConfig, FileService fileService) {
+        this.shareConfig = shareConfig;
         this.fileService = fileService;
+        String basePath = "/" + shareConfig.mountFolder() + "/tus";
+        String projectRoot = System.getProperty("user.dir");;
         this.tusFileUploadService = new TusFileUploadService()
-                .withStoragePath("/temp/upload/tus")
+                .withStoragePath(projectRoot + basePath)
                 .withUploadUri("/file_proxy/api/large-files/[A-Za-z0-9_-]+/[A-Za-z0-9_-]+/[A-Za-z0-9_-]+/upload");
-        this.uploadDirectory = Paths.get("/temp/upload/app");
-        try {
-            java.nio.file.Files.createDirectories(this.uploadDirectory);
-        }
-        catch (IOException e) {
-            logger.error("create upload directory", e);
-        }
     }
 
     @POST
     public void tusPost(@PathParam("institutionName") String institutionName, @PathParam("collectionName") String collectionName, @PathParam("assetGuid") String assetGuid, @Context HttpServletRequest request, @Context HttpServletResponse response, @Context SecurityContext securityContext){
-        this.handleTusFileUpload(request, response, securityContext, institutionName, collectionName, assetGuid);
+        String uploadLength = request.getHeader("Upload-Length");
+        if(this.fileService.enoughStorage(assetGuid, (Integer.parseInt(uploadLength) / 1000000))){
+            this.handleTusFileUpload(request, response, securityContext, institutionName, collectionName, assetGuid);
+
+        }else{
+            throw new IllegalArgumentException("Total size of asset files exceeds allocated disk space");
+        }
     }
 
     @PUT
@@ -96,7 +99,7 @@ public class LargeFiles {
         }
         if (uploadInfo != null && !uploadInfo.isUploadInProgress()) {
             String tusId = uploadURI.substring(uploadURI.lastIndexOf('/') + 1);
-            Long fileSize = uploadInfo.getLength();
+            Long fileSize = uploadInfo.getLength() / 1000000;
             String filename = uploadInfo.getMetadata().get("filename");
             String path = uploadInfo.getMetadata().get("path");
             String contentType = new Tika().detect(path);
@@ -104,8 +107,6 @@ public class LargeFiles {
             //this.fileService.createLargeFileUploadInfo(tusId, assetGuid, fileSize, path);
 
             try (InputStream is = this.tusFileUploadService.getUploadedBytes(uploadURI)) {
-                //java.nio.file.Path output = this.uploadDirectory.resolve(uploadInfo.getFileName());
-                //java.nio.file.Files.copy(is, output, StandardCopyOption.REPLACE_EXISTING);
                 fileService.largeFileUpload(is, fileUploadData, user.keycloakId);
                 this.tusFileUploadService.deleteUpload(uploadURI);
             }

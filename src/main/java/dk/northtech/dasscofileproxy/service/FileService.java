@@ -313,6 +313,14 @@ public class FileService {
         }).close();
     }
 
+    public boolean enoughStorage(String assetGuide, int sizeMb){
+        FileRepository fileRepository = jdbi.onDemand(FileRepository.class);
+        Optional<Directory> directory = getWriteableDirectory(assetGuide);
+        long totalAllocatedByAsset = fileRepository.getTotalAllocatedByAsset(Set.of(assetGuide));
+        double total = (totalAllocatedByAsset + sizeMb * 1000000) / 1000000d;
+        return directory.isPresent() && total < directory.get().allocatedStorageMb();
+    }
+
     public FileUploadResult upload(InputStream file, long crc, FileUploadData fileUploadData, boolean hasThumbnail, String keycloakId) {
         fileUploadData.validate();
         if (fileUploadData.filePathAndName().toLowerCase().replace("/", "").startsWith("parents")) {
@@ -991,10 +999,11 @@ public class FileService {
                 : Arrays.stream(value.split(",")).map(String::trim).collect(toList());
     }
 
-    public String createLargeFileUploadInfo(@Bind String tusId, @Bind String assetGuid, @Bind long sizeBytes, @Bind String path){
+    // does not exist ATM
+    /*public String createLargeFileUploadInfo(@Bind String tusId, @Bind String assetGuid, @Bind long sizeBytes, @Bind String path){
         FileRepository fileRepository = jdbi.onDemand(FileRepository.class);
         return fileRepository.createLargeFileUploadInfo(tusId, assetGuid, sizeBytes, path);
-    }
+    }*/
 
 
 
