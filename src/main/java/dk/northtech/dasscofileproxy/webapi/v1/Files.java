@@ -110,8 +110,7 @@ public class Files {
         logger.info("Downloading large file from collection {}, path: {}, range: {}", collection, path, rangeHeader);
 
         try {
-            Optional<CacheFileService.CachedFileInfo> cachedFileInfo = cacheFileService.getCachedFileWithoutUser(institution,
-                    collection, assetGuid, path);
+            Optional<CacheFileService.CachedFileInfo> cachedFileInfo = cacheFileService.getCachedFileWithoutUser(path);
 
             if (cachedFileInfo.isEmpty()) {
                 return Response.status(404).build();
@@ -125,6 +124,7 @@ public class Files {
 
             // If no Range header, return the entire file
             if (rangeHeader == null || rangeHeader.isEmpty()) {
+
                 StreamingOutput streamingOutput = output -> {
                     try (RandomAccessFile raf = new RandomAccessFile(file, "r")) {
                         byte[] buffer = new byte[8192];

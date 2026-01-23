@@ -182,12 +182,10 @@ public class CacheFileService {
         }
     }
 
-    public Optional<CachedFileInfo> getCachedFileWithoutUser(String institution, String collection, String assetGuid, String filePath) {
-        String path = Strings.join(new String[]{shareConfig.cacheFolder(), institution, collection, assetGuid, filePath}, "/");
+    public Optional<CachedFileInfo> getCachedFileWithoutUser(String filePath) {
+        String path = Strings.join(new String[]{shareConfig.cacheFolder(), filePath}, "");
         try {
-            String assetPath = "/" + Strings.join(new String[]{institution, collection, assetGuid, filePath}, "/");
-            CacheInfo cacheInfo = cachedFiles.get(assetPath);
-
+            CacheInfo cacheInfo = cachedFiles.get(filePath);
             File cachedFile = new File(path);
 
             // Check if already in cache and file exists
@@ -202,7 +200,7 @@ public class CacheFileService {
             }
 
             FileRepository fileRepository = jdbi.onDemand(FileRepository.class);
-            DasscoFile filesByAssetPath = fileRepository.getFilesByAssetPath(assetPath);
+            DasscoFile filesByAssetPath = fileRepository.getFilesByAssetPath(filePath);
             if (filesByAssetPath == null) {
                 throw new DasscoNotFoundException("The asset does not have this file");
             }
@@ -211,7 +209,7 @@ public class CacheFileService {
             }
 
             logger.info("File didn't exist in cache, fetching from ERDA for resumable download");
-            String erdaLocation = UrlEscapers.urlFragmentEscaper().escape(Strings.join(new String[]{erdaProperties.httpURL(), institution, collection, assetGuid, filePath}, "/"));
+            String erdaLocation = UrlEscapers.urlFragmentEscaper().escape(Strings.join(new String[]{erdaProperties.httpURL(), filePath}, ""));
 
             try (InputStream inputStream = fetchFromERDA(erdaLocation)) {
                 if (inputStream == null) {
