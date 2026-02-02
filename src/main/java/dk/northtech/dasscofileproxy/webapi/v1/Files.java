@@ -6,6 +6,7 @@ import dk.northtech.dasscofileproxy.domain.User;
 import dk.northtech.dasscofileproxy.domain.exceptions.DasscoUnauthorizedException;
 import dk.northtech.dasscofileproxy.service.CacheFileService;
 import dk.northtech.dasscofileproxy.service.FileService;
+import dk.northtech.dasscofileproxy.webapi.RangeRequestHandler;
 import dk.northtech.dasscofileproxy.webapi.UserMapper;
 import dk.northtech.dasscofileproxy.webapi.model.FileUploadData;
 import io.swagger.v3.oas.annotations.Operation;
@@ -19,8 +20,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
 import java.io.InputStream;
-import java.io.RandomAccessFile;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -53,36 +55,35 @@ public class Files {
     @GET
     @Operation(summary = "Get File From ERDA", description = """
             Gets a file from ERDA on the give path. If 'no-cache' is true, then the file won't be saved in the cache and will be streamed instead. 'no-cache' is false by default.
+            Supports HTTP Range header for resumable downloads when using cache (no-cache=false).
             """)
     @Path("/assets/{institution}/{collection}/{assetGuid}/{path: .+}")
     public Response getFile(
             @PathParam("institution") String institution, @PathParam("collection") String collection,
             @PathParam("assetGuid") String guid, @Context SecurityContext securityContext,
-            @QueryParam("no-cache") @DefaultValue("false") boolean noCache) {
+            @QueryParam("no-cache") @DefaultValue("false") boolean noCache,
+            @HeaderParam("Range") String rangeHeader) {
         final String path = uriInfo.getPathParameters().getFirst("path");
-        logger.info("Getting file from collection, {}, on path: {}", collection, path);
+        logger.info("Getting file from collection, {}, on path: {}, range: {}", collection, path, rangeHeader);
         User user = securityContext.getUserPrincipal() == null ? new User("anonymous")
                 : UserMapper.from(securityContext);
         try {
             if (!noCache) {
-                Optional<FileService.FileResult> file = cacheFileService.getFile(institution, collection, guid, path,
-                        user);
+                // Use getCachedFile to get File object for range request support
+                Optional<CacheFileService.CachedFileInfo> cachedFileInfo = cacheFileService.getCachedFile(
+                        institution, collection, guid, path, user);
                 logger.info("got file");
 
-                if (file.isPresent()) {
-                    FileService.FileResult fileResult = file.get();
-                    StreamingOutput streamingOutput = output -> {
-                        fileResult.is().transferTo(output);
-                        output.flush();
-                    };
-
-                    return Response.status(200)
-                            .header("Content-Disposition", "attachment; filename=" + fileResult.filename())
-                            .header("Content-Type", new Tika().detect(fileResult.filename())).entity(streamingOutput)
-                            .build();
-                } else {
+                if (cachedFileInfo.isEmpty()) {
                     return Response.status(404).build();
                 }
+
+                CacheFileService.CachedFileInfo fileInfo = cachedFileInfo.get();
+                String contentType = new Tika().detect(fileInfo.filename());
+
+                return RangeRequestHandler.buildFileResponse(
+                        new RangeRequestHandler.FileResponseConfig(fileInfo.file(), fileInfo.filename(), contentType)
+                                .withRangeHeader(rangeHeader));
             } else {
                 return cacheFileService.streamFile(institution, collection, guid, path, user, false);
             }
@@ -117,98 +118,12 @@ public class Files {
             }
 
             CacheFileService.CachedFileInfo fileInfo = cachedFileInfo.get();
-            File file = fileInfo.file();
-            long fileLength = file.length();
             String contentType = new Tika().detect(fileInfo.filename());
-            String contentDisposition = "attachment; filename=\"" + fileInfo.filename() + "\"";
 
-            // If no Range header, return the entire file
-            if (rangeHeader == null || rangeHeader.isEmpty()) {
-
-                StreamingOutput streamingOutput = output -> {
-                    try (RandomAccessFile raf = new RandomAccessFile(file, "r")) {
-                        byte[] buffer = new byte[8192];
-                        int bytesRead;
-                        while ((bytesRead = raf.read(buffer)) != -1) {
-                            output.write(buffer, 0, bytesRead);
-                        }
-                        output.flush();
-                    }
-                };
-
-                return Response.ok(streamingOutput)
-                        .header("Content-Disposition", contentDisposition)
-                        .header("Content-Type", contentType)
-                        .header("Content-Length", fileLength)
-                        .header("Accept-Ranges", "bytes")
-                        .build();
-            }
-
-            // Parse Range header (format: "bytes=start-end" or "bytes=start-")
-            if (!rangeHeader.startsWith("bytes=")) {
-                return Response.status(416) // Range Not Satisfiable
-                        .header("Content-Range", "bytes */" + fileLength)
-                        .build();
-            }
-
-            String rangeValue = rangeHeader.substring(6); // Remove "bytes="
-            String[] rangeParts = rangeValue.split("-");
-
-            long start;
-            long end;
-
-            try {
-                start = Long.parseLong(rangeParts[0]);
-                if (rangeParts.length > 1 && !rangeParts[1].isEmpty()) {
-                    end = Long.parseLong(rangeParts[1]);
-                } else {
-                    end = fileLength - 1;
-                }
-            } catch (NumberFormatException e) {
-                return Response.status(416)
-                        .header("Content-Range", "bytes */" + fileLength)
-                        .build();
-            }
-
-            // Validate range
-            if (start < 0 || start >= fileLength || end < start || end >= fileLength) {
-                return Response.status(416)
-                        .header("Content-Range", "bytes */" + fileLength)
-                        .build();
-            }
-
-            final long rangeStart = start;
-            final long rangeEnd = end;
-            final long contentLength = rangeEnd - rangeStart + 1;
-
-            StreamingOutput streamingOutput = output -> {
-                try (RandomAccessFile raf = new RandomAccessFile(file, "r")) {
-                    raf.seek(rangeStart);
-                    byte[] buffer = new byte[8192];
-                    long remaining = contentLength;
-                    int bytesRead;
-
-                    while (remaining > 0
-                            && (bytesRead = raf.read(buffer, 0, (int) Math.min(buffer.length, remaining))) != -1) {
-                        output.write(buffer, 0, bytesRead);
-                        remaining -= bytesRead;
-                    }
-                    output.flush();
-                } finally {
-                    if (rangeEnd == fileLength - 1) {
-                        this.cacheFileService.invalidateTicket(ticket);
-                    }
-                }
-            };
-
-            return Response.status(206)
-                    .entity(streamingOutput)
-                    .header("Content-Disposition", contentDisposition)
-                    .header("Content-Type", contentType)
-                    .header("Content-Length", contentLength)
-                    .header("Content-Range", "bytes " + rangeStart + "-" + rangeEnd + "/" + fileLength)
-                    .header("Accept-Ranges", "bytes")
-                    .build();
+            return RangeRequestHandler.buildFileResponse(
+                    new RangeRequestHandler.FileResponseConfig(fileInfo.file(), fileInfo.filename(), contentType)
+                            .withRangeHeader(rangeHeader)
+                            .onComplete(() -> this.cacheFileService.invalidateTicket(ticket)));
 
         } catch (DasscoUnauthorizedException e) {
             String redirectUrl = assetServiceProperties.rootUrl() + "/detailed-view/" + assetGuid;
@@ -219,11 +134,13 @@ public class Files {
     @GET
     @Operation(summary = "Get Asset Thumbnail (without login)", description = """
             Gets the thumbnail for the given asset for external users. This can be called without a token.
+            Supports HTTP Range header for resumable downloads when using cache (no-cache=false).
             """)
     @Path("/assets/{institutionName}/{collectionName}/{assetGuid}/thumbnail")
     public Response getFileFromGuid(@PathParam("institutionName") String institutionName,
                                     @PathParam("collectionName") String collectionName, @PathParam("assetGuid") String assetGuid,
-                                    @Context SecurityContext securityContext, @QueryParam("no-cache") @DefaultValue("false") boolean noCache) {
+                                    @Context SecurityContext securityContext, @QueryParam("no-cache") @DefaultValue("false") boolean noCache,
+                                    @HeaderParam("Range") String rangeHeader) {
         User user = securityContext.getUserPrincipal() == null ? new User("anonymous")
                 : UserMapper.from(securityContext);
         Optional<DasscoFile> dasscoFile = this.fileService.getDasscoFileThumbnailForGuid(assetGuid);
@@ -237,22 +154,19 @@ public class Files {
                 String fileName = List.of(path.split("/")).getLast();
 
                 if (!noCache) {
-                    Optional<FileService.FileResult> file = cacheFileService.getFile(institutionName, collectionName,
-                            assetGuid, fileName, user);
-                    if (file.isPresent()) {
-                        FileService.FileResult fileResult = file.get();
-                        StreamingOutput streamingOutput = output -> {
-                            fileResult.is().transferTo(output);
-                            output.flush();
-                        };
+                    Optional<CacheFileService.CachedFileInfo> cachedFileInfo = cacheFileService.getCachedFile(
+                            institutionName, collectionName, assetGuid, fileName, user);
 
-                        return Response.status(200)
-                                .header("Content-Disposition", "inline; attachment; filename=" + fileResult.filename())
-                                .header("Content-Type", new Tika().detect(fileResult.filename()))
-                                .entity(streamingOutput).build();
-                    } else {
+                    if (cachedFileInfo.isEmpty()) {
                         return Response.status(404).build();
                     }
+
+                    CacheFileService.CachedFileInfo fileInfo = cachedFileInfo.get();
+                    String contentType = new Tika().detect(fileInfo.filename());
+
+                    return RangeRequestHandler.buildFileResponse(
+                            new RangeRequestHandler.FileResponseConfig(fileInfo.file(), fileInfo.filename(), contentType)
+                                    .withRangeHeader(rangeHeader));
                 } else {
                     return cacheFileService.streamFile(institutionName, collectionName, assetGuid, fileName, user,
                             true);
@@ -269,10 +183,12 @@ public class Files {
     @Path("/assets/extern/{institutionName}/{collectionName}/{assetGuid}")
     @Operation(summary = "Get Latest File From ERDA as External (without login)", description = """
             Gets the latest file uploaded to ERDA for the given asset for external users. This can be called without a token.
+            Supports HTTP Range header for resumable downloads.
             """)
     public Response getExternFileFromGuid(@PathParam("institutionName") String institutionName,
                                           @PathParam("collectionName") String collectionName, @PathParam("assetGuid") String assetGuid,
-                                          @Context SecurityContext securityContext) {
+                                          @Context SecurityContext securityContext,
+                                          @HeaderParam("Range") String rangeHeader) {
         User user = securityContext.getUserPrincipal() == null ? new User("anonymous")
                 : UserMapper.from(securityContext);
         Optional<DasscoFile> dasscoFile = this.fileService.getDasscoFileForGuid(assetGuid);
@@ -280,7 +196,19 @@ public class Files {
             String path = dasscoFile.get().path();
             try {
                 String fileName = List.of(path.split("/")).getLast();
-                return cacheFileService.streamFile(institutionName, collectionName, assetGuid, fileName, user, false);
+                Optional<CacheFileService.CachedFileInfo> cachedFileInfo = cacheFileService.getCachedFile(
+                        institutionName, collectionName, assetGuid, fileName, user);
+
+                if (cachedFileInfo.isEmpty()) {
+                    return Response.status(404).build();
+                }
+
+                CacheFileService.CachedFileInfo fileInfo = cachedFileInfo.get();
+                String contentType = new Tika().detect(fileInfo.filename());
+
+                return RangeRequestHandler.buildFileResponse(
+                        new RangeRequestHandler.FileResponseConfig(fileInfo.file(), fileInfo.filename(), contentType)
+                                .withRangeHeader(rangeHeader));
             } catch (Exception e) {
                 logger.error(e.toString());
             }
@@ -297,12 +225,14 @@ public class Files {
                 It first queries listAvailableFiles() to determine which files actually exist,
                 then safely includes the main files, thumbnail (if present), and metadata CSV.
                 Missing or inaccessible files are skipped.
+                Supports HTTP Range header for resumable downloads.
             """)
     public Response getAssetBundleZip(
             @PathParam("institution") String institution,
             @PathParam("collection") String collection,
             @PathParam("assetGuid") String assetGuid,
-            @Context SecurityContext securityContext) {
+            @Context SecurityContext securityContext,
+            @HeaderParam("Range") String rangeHeader) {
 
         User user = (securityContext.getUserPrincipal() == null)
                 ? new User("anonymous")
@@ -321,8 +251,14 @@ public class Files {
         final Optional<DasscoFile> thumbnail = thumbOpt;
         final String guidForStream = assetGuid;
 
-        StreamingOutput stream = output -> {
-            try (ZipOutputStream zip = new ZipOutputStream(output)) {
+        // Create a temporary ZIP file to support range requests
+        File tempZipFile;
+        try {
+            tempZipFile = File.createTempFile(assetGuid + "_bundle_", ".zip");
+            tempZipFile.deleteOnExit();
+
+            try (FileOutputStream fos = new FileOutputStream(tempZipFile);
+                 ZipOutputStream zip = new ZipOutputStream(fos)) {
 
                 for (String path : existingPaths) {
                     String filePath = path;
@@ -412,12 +348,24 @@ public class Files {
                 zip.finish();
                 zip.flush();
             }
-        };
+        } catch (IOException e) {
+            logger.error("Failed to create temporary ZIP file for {}: {}", assetGuid, e.getMessage());
+            return Response.status(Response.Status.INTERNAL_SERVER_ERROR)
+                    .entity("Failed to create ZIP file")
+                    .build();
+        }
 
-        return Response.ok(stream, "application/zip")
-                .header(HttpHeaders.CONTENT_DISPOSITION,
-                        "attachment; filename=\"" + assetGuid + "_bundle.zip\"")
-                .build();
+        String zipFilename = assetGuid + "_bundle.zip";
+        final File zipFileToDelete = tempZipFile;
+
+        return RangeRequestHandler.buildFileResponse(
+                new RangeRequestHandler.FileResponseConfig(tempZipFile, zipFilename, "application/zip")
+                        .withRangeHeader(rangeHeader)
+                        .onComplete(() -> {
+                            if (zipFileToDelete.exists()) {
+                                zipFileToDelete.delete();
+                            }
+                        }));
     }
 
     @GET
