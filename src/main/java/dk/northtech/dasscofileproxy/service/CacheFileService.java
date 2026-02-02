@@ -1,5 +1,6 @@
 package dk.northtech.dasscofileproxy.service;
 
+import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.github.benmanes.caffeine.cache.LoadingCache;
 import com.google.common.net.UrlEscapers;
@@ -40,6 +41,7 @@ import java.nio.file.StandardCopyOption;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
+import java.util.concurrent.TimeUnit;
 
 @Service
 public class CacheFileService {
@@ -49,6 +51,7 @@ public class CacheFileService {
     private final ShareConfig shareConfig;
     private final ErdaProperties erdaProperties;
     private final Jdbi jdbi;
+    private final Cache<String, String> ticketCache;
 
     private Set<Long> idsToRefresh = new HashSet<>();
 
@@ -65,6 +68,44 @@ public class CacheFileService {
                     FileCacheRepository attach = h.attach(FileCacheRepository.class);
                     return attach.getFileCacheByPath(x).orElse(null);
                 }));
+
+        this.ticketCache = Caffeine.newBuilder()
+                .expireAfterWrite(shareConfig.ticketCacheExpire())
+                .maximumSize(100000).build();
+    }
+
+    public String createTicket(User user, String assetGuid) {
+        if (!validateAccess(user, assetGuid)) {
+            throw new DasscoUnauthorizedException("User does not have access");
+        }
+
+        Optional<DasscoFile> file = this.fileService.getDasscoFileForGuid(assetGuid);
+
+        DasscoFile dasscoFile;
+        if (file.isPresent()) {
+            dasscoFile = file.get();
+            String ticketId = UUID.randomUUID().toString();
+            ticketCache.put(ticketId, dasscoFile.path());
+            return ticketId;
+        } else {
+            throw new DasscoNotFoundException("File not found");
+        }
+    }
+
+    public String useTicket(String ticketId) {
+        String ticket = ticketCache.getIfPresent(ticketId);
+        if (ticket == null) {
+            throw new DasscoUnauthorizedException("Ticket not found");
+        }
+        return ticket;
+    }
+
+    public void invalidateTicket(String ticketId) {
+        try {
+            this.ticketCache.invalidate(ticketId);
+        } catch (NullPointerException e) {
+            logger.error("Tried to invalidate ticket {}, but it did not exist", ticketId);
+        }
     }
 
     LoadingCache<String, CacheInfo> cachedFiles;
@@ -72,7 +113,8 @@ public class CacheFileService {
     /**
      * Record containing cached file information for range request support.
      */
-    public record CachedFileInfo(File file, String filename) {}
+    public record CachedFileInfo(File file, String filename) {
+    }
 
     /**
      * Gets a cached file with its File handle for range request support.
@@ -140,6 +182,60 @@ public class CacheFileService {
         }
     }
 
+    public Optional<CachedFileInfo> getCachedFileWithoutUser(String filePath) {
+        String path = Strings.join(new String[]{shareConfig.cacheFolder(), filePath}, "");
+        try {
+            CacheInfo cacheInfo = cachedFiles.get(filePath);
+            File cachedFile = new File(path);
+
+            // Check if already in cache and file exists
+            if (cacheInfo != null && cachedFile.exists() && cachedFile.isFile() && cachedFile.canRead()) {
+                idsToRefresh.add(cacheInfo.fileCacheId());
+                return Optional.of(new CachedFileInfo(cachedFile, cachedFile.getName()));
+            }
+
+            // Invalidate if cache entry exists but file doesn't
+            if (cacheInfo != null) {
+                cachedFiles.invalidate(cacheInfo.path());
+            }
+
+            FileRepository fileRepository = jdbi.onDemand(FileRepository.class);
+            DasscoFile filesByAssetPath = fileRepository.getFilesByAssetPath(filePath);
+            if (filesByAssetPath == null) {
+                throw new DasscoNotFoundException("The asset does not have this file");
+            }
+            if (filesByAssetPath.syncStatus() != FileSyncStatus.SYNCHRONIZED || filesByAssetPath.deleteAfterSync()) {
+                throw new DasscoIllegalActionException("File is being edited");
+            }
+
+            logger.info("File didn't exist in cache, fetching from ERDA for resumable download");
+            String erdaLocation = UrlEscapers.urlFragmentEscaper().escape(Strings.join(new String[]{erdaProperties.httpURL(), filePath}, ""));
+
+            try (InputStream inputStream = fetchFromERDA(erdaLocation)) {
+                if (inputStream == null) {
+                    return Optional.empty();
+                }
+                logger.info("got stream from ERDA");
+                cachedFile.getParentFile().mkdirs();
+                Files.copy(inputStream, Path.of(path), StandardCopyOption.REPLACE_EXISTING);
+            }
+
+            cacheFile(filesByAssetPath);
+
+            if (cachedFile.exists() && cachedFile.isFile() && cachedFile.canRead()) {
+                return Optional.of(new CachedFileInfo(cachedFile, cachedFile.getName()));
+            }
+
+            return Optional.empty();
+        } catch (DasscoUnauthorizedException | DasscoNotFoundException | DasscoIllegalActionException e) {
+            throw e;
+        } catch (Exception e) {
+            logger.error("error fetching cached file", e);
+            throw new RuntimeException(e);
+        }
+    }
+
+
     public Optional<FileService.FileResult> getFile(String institution, String collection, String assetGuid, String filePath, User user) {
         logger.info("validating access");
         if (!validateAccess(user, assetGuid)) {
@@ -154,7 +250,7 @@ public class CacheFileService {
             if (cacheInfo != null) {
                 Optional<FileService.FileResult> file = fileService.getFile(path);
                 // If the file does not exist, another node has likely deleted it.
-                if(file.isPresent()){
+                if (file.isPresent()) {
                     idsToRefresh.add(cacheInfo.fileCacheId());
                     return file;
                 }
@@ -269,7 +365,8 @@ public class CacheFileService {
             return Optional.empty();
         }
     }
-    public Response streamFile(String institution, String collection, String assetGuid, String filePath, User user, boolean inline){
+
+    public Response streamFile(String institution, String collection, String assetGuid, String filePath, User user, boolean inline) {
         logger.info("validating access");
         if (!validateAccess(user, assetGuid)) {
             throw new DasscoUnauthorizedException("User does not have access");
@@ -329,17 +426,17 @@ public class CacheFileService {
     @Scheduled(cron = "0 15,45 * * * *") // at min 15 and 45
     public void removedExpiredCaches() {
         jdbi.inTransaction(h -> {
-        logger.info("Running cache eviction code");
-                FileCacheRepository fileCacheRepository = h.attach(FileCacheRepository.class);
-                // If more than 90% of available space is used, we evict based on disk usage as well as expiration date.
-                long maxBytes = (long) (.90 * (shareConfig.cacheDiskspace() * 1000000L));
-                List<String> pathsToDelete = fileCacheRepository.evict(maxBytes);
-                for (String s : pathsToDelete) {
-                    this.cachedFiles.invalidate(s);
-                    String locationOnDisk = shareConfig.cacheFolder() + s;
-                    logger.info("Evicting {}", locationOnDisk);
-                    boolean b = fileService.deleteFile(locationOnDisk);
-                }
+            logger.info("Running cache eviction code");
+            FileCacheRepository fileCacheRepository = h.attach(FileCacheRepository.class);
+            // If more than 90% of available space is used, we evict based on disk usage as well as expiration date.
+            long maxBytes = (long) (.90 * (shareConfig.cacheDiskspace() * 1000000L));
+            List<String> pathsToDelete = fileCacheRepository.evict(maxBytes);
+            for (String s : pathsToDelete) {
+                this.cachedFiles.invalidate(s);
+                String locationOnDisk = shareConfig.cacheFolder() + s;
+                logger.info("Evicting {}", locationOnDisk);
+                boolean b = fileService.deleteFile(locationOnDisk);
+            }
 
             return pathsToDelete;
         });
@@ -348,7 +445,7 @@ public class CacheFileService {
     @Scheduled(cron = "0 0,30 * * * *") // at min 0 and 30
     public void refreshCache() {
         logger.info("Running cache refresh code");
-        if(idsToRefresh.isEmpty()) {
+        if (idsToRefresh.isEmpty()) {
             return;
         }
         Instant newExpirationDate = Instant.now().plus(1, ChronoUnit.HOURS);
@@ -361,14 +458,14 @@ public class CacheFileService {
         List<Long> batch = new ArrayList<>();
         FileCacheRepository fcr = jdbi.onDemand(FileCacheRepository.class);
 
-        for(Long l: idsToUpdate) {
+        for (Long l : idsToUpdate) {
             batch.add(l);
-            if(batch.size() > 1000) {
+            if (batch.size() > 1000) {
                 fcr.refreshCacheEntries(batch, newExpirationDate);
                 batch.clear();
             }
         }
-        if(!batch.isEmpty()){
+        if (!batch.isEmpty()) {
             fcr.refreshCacheEntries(batch, newExpirationDate);
         }
     }
@@ -406,7 +503,7 @@ public class CacheFileService {
             HttpRequest.Builder requestBuilder = HttpRequest.newBuilder()
                     .POST(HttpRequest.BodyPublishers.noBody())
                     .uri(new URI(this.assetServiceProperties.rootUrl() + "/api/v1/assets/readaccess?assetGuid=" + assetGuid));
-            if(user.token != null) {
+            if (user.token != null) {
                 requestBuilder.header("Authorization", "Bearer " + user.token);
             }
 
@@ -429,7 +526,7 @@ public class CacheFileService {
         }
     }
 
-    public void saveFilesTempFolder(List<String> paths, User user, String guid){
+    public void saveFilesTempFolder(List<String> paths, User user, String guid) {
         String basePath = shareConfig.mountFolder();
         Path tempDir = Paths.get(basePath, "temp", guid);
 

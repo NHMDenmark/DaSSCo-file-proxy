@@ -44,7 +44,7 @@ public class Files {
 
     @Inject
     public Files(CacheFileService cacheFileService, FileService fileService,
-            AssetServiceProperties assetServiceProperties) {
+                 AssetServiceProperties assetServiceProperties) {
         this.cacheFileService = cacheFileService;
         this.fileService = fileService;
         this.assetServiceProperties = assetServiceProperties;
@@ -99,21 +99,18 @@ public class Files {
             Supports the standard HTTP Range header for partial content requests.
             This endpoint can be called without a token and is designed to be used with HTML anchor tags with download attribute.
             """)
-    @Path("/assets/download/{institution}/{collection}/{assetGuid}/{path: .+}")
+    @Path("/assets/download/{institution}/{collection}/{assetGuid}")
     public Response downloadLargeFile(
             @PathParam("institution") String institution,
             @PathParam("collection") String collection,
-            @PathParam("assetGuid") String guid,
+            @PathParam("assetGuid") String assetGuid,
+            @QueryParam("ticket") String ticket,
             @HeaderParam("Range") String rangeHeader) {
-        final String path = uriInfo.getPathParameters().getFirst("path");
+        final String path = this.cacheFileService.useTicket(ticket);
         logger.info("Downloading large file from collection {}, path: {}, range: {}", collection, path, rangeHeader);
-        User user = new User("anonymous");
 
         try {
-            // Get the cached file (this will fetch from ERDA and cache if not already
-            // cached)
-            Optional<CacheFileService.CachedFileInfo> cachedFileInfo = cacheFileService.getCachedFile(institution,
-                    collection, guid, path, user);
+            Optional<CacheFileService.CachedFileInfo> cachedFileInfo = cacheFileService.getCachedFileWithoutUser(path);
 
             if (cachedFileInfo.isEmpty()) {
                 return Response.status(404).build();
@@ -127,6 +124,7 @@ public class Files {
 
             // If no Range header, return the entire file
             if (rangeHeader == null || rangeHeader.isEmpty()) {
+
                 StreamingOutput streamingOutput = output -> {
                     try (RandomAccessFile raf = new RandomAccessFile(file, "r")) {
                         byte[] buffer = new byte[8192];
@@ -196,6 +194,10 @@ public class Files {
                         remaining -= bytesRead;
                     }
                     output.flush();
+                } finally {
+                    if (rangeEnd == fileLength - 1) {
+                        this.cacheFileService.invalidateTicket(ticket);
+                    }
                 }
             };
 
@@ -209,7 +211,7 @@ public class Files {
                     .build();
 
         } catch (DasscoUnauthorizedException e) {
-            String redirectUrl = assetServiceProperties.rootUrl() + "/detailed-view/" + guid;
+            String redirectUrl = assetServiceProperties.rootUrl() + "/detailed-view/" + assetGuid;
             return Response.status(Response.Status.TEMPORARY_REDIRECT).location(URI.create(redirectUrl)).build();
         }
     }
@@ -220,8 +222,8 @@ public class Files {
             """)
     @Path("/assets/{institutionName}/{collectionName}/{assetGuid}/thumbnail")
     public Response getFileFromGuid(@PathParam("institutionName") String institutionName,
-            @PathParam("collectionName") String collectionName, @PathParam("assetGuid") String assetGuid,
-            @Context SecurityContext securityContext, @QueryParam("no-cache") @DefaultValue("false") boolean noCache) {
+                                    @PathParam("collectionName") String collectionName, @PathParam("assetGuid") String assetGuid,
+                                    @Context SecurityContext securityContext, @QueryParam("no-cache") @DefaultValue("false") boolean noCache) {
         User user = securityContext.getUserPrincipal() == null ? new User("anonymous")
                 : UserMapper.from(securityContext);
         Optional<DasscoFile> dasscoFile = this.fileService.getDasscoFileThumbnailForGuid(assetGuid);
@@ -269,8 +271,8 @@ public class Files {
             Gets the latest file uploaded to ERDA for the given asset for external users. This can be called without a token.
             """)
     public Response getExternFileFromGuid(@PathParam("institutionName") String institutionName,
-            @PathParam("collectionName") String collectionName, @PathParam("assetGuid") String assetGuid,
-            @Context SecurityContext securityContext) {
+                                          @PathParam("collectionName") String collectionName, @PathParam("assetGuid") String assetGuid,
+                                          @Context SecurityContext securityContext) {
         User user = securityContext.getUserPrincipal() == null ? new User("anonymous")
                 : UserMapper.from(securityContext);
         Optional<DasscoFile> dasscoFile = this.fileService.getDasscoFileForGuid(assetGuid);
@@ -416,5 +418,19 @@ public class Files {
                 .header(HttpHeaders.CONTENT_DISPOSITION,
                         "attachment; filename=\"" + assetGuid + "_bundle.zip\"")
                 .build();
+    }
+
+    @GET
+    @Operation(summary = "Gets Ticket For Large File Download",
+            description = """
+                    Gets a ticket used to download large files, the endpoint validates user access before granting the ticket.
+                    Ticket lasts for 1 day or until download is finished.
+                    """)
+    @Path("/assets/{assetGuid}/ticket")
+    public String GetFileTicket(@PathParam("assetGuid") String assetGuid, @Context SecurityContext securityContext) {
+        logger.info("Getting ticket for asset: {}", assetGuid);
+        User user = securityContext.getUserPrincipal() == null ? new User("anonymous")
+                : UserMapper.from(securityContext);
+        return this.cacheFileService.createTicket(user, assetGuid);
     }
 }

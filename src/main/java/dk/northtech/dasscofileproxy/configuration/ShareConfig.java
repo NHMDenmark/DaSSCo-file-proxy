@@ -3,7 +3,9 @@ package dk.northtech.dasscofileproxy.configuration;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
+import java.time.Duration;
+
 @ConfigurationProperties("share")
-public record ShareConfig(String mountFolder, String parkingFolder, String nodeHost, int cacheDiskspace, int maxErdaSyncAttempts, int totalDiskSpace, String cacheFolder, String thumbnailMimeTypes) {
+public record ShareConfig(String mountFolder, String parkingFolder, String nodeHost, int cacheDiskspace, int maxErdaSyncAttempts, int totalDiskSpace, String cacheFolder, String thumbnailMimeTypes, Duration ticketCacheExpire) {
 
 }
