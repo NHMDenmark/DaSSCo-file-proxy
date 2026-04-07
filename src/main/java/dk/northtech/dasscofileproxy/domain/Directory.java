@@ -31,6 +31,8 @@ public record Directory(
         String syncWorkstation,
         @Schema(description = "Pipeline attempting the synchronization", example = "ti-p1")
         String syncPipeline,
+        @Schema(description = "Optional sync log id used for explicit synchronization tracking", example = "123")
+        @Nullable Long specifySyncLogId,
         @Schema(description = "List of assets shared", example = "")
         @Nullable List<SharedAsset> sharedAssets,
         @Schema(description = "List of users that accessed the directory", example = "") // I think.
@@ -41,7 +43,7 @@ public record Directory(
     }
 
     public Directory(Long directoryId, String uri, String node_host, AccessType access, Instant creationDatetime, int allocatedStorageMb, boolean awaitingErdaSync, int erdaSyncAttempts, List<SharedAsset> sharedAssets, List<UserAccess> userAccess) {
-        this(directoryId, uri, node_host, access, creationDatetime, allocatedStorageMb, awaitingErdaSync, erdaSyncAttempts, null, null, null, sharedAssets, userAccess);
+        this(directoryId, uri, node_host, access, creationDatetime, allocatedStorageMb, awaitingErdaSync, erdaSyncAttempts, null, null, null, null, sharedAssets, userAccess);
     }
 
     public Directory(Directory directory, Long directoryId) {
@@ -56,6 +58,7 @@ public record Directory(
                 , directory.syncUser
                 , directory.syncWorkstation
                 , directory.syncPipeline
+                , directory.specifySyncLogId
                 , directory.sharedAssets
                 , directory.userAccess);
     }

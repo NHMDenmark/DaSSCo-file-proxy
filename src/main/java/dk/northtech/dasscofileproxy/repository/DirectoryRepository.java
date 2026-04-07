@@ -12,8 +12,8 @@ import java.util.List;
 
 public interface DirectoryRepository {
     static final String INSERT = """
-            INSERT INTO directories(uri, node_host , access, allocated_storage_mb ,creation_datetime)
-                                    VALUES(:uri, :node_host ,:access::access_type, :allocatedStorageMb, :creationDatetime)
+            INSERT INTO directories(uri, node_host , access, allocated_storage_mb ,creation_datetime, specify_sync_log_id)
+                                    VALUES(:uri, :node_host ,:access::access_type, :allocatedStorageMb, :creationDatetime, :specifySyncLogId)
             """;
     @SqlUpdate(INSERT)
     @GetGeneratedKeys
@@ -39,8 +39,8 @@ public interface DirectoryRepository {
     @SqlQuery("SELECT sum(allocated_storage_mb) as totalAllocated FROM directories")
     int getTotalAllocated();
 
-    @SqlUpdate("UPDATE directories SET awaiting_erda_sync = TRUE,  sync_user = :digitiser, sync_workstation = :workstation, sync_pipeline = :pipeline, erda_sync_attempts = 0 where directory_id = :directoryId")
-    void scheduleDiretoryForSynchronization(long directoryId,  @BindMethods AssetUpdate assetUpdate);
+    @SqlUpdate("UPDATE directories SET awaiting_erda_sync = TRUE,  sync_user = :digitiser, sync_workstation = :workstation, sync_pipeline = :pipeline, erda_sync_attempts = 0, specify_sync_log_id = :specifySyncLogId where directory_id = :directoryId")
+    void scheduleDiretoryForSynchronization(@Bind("directoryId") long directoryId, @BindMethods AssetUpdate assetUpdate, @Bind("specifySyncLogId") Long specifySyncLogId);
 
     //This should look for node host in future
     @SqlQuery("UPDATE directories SET erda_sync_attempts = erda_sync_attempts + 1 WHERE awaiting_erda_sync = true AND erda_sync_attempts < :maxAttempts RETURNING *")

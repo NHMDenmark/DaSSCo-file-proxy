@@ -96,7 +96,7 @@ public class HttpShareService {
         guids.put(guid, Instant.now());
     }
 
-    public HttpInfo createHttpShareInternal(CreationObj creationObj, User user) {
+    public HttpInfo createHttpShareInternal(CreationObj creationObj) {
         try {
             Instant creationDatetime = Instant.now();
 
@@ -118,8 +118,8 @@ public class HttpShareService {
             }
             // Prevents people from checking out random assets as parents
             if (fullAsset != null && fullAsset.parent_guids != null && (minimalAsset.parent_guids() != null && !minimalAsset.parent_guids().isEmpty())) {
-                minimalAsset.parent_guids().forEach( paretn_guid -> {
-                    if(!fullAsset.parent_guids.contains(paretn_guid)){
+                minimalAsset.parent_guids().forEach( parent_guid -> {
+                    if(!fullAsset.parent_guids.contains(parent_guid)){
                         throw new DasscoIllegalActionException("Provided parent is different than the actual parent of the asset");
                     }
                 });
@@ -377,7 +377,7 @@ public class HttpShareService {
             throw new DasscoIllegalActionException("Asset is locked");
         }
         CreationObj mappedCreationObject = mapCreationObject(creationObj, asset, fullAsset);
-        return createHttpShareInternal(mappedCreationObject, user);
+        return createHttpShareInternal(mappedCreationObject);
     }
 
 

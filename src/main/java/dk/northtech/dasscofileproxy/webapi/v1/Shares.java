@@ -98,7 +98,7 @@ public class Shares {
         if(creationObj.allocation_mb() <= 0) {
             throw new IllegalArgumentException("Allocation must be a positive integer");
         }
-        return httpShareService.createHttpShareInternal(creationObj, user);
+        return httpShareService.createHttpShareInternal(creationObj);
     }
 
     @DELETE

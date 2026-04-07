@@ -203,7 +203,7 @@ class HttpShareServiceTest {
         User user = new User();
         user.username = "test-user";
         CreationObj creationObj = new CreationObj(listMinimalAsset, listUsers, 1);
-        HttpInfo httpInfo = httpShareService.createHttpShareInternal(creationObj, user);
+        HttpInfo httpInfo = httpShareService.createHttpShareInternal(creationObj);
         assertThat(httpInfo.http_allocation_status().toString()).isEqualTo("SUCCESS");
         // Remove folder?
     }
@@ -214,7 +214,7 @@ class HttpShareServiceTest {
         List<MinimalAsset> listMinimalAsset = new ArrayList<>();
         List<String> listUsers = new ArrayList<>();
         CreationObj creationObj = new CreationObj(listMinimalAsset, listUsers, 1);
-        IllegalArgumentException badRequestException = assertThrows(IllegalArgumentException.class, () -> httpShareService.createHttpShareInternal(creationObj, user));
+        IllegalArgumentException badRequestException = assertThrows(IllegalArgumentException.class, () -> httpShareService.createHttpShareInternal(creationObj));
         assertThat(badRequestException).hasMessageThat().isEqualTo("You have to provide users and an asset in this call");
     }
 
@@ -230,7 +230,7 @@ class HttpShareServiceTest {
         minimalAssetList.add(minimalAsset2);
         userList.add("test-user");
         CreationObj creationObj = new CreationObj(minimalAssetList, userList, 1);
-        IllegalArgumentException illegalArgumentException = assertThrows(IllegalArgumentException.class, () -> httpShareService.createHttpShareInternal(creationObj, user));
+        IllegalArgumentException illegalArgumentException = assertThrows(IllegalArgumentException.class, () -> httpShareService.createHttpShareInternal(creationObj));
         assertThat(illegalArgumentException).hasMessageThat().isEqualTo("Number of assets must be one");
     }
 

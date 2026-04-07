@@ -38,6 +38,14 @@
         </addColumn>
     </changeSet>
 
+    <changeSet id="3.9.0:ADD_SPECIFY_SYNC_LOG_ID_TO_DIRECTORIES" author="EZL">
+        <addColumn tableName="directories">
+            <column name="specify_sync_log_id" type="bigint">
+                <constraints nullable="true"/>
+            </column>
+        </addColumn>
+    </changeSet>
+
     <changeSet id="VERSION-3.9.0" author="EZL" context="default">
         <tagDatabase tag="VERSION-3.9.0"/>
     </changeSet>

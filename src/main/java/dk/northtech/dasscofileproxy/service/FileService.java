@@ -16,8 +16,8 @@ import io.micrometer.observation.Observation;
 import io.micrometer.observation.ObservationRegistry;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.core.Response;
+import org.apache.tika.Tika;
 import org.jdbi.v3.core.Jdbi;
-import org.jdbi.v3.sqlobject.customizer.Bind;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -40,6 +40,7 @@ import java.util.zip.CheckedInputStream;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
+import static dk.northtech.dasscofileproxy.domain.HttpAllocationStatus.SUCCESS;
 import static java.util.stream.Collectors.toList;
 
 @Service
@@ -147,7 +148,9 @@ public class FileService {
         return file.delete();
     }
 
-    public record FileResult(InputStream is, String filename, String mime_type) {}
+
+    public record FileResult(InputStream is, String filename, String mime_type) {
+    }
 
     public boolean deleteAllFilesFromOriginalInParked(String path) {
         String originalPath = shareConfig.mountFolder() + "/" + shareConfig.parkingFolder() + "/" + path;
@@ -258,9 +261,13 @@ public class FileService {
     }
 
     public void scheduleDirectoryForSynchronization(long directoryId, AssetUpdate assetUpdate) {
+        scheduleDirectoryForSynchronization(directoryId, assetUpdate, null);
+    }
+
+    public void scheduleDirectoryForSynchronization(long directoryId, AssetUpdate assetUpdate, Long specifySyncLogId) {
         jdbi.withHandle(h -> {
             DirectoryRepository attach = h.attach(DirectoryRepository.class);
-            attach.scheduleDiretoryForSynchronization(directoryId, assetUpdate);
+            attach.scheduleDiretoryForSynchronization(directoryId, assetUpdate, specifySyncLogId);
             return h;
         }).close();
         assetService.setAssestStatus(assetUpdate.assetGuid(), InternalStatus.ASSET_RECEIVED, null);
@@ -271,7 +278,7 @@ public class FileService {
             FileRepository attach = h.attach(FileRepository.class);
             FileCacheRepository attachCache = h.attach(FileCacheRepository.class);
             List<DasscoFile> files = attach.getFilesByAssetGuidMarkedForDelete(asset_guid);
-            if(!files.isEmpty()) {
+            if (!files.isEmpty()) {
                 attachCache.deleteFileCacheByFileIds(files.stream().map(DasscoFile::fileId).toList());
             }
             attach.deleteFilesMarkedForDeletionByAssetGuid(asset_guid);
@@ -313,7 +320,7 @@ public class FileService {
         }).close();
     }
 
-    public boolean enoughStorage(String assetGuide, int sizeMb){
+    public boolean enoughStorage(String assetGuide, int sizeMb) {
         FileRepository fileRepository = jdbi.onDemand(FileRepository.class);
         Optional<Directory> directory = getWriteableDirectory(assetGuide);
         long totalAllocatedByAsset = fileRepository.getTotalAllocatedByAsset(Set.of(assetGuide));
@@ -365,12 +372,12 @@ public class FileService {
 
                     DirectoryRepository directoryRepository = h.attach(DirectoryRepository.class);
                     List<Directory> writeableDirectoriesByAsset = directoryRepository.getWriteableDirectoriesByAsset(fileUploadData.asset_guid());
-                    if(writeableDirectoriesByAsset.size() == 1) {
+                    if (writeableDirectoriesByAsset.size() == 1) {
                         var dasscoUserId = h.createQuery("select dassco_user_id from dassco_user where keycloak_id = :keycloakId").bind("keycloakId", keycloakId).mapTo(Long.class).findOne();
                         var directoryId = writeableDirectoriesByAsset.getFirst().directoryId();
-                        if(directoryId != null && dasscoUserId.isPresent()) {
+                        if (directoryId != null && dasscoUserId.isPresent()) {
                             this.assetService.addAssetChange(new AssetChange(null, markForDeletion ? "FILE_UPDATED" : "FILE_ADDED", dasscoUserId.get(), directoryId, fileUploadData.asset_guid(), null));
-                        }else{
+                        } else {
                             logger.warn("directory_id (%s) or dassco_user_id (%s) not found".formatted(directoryId, dasscoUserId.orElse(null)));
                         }
                     }
@@ -427,12 +434,12 @@ public class FileService {
 
                 DirectoryRepository directoryRepository = h.attach(DirectoryRepository.class);
                 List<Directory> writeableDirectoriesByAsset = directoryRepository.getWriteableDirectoriesByAsset(fileUploadData.asset_guid());
-                if(writeableDirectoriesByAsset.size() == 1) {
+                if (writeableDirectoriesByAsset.size() == 1) {
                     var dasscoUserId = h.createQuery("select dassco_user_id from dassco_user where keycloak_id = :keycloakId").bind("keycloakId", keycloakId).mapTo(Long.class).findOne();
                     var directoryId = writeableDirectoriesByAsset.getFirst().directoryId();
-                    if(directoryId != null && dasscoUserId.isPresent()) {
+                    if (directoryId != null && dasscoUserId.isPresent()) {
                         this.assetService.addAssetChange(new AssetChange(null, markForDeletion ? "FILE_UPDATED" : "FILE_ADDED", dasscoUserId.get(), directoryId, fileUploadData.asset_guid(), null));
-                    }else{
+                    } else {
                         logger.warn("directory_id (%s) or dassco_user_id (%s) not found".formatted(directoryId, dasscoUserId.orElse(null)));
                     }
                 }
@@ -454,6 +461,7 @@ public class FileService {
         }
         writeToDiskAndGetCRC(inputStream, file);
     }
+
 
     public Optional<DasscoFile> getFilePathForAdapterFile(String institution, String collection, String filename, String type, Integer scale) {
         return jdbi.withHandle(handle -> {
@@ -561,7 +569,7 @@ public class FileService {
     return null;
 }*/
 
-    private static long writeToDiskAndGetCRC(InputStream file, File tempFile) {
+    static long writeToDiskAndGetCRC(InputStream file, File tempFile) {
         long value = 0;
         try (FileOutputStream fileOutput = new FileOutputStream(tempFile)) {
             CRC32 crc32 = new CRC32();
@@ -575,7 +583,7 @@ public class FileService {
         return value;
     }
 
-    private void copyFromTusToPermanentPlace(InputStream file, File tempFile){
+    private void copyFromTusToPermanentPlace(InputStream file, File tempFile) {
 
     }
 
@@ -644,9 +652,9 @@ public class FileService {
                                 String normalisedPath = file1.toString().replace('\\', '/');
                                 if (pathFileMap.containsKey(normalisedPath)) {
                                     markDasscoFileToBeDeleted(pathFileMap.get(normalisedPath).path());
-                                    if(directoryId.get() != null && dasscoUserId.get() != null) {
+                                    if (directoryId.get() != null && dasscoUserId.get() != null) {
                                         this.assetService.addAssetChange(new AssetChange(null, "FILE_DELETED", dasscoUserId.get(), directoryId.get(), fileUploadData.asset_guid(), null));
-                                    }else{
+                                    } else {
                                         logger.warn("directory_id (%s) or dassco_user_id (%s) not found".formatted(directoryId.get(), dasscoUserId.get()));
                                     }
                                 }
@@ -660,10 +668,9 @@ public class FileService {
             String normalisedPath = file.toString().replace('\\', '/');
             if (pathFileMap.containsKey(normalisedPath)) {
                 markDasscoFileToBeDeleted(pathFileMap.get(normalisedPath).path());
-                if(directoryId.get() != null && dasscoUserId.get() != null) {
+                if (directoryId.get() != null && dasscoUserId.get() != null) {
                     this.assetService.addAssetChange(new AssetChange(null, "FILE_DELETED", dasscoUserId.get(), directoryId.get(), fileUploadData.asset_guid(), null));
-                }
-                else{
+                } else {
                     logger.warn("directory_id (%s) or dassco_user_id (%s) not found".formatted(directoryId.get(), dasscoUserId.get()));
                 }
             }
@@ -745,9 +752,11 @@ public class FileService {
         }
         return false;
     }
+
     public Optional<DasscoFile> getDasscoFileThumbnailForGuid(String assetGuid) {
         return this.jdbi.onDemand(FileRepository.class).getFileThumbnailByAssetGuid(assetGuid);
     }
+
     public Optional<DasscoFile> getDasscoFileForGuid(String assetGuid) {
         return this.jdbi.onDemand(FileRepository.class).getFileByAssetGuid(assetGuid);
     }
@@ -1004,8 +1013,6 @@ public class FileService {
         FileRepository fileRepository = jdbi.onDemand(FileRepository.class);
         return fileRepository.createLargeFileUploadInfo(tusId, assetGuid, sizeBytes, path);
     }*/
-
-
 
 
 }

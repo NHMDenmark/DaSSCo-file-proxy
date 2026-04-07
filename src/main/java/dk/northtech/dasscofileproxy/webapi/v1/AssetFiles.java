@@ -3,9 +3,11 @@ package dk.northtech.dasscofileproxy.webapi.v1;
 import dk.northtech.dasscofileproxy.configuration.ShareConfig;
 import dk.northtech.dasscofileproxy.domain.DasscoFile;
 import dk.northtech.dasscofileproxy.domain.SecurityRoles;
+import dk.northtech.dasscofileproxy.domain.SyncParkingSpaceRequest;
 import dk.northtech.dasscofileproxy.domain.User;
 import dk.northtech.dasscofileproxy.service.CacheFileService;
 import dk.northtech.dasscofileproxy.service.FileService;
+import dk.northtech.dasscofileproxy.service.ParkingService;
 import dk.northtech.dasscofileproxy.webapi.UserMapper;
 import dk.northtech.dasscofileproxy.webapi.exceptionmappers.DaSSCoError;
 import dk.northtech.dasscofileproxy.webapi.exceptionmappers.DaSSCoErrorCode;
@@ -46,11 +48,13 @@ import static jakarta.ws.rs.core.MediaType.*;
 public class AssetFiles {
     private FileService fileService;
     private CacheFileService cacheFileService;
+    private ParkingService parkingService;
     private final ShareConfig shareConfig;
     private static final Logger logger = LoggerFactory.getLogger(AssetFiles.class);
     @Inject
-    public AssetFiles(FileService fileService, CacheFileService cacheFileService, ShareConfig shareConfig) {
+    public AssetFiles(FileService fileService, CacheFileService cacheFileService, ShareConfig shareConfig, ParkingService parkingService) {
         this.fileService = fileService;
+        this.parkingService = parkingService;
         this.cacheFileService = cacheFileService;
         this.shareConfig = shareConfig;
     }
@@ -420,5 +424,18 @@ public class AssetFiles {
             }
             return Response.status(404).entity("Missing file: %s".formatted(path)).build();
         });
+    }
+
+    @POST
+    @Path("/syncparkedfiles/")
+    @Operation(summary = "Upload a file to the Parking spot.", description = "Upload a file to the Parking spot.")
+    @Consumes(APPLICATION_JSON)
+    @ApiResponse(responseCode = "200", description = "File has been uploaded")
+    @ApiResponse(responseCode = "500", content = @Content(mediaType = APPLICATION_OCTET_STREAM))
+//    @RolesAllowed({SecurityRoles.DEVELOPER, SecurityRoles.ADMIN, SecurityRoles.SERVICE})
+    public Response syncParkedFiles(SyncParkingSpaceRequest syncParkingSpaceRequest, @Context SecurityContext securityContext) {
+        User user = UserMapper.from(securityContext);
+        parkingService.syncParkedFiles(syncParkingSpaceRequest, user);
+        return Response.status(Response.Status.OK).build();
     }
 }
