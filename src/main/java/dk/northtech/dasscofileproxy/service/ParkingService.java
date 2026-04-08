@@ -39,30 +39,32 @@ public class ParkingService {
 
     public void syncParkedFiles(SyncParkingSpaceRequest syncParkingSpaceRequest, User user) {
         MinimalAsset asset = syncParkingSpaceRequest.asset();
-        String basePath = shareConfig.mountFolder() + "/" + shareConfig.parkingFolder() + "/" + asset.institution() + "/" + asset.collection() + "/" + asset.asset_guid();
+        String basePath = shareConfig.mountFolder() + "/assetfiles/" + shareConfig.parkingFolder() + "/" + asset.institution() + "/" + asset.collection() + "/" + asset.asset_guid();
         logger.info("Syncing parkingspace: " + basePath);
         File file = new File(basePath);
         // If there are no files in parking space, do nothing. We currently dont allow empty parking space to overwrite files.
         if (file.exists() && file.isDirectory()) {
+            logger.info("Found files in parkingspace");
             List<File> files = fileService.listFiles(file, new ArrayList<>(), false, false);
             Optional<Directory> writeableDirectory = fileService.getWriteableDirectory(asset.asset_guid());
             if (writeableDirectory.isPresent()) {
                 Directory directory = writeableDirectory.get();
-                //deleteing existing
+                //deleting existing
                 logger.info("Deleting existing: " + directory);
                 httpShareService.deleteShare(user, asset.asset_guid());
             }
             long sizeBytes = files.stream().mapToLong(File::length).sum();
             HttpInfo httpInfo = httpShareService.createHttpShareInternal(new CreationObj(List.of(asset), List.of(user.username), (int) (sizeBytes / 1000000)));
+            logger.info("Created http share: " + httpInfo);
             if (httpInfo.http_allocation_status() != SUCCESS) {
                 throw new RuntimeException("Sync Parked failed to allocate space with status " + httpInfo.http_allocation_status());
             }
             for (File parkedFile : files) {
                 try {
-                    logger.info("Moveing parked file: " + parkedFile);
+                    logger.info("Moving parked file: " + parkedFile);
 
                     try (InputStream inputStream = Files.newInputStream(parkedFile.toPath())) {
-                        File target = new File("target/assetfiles/NHMD/NHMD Vascular Plants"+"/"+ asset.asset_guid() + "/" + parkedFile.getName());
+                        File target = new File(shareConfig.mountFolder() + "/assetfiles/"+ asset.institution()+"/"+asset.collection()+"/"+ asset.asset_guid() + "/" + parkedFile.getName());
                         logger.info("Moving file to: " + target);
                         long crc = writeToDiskAndGetCRC(inputStream,target);
                         jdbi.withHandle(h -> {
@@ -77,18 +79,19 @@ public class ParkingService {
                             return h;
                         }) ;
                     }
-                    //sync the share we just opened
-                    Optional<Directory> directoryToSync = fileService.getWriteableDirectory(asset.asset_guid());
-                    if (directoryToSync.isPresent()) {
-                        fileService.scheduleDirectoryForSynchronization(directoryToSync.get().directoryId(), new AssetUpdate(asset.asset_guid(),null, null, user.username), syncParkingSpaceRequest.specifySyncLogId());
-                    } else {
-                        throw new RuntimeException("Directory not found");
-                    }
                 } catch (IOException e) {
                     throw new RuntimeException("Failed to move files", e);
                 }
+                //delete the parked file
+                parkedFile.delete();
+            }
+            //sync the share we just opened
+            Optional<Directory> directoryToSync = fileService.getWriteableDirectory(asset.asset_guid());
+            if (directoryToSync.isPresent()) {
+                fileService.scheduleDirectoryForSynchronization(directoryToSync.get().directoryId(), new AssetUpdate(asset.asset_guid(), null, null, user.username), syncParkingSpaceRequest.specifySyncLogId());
+            } else {
+                throw new RuntimeException("Directory not found");
             }
         }
     }
-
 }

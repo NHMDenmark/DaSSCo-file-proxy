@@ -15,7 +15,9 @@ public record AssetUpdateRequest(
         @Schema(description = "The asset_guid for the sync event", example = "asdhjg-asdf-asdf")
         @Nullable String asset_guid,
         @Schema(description = "The directory_id for the sync event", example = "1")
-        @Nullable Long directory_id
+        @Nullable Long directory_id,
+        @Schema(description = "Optional sync log id for explicit synchronization tracking", example = "123")
+        @Nullable Long specifySyncLogId
 ) {
 
 }
