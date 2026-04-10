@@ -435,7 +435,11 @@ public class AssetFiles {
 //    @RolesAllowed({SecurityRoles.DEVELOPER, SecurityRoles.ADMIN, SecurityRoles.SERVICE})
     public Response syncParkedFiles(SyncParkingSpaceRequest syncParkingSpaceRequest, @Context SecurityContext securityContext) {
         User user = UserMapper.from(securityContext);
-        parkingService.syncParkedFiles(syncParkingSpaceRequest, user);
-        return Response.status(Response.Status.OK).build();
+        if(parkingService.syncParkedFiles(syncParkingSpaceRequest, user)){
+            return Response.status(Response.Status.ACCEPTED).build();
+        } else {
+            return Response.status(Response.Status.OK).build();
+        }
+
     }
 }

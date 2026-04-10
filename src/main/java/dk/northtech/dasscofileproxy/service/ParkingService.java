@@ -37,7 +37,7 @@ public class ParkingService {
         this.shareConfig = shareConfig;
     }
 
-    public void syncParkedFiles(SyncParkingSpaceRequest syncParkingSpaceRequest, User user) {
+    public boolean syncParkedFiles(SyncParkingSpaceRequest syncParkingSpaceRequest, User user) {
         MinimalAsset asset = syncParkingSpaceRequest.asset();
         String basePath = shareConfig.mountFolder() + "/assetfiles/" + shareConfig.parkingFolder() + "/" + asset.institution() + "/" + asset.collection() + "/" + asset.asset_guid();
         logger.info("Syncing parkingspace: " + basePath);
@@ -53,10 +53,12 @@ public class ParkingService {
                 logger.info("Deleting existing: " + directory);
                 httpShareService.deleteShare(user, asset.asset_guid());
             }
-            long sizeBytes = files.stream().mapToLong(File::length).sum();
+            // Make sure we have wiggle room.
+            long sizeBytes = files.stream().mapToLong(File::length).sum() + 1000000;
             HttpInfo httpInfo = httpShareService.createHttpShareInternal(new CreationObj(List.of(asset), List.of(user.username), (int) (sizeBytes / 1000000)));
             logger.info("Created http share: " + httpInfo);
             if (httpInfo.http_allocation_status() != SUCCESS) {
+                logger.error("Failed to allocate space for syncing parking space: {}", httpInfo.toString());
                 throw new RuntimeException("Sync Parked failed to allocate space with status " + httpInfo.http_allocation_status());
             }
             for (File parkedFile : files) {
@@ -64,9 +66,9 @@ public class ParkingService {
                     logger.info("Moving parked file: " + parkedFile);
 
                     try (InputStream inputStream = Files.newInputStream(parkedFile.toPath())) {
-                        File target = new File(shareConfig.mountFolder() + "/assetfiles/"+ asset.institution()+"/"+asset.collection()+"/"+ asset.asset_guid() + "/" + parkedFile.getName());
+                        File target = new File(shareConfig.mountFolder() + "/assetfiles/" + asset.institution() + "/" + asset.collection() + "/" + asset.asset_guid() + "/" + parkedFile.getName());
                         logger.info("Moving file to: " + target);
-                        long crc = writeToDiskAndGetCRC(inputStream,target);
+                        long crc = writeToDiskAndGetCRC(inputStream, target);
                         jdbi.withHandle(h -> {
                             FileRepository fileRepository = h.attach(FileRepository.class);
                             String mimetype;
@@ -75,9 +77,9 @@ public class ParkingService {
                             } catch (IOException e) {
                                 throw new RuntimeException(e);
                             }
-                            fileRepository.insertFile(new DasscoFile(null, asset.asset_guid(), "/"+ asset.institution() + "/" + asset.collection() + "/" + asset.asset_guid() + "/" +file.getName(), parkedFile.length(), crc, FileSyncStatus.NEW_FILE,mimetype , true));
+                            fileRepository.insertFile(new DasscoFile(null, asset.asset_guid(), "/" + asset.institution() + "/" + asset.collection() + "/" + asset.asset_guid() + "/" + file.getName(), parkedFile.length(), crc, FileSyncStatus.NEW_FILE, mimetype, true));
                             return h;
-                        }) ;
+                        });
                     }
                 } catch (IOException e) {
                     throw new RuntimeException("Failed to move files", e);
@@ -89,9 +91,11 @@ public class ParkingService {
             Optional<Directory> directoryToSync = fileService.getWriteableDirectory(asset.asset_guid());
             if (directoryToSync.isPresent()) {
                 fileService.scheduleDirectoryForSynchronization(directoryToSync.get().directoryId(), new AssetUpdate(asset.asset_guid(), null, null, user.username), syncParkingSpaceRequest.specifySyncLogId());
+                return true;
             } else {
                 throw new RuntimeException("Directory not found");
             }
         }
+        return false;
     }
 }
