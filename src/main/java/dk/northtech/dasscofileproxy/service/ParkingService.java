@@ -11,12 +11,15 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 
 import static dk.northtech.dasscofileproxy.domain.HttpAllocationStatus.SUCCESS;
@@ -80,7 +83,7 @@ public class ParkingService {
                             fileRepository.insertFile(new DasscoFile(null, asset.asset_guid(), "/" + asset.institution() + "/" + asset.collection() + "/" + asset.asset_guid() + "/" + file.getName(), parkedFile.length(), crc, FileSyncStatus.NEW_FILE, mimetype, true));
                             return h;
                         });
-                        fileService.deleteParkedFileMetadata(parkedFile.getPath());
+                        deleteParkedFileMetadata(parkedFile.getPath());
                     }
                 } catch (IOException e) {
                     throw new RuntimeException("Failed to move files", e);
@@ -98,5 +101,119 @@ public class ParkingService {
             }
         }
         return false;
+    }
+
+    public void uploadToParking(InputStream inputStream, String path) {
+        String basePath = shareConfig.mountFolder() + "/" + shareConfig.parkingFolder() + "/" + path;
+        File file = new File(basePath);
+        if (file.getParentFile() != null) {
+            file.getParentFile().mkdirs();
+        }
+        writeToDiskAndGetCRC(inputStream, file);
+        String parkedPath = normalizeParkedFilePath(path);
+        upsertParkedFileMetadata(parkedPath, file.length());
+    }
+
+    public boolean deleteAllFilesFromOriginalInParked(String path) {
+        String originalPath = shareConfig.mountFolder() + "/" + shareConfig.parkingFolder() + "/" + path;
+        String[] pathParts = path.split("/");
+        Path dir = Path.of(originalPath.replace(pathParts[pathParts.length - 1], "").replace("originals", "thumbnails"));
+        String[] filenameParts = pathParts[pathParts.length - 1].split("\\.");
+
+        File file = new File(originalPath.replace("thumbnails", "originals"));
+        if (file.exists()) {
+            file.delete();
+            deleteParkedFileMetadata(path);
+        } else {
+            return false;
+        }
+
+        // Thumbnails have been pulled out of the parking spot, no need for this, waiting final confirm.
+    /*try (DirectoryStream<Path> stream = Files.newDirectoryStream(dir, filenameParts[0] + "_*." + filenameParts[1])) {
+        for (Path entry : stream) {
+            try {
+                Files.deleteIfExists(entry);
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+        }
+    } catch (IOException e) {
+        throw new RuntimeException(e);
+    }*/
+
+        return true;
+    }
+
+    public Optional<FileService.FileResult> readFromParking(String path, Integer scale) {
+        try {
+            String basePath = shareConfig.mountFolder() + "/" + shareConfig.parkingFolder() + "/" + path;
+            File file = new File(basePath);
+            String mimeType = Files.probeContentType(file.toPath());
+            if (Objects.equals("application/pdf", mimeType) && path.contains("/thumbnails/")) {
+                file = new File(basePath.replace(".pdf", ".png"));
+            }
+            if (Objects.equals("image/tiff", mimeType) && path.contains("/thumbnails/")) {
+                file = new File(basePath.replace(".tiff", ".png"));
+            }
+
+            if (file.exists()) {
+                try {
+                    return Optional.of(new FileService.FileResult(new FileInputStream(file), file.getName(), null));
+                } catch (FileNotFoundException e) {
+                    throw new RuntimeException(e);
+                }
+            }
+            return Optional.empty();
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    public void deleteParkedFileMetadata(String path) {
+        String parkedPath = normalizeParkedFilePath(path);
+        jdbi.withHandle(handle -> handle
+                .createUpdate("DELETE FROM parked_file WHERE path = :path")
+                .bind("path", parkedPath)
+                .execute());
+    }
+
+    private void upsertParkedFileMetadata(String path, long sizeBytes) {
+        jdbi.withHandle(handle -> handle
+                .createUpdate("""
+                        INSERT INTO parked_file(path, size_bytes, "timestamp")
+                        VALUES (:path, :sizeBytes, now())
+                        ON CONFLICT (path)
+                        DO UPDATE SET size_bytes = EXCLUDED.size_bytes, "timestamp" = now()
+                        """)
+                .bind("path", path)
+                .bind("sizeBytes", sizeBytes)
+                .execute());
+    }
+
+    private String normalizeParkedFilePath(String path) {
+        String normalizedPath = path.replace('\\', '/').trim();
+        while (normalizedPath.startsWith("/")) {
+            normalizedPath = normalizedPath.substring(1);
+        }
+
+        String mountFolder = shareConfig.mountFolder().replace('\\', '/');
+        String parkingFolder = shareConfig.parkingFolder().replace('\\', '/');
+
+        if (normalizedPath.startsWith(mountFolder + "/")) {
+            normalizedPath = normalizedPath.substring((mountFolder + "/").length());
+        }
+        if (normalizedPath.startsWith("assetfiles/" + parkingFolder + "/")) {
+            normalizedPath = normalizedPath.substring(("assetfiles/" + parkingFolder + "/").length());
+        }
+        if (normalizedPath.startsWith(parkingFolder + "/")) {
+            normalizedPath = normalizedPath.substring((parkingFolder + "/").length());
+        }
+
+        int parkingSegmentIndex = normalizedPath.indexOf("/" + parkingFolder + "/");
+        if (parkingSegmentIndex >= 0) {
+            normalizedPath = normalizedPath.substring(parkingSegmentIndex + parkingFolder.length() + 2);
+        }
+
+        return normalizedPath;
     }
 }

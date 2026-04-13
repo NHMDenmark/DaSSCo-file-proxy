@@ -152,35 +152,6 @@ public class FileService {
     public record FileResult(InputStream is, String filename, String mime_type) {
     }
 
-    public boolean deleteAllFilesFromOriginalInParked(String path) {
-        String originalPath = shareConfig.mountFolder() + "/" + shareConfig.parkingFolder() + "/" + path;
-        String[] pathParts = path.split("/");
-        Path dir = Paths.get(originalPath.replace(pathParts[pathParts.length - 1], "").replace("originals", "thumbnails"));
-        String[] filenameParts = pathParts[pathParts.length - 1].split("\\.");
-
-        File file = new File(originalPath.replace("thumbnails", "originals"));
-        if (file.exists()) {
-            file.delete();
-        } else {
-            return false;
-        }
-
-        // Thumbnails have been pulled out of the parking spot, no need for this, waiting final confirm.
-    /*try (DirectoryStream<Path> stream = Files.newDirectoryStream(dir, filenameParts[0] + "_*." + filenameParts[1])) {
-        for (Path entry : stream) {
-            try {
-                Files.deleteIfExists(entry);
-            } catch (IOException e) {
-                throw new RuntimeException(e);
-            }
-        }
-    } catch (IOException e) {
-        throw new RuntimeException(e);
-    }*/
-
-        return true;
-    }
-
     record AssetAllocation(long assetBytes, long parentBytes) {
         int getTotalAllocationAsMb() {
             return (int) Math.ceil((assetBytes + parentBytes) / 1000000d);
@@ -453,121 +424,11 @@ public class FileService {
         });
     }
 
-    public void uploadToParking(InputStream inputStream, String path) {
-        String basePath = shareConfig.mountFolder() + "/" + shareConfig.parkingFolder() + "/" + path;
-        File file = new File(basePath);
-        if (file.getParentFile() != null) {
-            file.getParentFile().mkdirs();
-        }
-        logger.info("Parking file at: {}", basePath);
-        writeToDiskAndGetCRC(inputStream, file);
-        String parkedPath = normalizeParkedFilePath(path);
-        upsertParkedFileMetadata(parkedPath, file.length());
-    }
-
-    private void upsertParkedFileMetadata(String path, long sizeBytes) {
-        jdbi.withHandle(handle -> handle
-                .createUpdate("""
-                        INSERT INTO parked_file(path, size_bytes, "timestamp")
-                        VALUES (:path, :sizeBytes, now())
-                        ON CONFLICT (path)
-                        DO UPDATE SET size_bytes = EXCLUDED.size_bytes, "timestamp" = now()
-                        """)
-                .bind("path", path)
-                .bind("sizeBytes", sizeBytes)
-                .execute());
-    }
-
-    public void deleteParkedFileMetadata(String path) {
-        String parkedPath = normalizeParkedFilePath(path);
-        jdbi.withHandle(handle -> handle
-                .createUpdate("DELETE FROM parked_file WHERE path = :path")
-                .bind("path", parkedPath)
-                .execute());
-    }
-
-    private String normalizeParkedFilePath(String path) {
-        String normalizedPath = path.replace('\\', '/').trim();
-        while (normalizedPath.startsWith("/")) {
-            normalizedPath = normalizedPath.substring(1);
-        }
-
-        String mountFolder = shareConfig.mountFolder().replace('\\', '/');
-        String parkingFolder = shareConfig.parkingFolder().replace('\\', '/');
-
-        if (normalizedPath.startsWith(mountFolder + "/")) {
-            normalizedPath = normalizedPath.substring((mountFolder + "/").length());
-        }
-        if (normalizedPath.startsWith("assetfiles/" + parkingFolder + "/")) {
-            normalizedPath = normalizedPath.substring(("assetfiles/" + parkingFolder + "/").length());
-        }
-        if (normalizedPath.startsWith(parkingFolder + "/")) {
-            normalizedPath = normalizedPath.substring((parkingFolder + "/").length());
-        }
-
-        int parkingSegmentIndex = normalizedPath.indexOf("/" + parkingFolder + "/");
-        if (parkingSegmentIndex >= 0) {
-            normalizedPath = normalizedPath.substring(parkingSegmentIndex + parkingFolder.length() + 2);
-        }
-
-        return normalizedPath;
-    }
-
-
     public Optional<DasscoFile> getFilePathForAdapterFile(String institution, String collection, String filename, String type, Integer scale) {
         return jdbi.withHandle(handle -> {
             FileRepository fileRepository = handle.attach(FileRepository.class);
             return fileRepository.getFilePathForAdapterFile(institution, collection, filename, type.equals("thumbnails"));
         });
-    }
-
-    public Optional<FileResult> readFromParking(String path, Integer scale) {
-        try {
-            String basePath = shareConfig.mountFolder() + "/" + shareConfig.parkingFolder() + "/" + path;
-            File file = new File(basePath);
-            String mimeType = Files.probeContentType(file.toPath());
-            if (Objects.equals("application/pdf", mimeType) && path.contains("/thumbnails/")) {
-                file = new File(basePath.replace(".pdf", ".png"));
-            }
-            if (Objects.equals("image/tiff", mimeType) && path.contains("/thumbnails/")) {
-                file = new File(basePath.replace(".tiff", ".png"));
-            }
-
-            if (file.exists()) {
-                try {
-                    return Optional.of(new FileResult(new FileInputStream(file), file.getName(), null));
-                } catch (FileNotFoundException e) {
-                    throw new RuntimeException(e);
-                }
-            }
-            // Code that generates a Thumbnail
-            /*else if (path.contains("/thumbnails/") && this.asList(shareConfig.thumbnailMimeTypes()).contains(mimeType) *//* && check file extension is one of ... *//*) {
-            String basePathOriginal = shareConfig.mountFolder() + "/" + shareConfig.parkingFolder() + "/" + path.replace("/thumbnails/", "/originals/").replace("_" + scale + ".", ".");
-            File fileOriginal = new File(basePathOriginal);
-            if (fileOriginal.exists()) {
-                try {
-                    InputStream scaledInputStream = this.fileToScaledVersion(fileOriginal, scale, mimeType);
-                    if(scaledInputStream == null){
-                        return Optional.empty();
-                    }
-                    if (file.getParentFile() != null) {
-                        file.getParentFile().mkdirs();
-                    }
-                    long crc = writeToDiskAndGetCRC(scaledInputStream, file);
-                    if (crc > 0) {
-                        return Optional.of(new FileResult(new FileInputStream(file), file.getName()));
-                    }
-                } catch (IOException e) {
-                    throw new RuntimeException(e);
-                }
-            }else{
-                throw new WebApplicationException(Response.status(Response.Status.NOT_FOUND).entity("Missing original: %s".formatted(path)).build());
-            }
-        }*/
-            return Optional.empty();
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
     }
 
     // Code that scale a File

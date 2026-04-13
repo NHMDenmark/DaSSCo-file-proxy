@@ -336,7 +336,7 @@ public class AssetFiles {
     public Response postFileToParkedFiles(@PathParam("path") String path, InputStream file){
         String decodedPath = URLDecoder.decode(path, StandardCharsets.UTF_8);
         logger.info("Received file to parked: {}", decodedPath);
-        fileService.uploadToParking(file, decodedPath);
+        parkingService.uploadToParking(file, decodedPath);
         return Response.status(Response.Status.OK).build();
     }
 
@@ -349,7 +349,7 @@ public class AssetFiles {
     @RolesAllowed({SecurityRoles.DEVELOPER, SecurityRoles.ADMIN, SecurityRoles.SERVICE})
     public Response deleteFileFromParkedFiles(@PathParam("path") String path){
         String decodedPath = URLDecoder.decode(path, StandardCharsets.UTF_8);
-        boolean result = this.fileService.deleteAllFilesFromOriginalInParked(decodedPath);
+        boolean result = this.parkingService.deleteAllFilesFromOriginalInParked(decodedPath);
         return Response.status(result ? Response.Status.OK : Response.Status.NOT_FOUND).build();
     }
 
@@ -383,7 +383,7 @@ public class AssetFiles {
             }
             return Response.status(404).entity("Missing file: %s".formatted(path)).build();
         }).orElseGet(() -> {
-            Optional<FileService.FileResult> getFileResult = fileService.readFromParking(path, scale);
+            Optional<FileService.FileResult> getFileResult = parkingService.readFromParking(path, scale);
             if (getFileResult.isPresent()) {
                 FileService.FileResult fileResult = getFileResult.get();
                 StreamingOutput streamingOutput = output -> {
@@ -419,7 +419,7 @@ public class AssetFiles {
                     return Response.status(404).entity("Missing file: %s".formatted(path)).build();
         })
         .orElseGet(() -> {
-            Optional<FileService.FileResult> getFileResult = fileService.readFromParking(path, scale);
+            Optional<FileService.FileResult> getFileResult = parkingService.readFromParking(path, scale);
             if(getFileResult.isPresent()) {
                 return Response.status(200).build();
             }
