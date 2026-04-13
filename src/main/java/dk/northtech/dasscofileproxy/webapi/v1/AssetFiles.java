@@ -335,6 +335,7 @@ public class AssetFiles {
     @RolesAllowed({SecurityRoles.DEVELOPER, SecurityRoles.ADMIN, SecurityRoles.SERVICE})
     public Response postFileToParkedFiles(@PathParam("path") String path, InputStream file){
         String decodedPath = URLDecoder.decode(path, StandardCharsets.UTF_8);
+        logger.info("Received file to parked: {}", decodedPath);
         fileService.uploadToParking(file, decodedPath);
         return Response.status(Response.Status.OK).build();
     }

@@ -39,7 +39,7 @@ public class ParkingService {
 
     public boolean syncParkedFiles(SyncParkingSpaceRequest syncParkingSpaceRequest, User user) {
         MinimalAsset asset = syncParkingSpaceRequest.asset();
-        String basePath = shareConfig.mountFolder() + "/assetfiles/" + shareConfig.parkingFolder() + "/" + asset.institution() + "/" + asset.collection() + "/" + asset.asset_guid();
+        String basePath = shareConfig.mountFolder() + "/" + shareConfig.parkingFolder() + "/" + asset.institution() + "/" + asset.collection() + "/" + asset.asset_guid();
         logger.info("Syncing parkingspace: " + basePath);
         File file = new File(basePath);
         // If there are no files in parking space, do nothing. We currently dont allow empty parking space to overwrite files.

@@ -459,6 +459,7 @@ public class FileService {
         if (file.getParentFile() != null) {
             file.getParentFile().mkdirs();
         }
+        logger.info("Parking file at: {}", basePath);
         writeToDiskAndGetCRC(inputStream, file);
         String parkedPath = normalizeParkedFilePath(path);
         upsertParkedFileMetadata(parkedPath, file.length());
