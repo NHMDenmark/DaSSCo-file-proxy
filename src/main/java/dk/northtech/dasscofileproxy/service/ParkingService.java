@@ -80,6 +80,7 @@ public class ParkingService {
                             fileRepository.insertFile(new DasscoFile(null, asset.asset_guid(), "/" + asset.institution() + "/" + asset.collection() + "/" + asset.asset_guid() + "/" + file.getName(), parkedFile.length(), crc, FileSyncStatus.NEW_FILE, mimetype, true));
                             return h;
                         });
+                        fileService.deleteParkedFileMetadata(parkedFile.getPath());
                     }
                 } catch (IOException e) {
                     throw new RuntimeException("Failed to move files", e);

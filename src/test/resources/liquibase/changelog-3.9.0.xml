@@ -46,6 +46,32 @@
         </addColumn>
     </changeSet>
 
+    <changeSet id="3.9.0:ADD_PARKED_FILE" author="THBO" context="default">
+        <createTable tableName="parked_file">
+            <column name="parked_file_id" type="bigint" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false" primaryKeyName="pk_parked_file"/>
+            </column>
+            <column name="path" type="text">
+                <constraints nullable="false"/>
+            </column>
+            <column name="size_bytes" type="bigint">
+                <constraints nullable="false"/>
+            </column>
+            <column name="timestamp" type="timestamp" defaultValue="now()">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+    </changeSet>
+
+    <changeSet id="3.9.0:ADD_PARKED_FILE_INDEXES" author="THBO" context="default">
+        <createIndex tableName="parked_file" indexName="idx_parked_file_path">
+            <column name="path"/>
+        </createIndex>
+        <createIndex tableName="parked_file" indexName="idx_parked_file_timestamp">
+            <column name="timestamp"/>
+        </createIndex>
+    </changeSet>
+
     <changeSet id="VERSION-3.9.0" author="EZL" context="default">
         <tagDatabase tag="VERSION-3.9.0"/>
     </changeSet>

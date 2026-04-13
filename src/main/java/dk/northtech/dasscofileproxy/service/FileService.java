@@ -460,6 +460,56 @@ public class FileService {
             file.getParentFile().mkdirs();
         }
         writeToDiskAndGetCRC(inputStream, file);
+        String parkedPath = normalizeParkedFilePath(path);
+        upsertParkedFileMetadata(parkedPath, file.length());
+    }
+
+    private void upsertParkedFileMetadata(String path, long sizeBytes) {
+        jdbi.withHandle(handle -> handle
+                .createUpdate("""
+                        INSERT INTO parked_file(path, size_bytes, "timestamp")
+                        VALUES (:path, :sizeBytes, now())
+                        ON CONFLICT (path)
+                        DO UPDATE SET size_bytes = EXCLUDED.size_bytes, "timestamp" = now()
+                        """)
+                .bind("path", path)
+                .bind("sizeBytes", sizeBytes)
+                .execute());
+    }
+
+    public void deleteParkedFileMetadata(String path) {
+        String parkedPath = normalizeParkedFilePath(path);
+        jdbi.withHandle(handle -> handle
+                .createUpdate("DELETE FROM parked_file WHERE path = :path")
+                .bind("path", parkedPath)
+                .execute());
+    }
+
+    private String normalizeParkedFilePath(String path) {
+        String normalizedPath = path.replace('\\', '/').trim();
+        while (normalizedPath.startsWith("/")) {
+            normalizedPath = normalizedPath.substring(1);
+        }
+
+        String mountFolder = shareConfig.mountFolder().replace('\\', '/');
+        String parkingFolder = shareConfig.parkingFolder().replace('\\', '/');
+
+        if (normalizedPath.startsWith(mountFolder + "/")) {
+            normalizedPath = normalizedPath.substring((mountFolder + "/").length());
+        }
+        if (normalizedPath.startsWith("assetfiles/" + parkingFolder + "/")) {
+            normalizedPath = normalizedPath.substring(("assetfiles/" + parkingFolder + "/").length());
+        }
+        if (normalizedPath.startsWith(parkingFolder + "/")) {
+            normalizedPath = normalizedPath.substring((parkingFolder + "/").length());
+        }
+
+        int parkingSegmentIndex = normalizedPath.indexOf("/" + parkingFolder + "/");
+        if (parkingSegmentIndex >= 0) {
+            normalizedPath = normalizedPath.substring(parkingSegmentIndex + parkingFolder.length() + 2);
+        }
+
+        return normalizedPath;
     }
 
 
