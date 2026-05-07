@@ -1,5 +1,7 @@
 package dk.northtech.dasscofileproxy.webapi.v1;
 
+import com.google.gson.Gson;
+import dk.northtech.dasscofileproxy.assets.AssetServiceProperties;
 import dk.northtech.dasscofileproxy.configuration.ShareConfig;
 import dk.northtech.dasscofileproxy.domain.DasscoFile;
 import dk.northtech.dasscofileproxy.domain.SecurityRoles;
@@ -8,6 +10,7 @@ import dk.northtech.dasscofileproxy.domain.User;
 import dk.northtech.dasscofileproxy.service.CacheFileService;
 import dk.northtech.dasscofileproxy.service.FileService;
 import dk.northtech.dasscofileproxy.service.ParkingService;
+import dk.northtech.dasscofileproxy.webapi.RangeRequestHandler;
 import dk.northtech.dasscofileproxy.webapi.UserMapper;
 import dk.northtech.dasscofileproxy.webapi.exceptionmappers.DaSSCoError;
 import dk.northtech.dasscofileproxy.webapi.exceptionmappers.DaSSCoErrorCode;
@@ -31,14 +34,25 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.URI;
 import java.net.URLDecoder;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Paths;
+import java.time.Duration;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipOutputStream;
 
 import static jakarta.ws.rs.core.MediaType.*;
 
@@ -50,13 +64,15 @@ public class AssetFiles {
     private CacheFileService cacheFileService;
     private ParkingService parkingService;
     private final ShareConfig shareConfig;
+    private final AssetServiceProperties assetServiceProperties;
     private static final Logger logger = LoggerFactory.getLogger(AssetFiles.class);
     @Inject
-    public AssetFiles(FileService fileService, CacheFileService cacheFileService, ShareConfig shareConfig, ParkingService parkingService) {
+    public AssetFiles(FileService fileService, CacheFileService cacheFileService, ShareConfig shareConfig, ParkingService parkingService, AssetServiceProperties assetServiceProperties) {
         this.fileService = fileService;
         this.parkingService = parkingService;
         this.cacheFileService = cacheFileService;
         this.shareConfig = shareConfig;
+        this.assetServiceProperties = assetServiceProperties;
     }
 
     @Context
@@ -298,7 +314,7 @@ public class AssetFiles {
                               @PathParam("guid") String guid){
 
         var user = UserMapper.from(securityContext);
-        var dasscoFiles = fileService.getDasscoFiles(assets, user, guid);
+        var dasscoFiles = fileService.getDasscoFiles(assets, user);
         if (!dasscoFiles.isEmpty()) {
             List<String> assetFiles = dasscoFiles.stream().map(DasscoFile::path).collect(Collectors.toList());
             cacheFileService.saveFilesTempFolder(assetFiles, user, guid);
@@ -312,6 +328,247 @@ public class AssetFiles {
         return Response.status(500).entity("There was an error downloading the files").build();
 //        return fileService.checkAccessCreateZip(assets, UserMapper.from(securityContext), guid);
     }
+
+
+    @POST
+    @Path("/asset-bundles")
+    @Operation(summary = "Download ZIP containing multiple assets", description = """
+            Streams a ZIP file for the requested asset GUIDs.
+            The request is aborted with 403 Forbidden if the user lacks read access to any requested asset.
+            Each asset is placed in its own folder named by asset_guid and contains metadata.csv plus the asset files.
+            """)
+    @Consumes(APPLICATION_JSON)
+    @Produces("application/zip")
+    @ApiResponse(responseCode = "200", content = @Content(mediaType = "application/zip"), description = "Returns the ZIP file.")
+    @ApiResponse(responseCode = "403", content = @Content(mediaType = APPLICATION_JSON, schema = @Schema(implementation = DaSSCoError.class)), description = "User does not have read access to one or more assets.")
+    @ApiResponse(responseCode = "400-599", content = @Content(mediaType = APPLICATION_JSON, schema = @Schema(implementation = DaSSCoError.class)))
+    public Response downloadAssetBundles(@Context SecurityContext securityContext, @HeaderParam("Range") String rangeHeader, List<String> assetGuids) {
+        if (assetGuids == null || assetGuids.isEmpty()) {
+            return Response.status(Response.Status.BAD_REQUEST)
+                    .entity(new DaSSCoError("1.0", DaSSCoErrorCode.BAD_REQUEST, "Need to pass a list of assets"))
+                    .build();
+        }
+
+        User user = UserMapper.from(securityContext);
+        for (String assetGuid : assetGuids) {
+            if (assetGuid == null || assetGuid.isBlank()) {
+                return Response.status(Response.Status.BAD_REQUEST)
+                        .entity(new DaSSCoError("1.0", DaSSCoErrorCode.BAD_REQUEST, "Asset GUID cannot be blank"))
+                        .build();
+            }
+        }
+
+        Map<String, String> metadataCsvByAsset;
+        try {
+            HttpResponse<String> assetsResponse = fetchAssets(assetGuids, user);
+            if (assetsResponse.statusCode() == 403) {
+                return Response.status(Response.Status.FORBIDDEN).entity(assetsResponse.body()).build();
+            }
+            if (assetsResponse.statusCode() < 200 || assetsResponse.statusCode() >= 300) {
+                return Response.status(assetsResponse.statusCode()).entity(assetsResponse.body()).build();
+            }
+            metadataCsvByAsset = createMetadataCsvByAsset(assetsResponse.body(), assetGuids);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            return Response.status(Response.Status.INTERNAL_SERVER_ERROR)
+                    .entity(new DaSSCoError("1.0", DaSSCoErrorCode.INTERNAL_ERROR, "Interrupted while checking asset read access"))
+                    .build();
+        } catch (Exception e) {
+            logger.error("Failed to check read access/create CSV for assets", e);
+            return Response.status(Response.Status.INTERNAL_SERVER_ERROR)
+                    .entity(new DaSSCoError("1.0", DaSSCoErrorCode.INTERNAL_ERROR, "Failed to check asset read access"))
+                    .build();
+        }
+
+        Map<String, List<DasscoFile>> filesByAsset = fileService.getDasscoFiles(assetGuids, user)
+                .stream()
+                .collect(Collectors.groupingBy(DasscoFile::assetGuid));
+
+        File tempZipFile;
+        try {
+            tempZipFile = File.createTempFile("asset-bundle-", ".zip");
+            tempZipFile.deleteOnExit();
+            createAssetBundleZip(tempZipFile, assetGuids, metadataCsvByAsset, filesByAsset, user);
+        } catch (IOException e) {
+            logger.error("Failed to create asset bundle ZIP", e);
+            return Response.status(Response.Status.INTERNAL_SERVER_ERROR)
+                    .entity(new DaSSCoError("1.0", DaSSCoErrorCode.INTERNAL_ERROR, "Failed to create asset bundle ZIP"))
+                    .build();
+        }
+
+        return RangeRequestHandler.buildFileResponse(
+                new RangeRequestHandler.FileResponseConfig(tempZipFile, "asset-bundle.zip", "application/zip")
+                        .withRangeHeader(rangeHeader)
+                        .withoutContentDisposition()
+                        .cleanupAfterAnyRange()
+                        .onComplete(() -> {
+                            if (tempZipFile.exists() && !tempZipFile.delete()) {
+                                logger.warn("Failed to delete temporary ZIP {}", tempZipFile.getAbsolutePath());
+                            }
+                        }));
+    }
+
+    private void createAssetBundleZip(File zipFile, List<String> assetGuids, Map<String, String> metadataCsvByAsset, Map<String, List<DasscoFile>> filesByAsset, User user) throws IOException {
+        try (FileOutputStream fos = new FileOutputStream(zipFile);
+             ZipOutputStream zip = new ZipOutputStream(fos)) {
+            Set<String> zipEntries = new HashSet<>();
+            for (String assetGuid : assetGuids) {
+                String assetFolder = safeZipName(assetGuid) + "/";
+                addDirectoryEntry(zip, zipEntries, assetFolder);
+                addMetadataCsvEntry(zip, zipEntries, assetFolder, metadataCsvByAsset.get(assetGuid));
+
+                for (DasscoFile dasscoFile : filesByAsset.getOrDefault(assetGuid, List.of())) {
+                    AssetPath assetPath = parseAssetPath(dasscoFile.path());
+                    if (assetPath == null) {
+                        logger.warn("Skipping file with unexpected asset path {}", dasscoFile.path());
+                        continue;
+                    }
+
+                    Optional<FileService.FileResult> file = cacheFileService.tryGetFile(
+                            assetPath.institution(), assetPath.collection(), assetPath.assetGuid(), assetPath.filePath(), user);
+                    if (file.isPresent()) {
+                        String entryName = assetFolder + safeZipPath(assetPath.filePath());
+                        addFileEntry(zip, zipEntries, entryName, file.get());
+                    }
+                }
+            }
+        }
+    }
+
+    private HttpResponse<String> fetchAssets(List<String> assetGuids, User user) throws IOException, InterruptedException {
+        HttpRequest.Builder requestBuilder = HttpRequest.newBuilder()
+                .uri(URI.create(assetServiceProperties.rootUrl() + "/api/v1/assets/list"))
+                .header("Content-Type", APPLICATION_JSON)
+                .header("Accept", APPLICATION_JSON)
+                .timeout(Duration.ofSeconds(15))
+                .POST(HttpRequest.BodyPublishers.ofString(new Gson().toJson(assetGuids)));
+        if (user.token != null) {
+            requestBuilder.header("Authorization", "Bearer " + user.token);
+        }
+
+        return HttpClient.newBuilder()
+                .followRedirects(HttpClient.Redirect.NORMAL)
+                .build()
+                .send(requestBuilder.build(), HttpResponse.BodyHandlers.ofString());
+    }
+
+    private void addMetadataCsvEntry(ZipOutputStream zip, Set<String> zipEntries, String assetFolder, String csvString) throws IOException {
+        if (csvString == null) {
+            return;
+        }
+        addFileEntry(zip, zipEntries, assetFolder + "metadata.csv", csvString);
+    }
+
+    private Map<String, String> createMetadataCsvByAsset(String assetsJson, List<String> assetGuids) {
+        java.lang.reflect.Type type = new com.google.gson.reflect.TypeToken<List<Map<String, Object>>>() {}.getType();
+        List<Map<String, Object>> assets = new Gson().fromJson(assetsJson, type);
+        Map<String, String> metadataCsvByAsset = new java.util.LinkedHashMap<>();
+        if (assets == null || assets.isEmpty()) {
+            return metadataCsvByAsset;
+        }
+
+        java.util.LinkedHashSet<String> headers = new java.util.LinkedHashSet<>();
+        assets.forEach(asset -> headers.addAll(asset.keySet()));
+        String headerLine = headers.stream().map(this::csvEscape).collect(Collectors.joining(","));
+
+        for (Map<String, Object> asset : assets) {
+            Object assetGuidValue = asset.containsKey("asset_guid") ? asset.get("asset_guid") : asset.get("assetGuid");
+            if (assetGuidValue == null) {
+                logger.warn("Skipping metadata CSV for asset without asset_guid: {}", asset);
+                continue;
+            }
+            String assetGuid = String.valueOf(assetGuidValue);
+            String row = headers.stream()
+                    .map(header -> csvEscape(formatCsvValue(asset.get(header))))
+                    .collect(Collectors.joining(","));
+            metadataCsvByAsset.put(assetGuid, "sep=,\r\n" + headerLine + "\r\n" + row + "\r\n");
+        }
+
+        for (String assetGuid : assetGuids) {
+            metadataCsvByAsset.putIfAbsent(assetGuid, "sep=,\r\n" + headerLine + "\r\n");
+        }
+        return metadataCsvByAsset;
+    }
+
+    private String formatCsvValue(Object value) {
+        if (value == null) {
+            return "";
+        }
+        if (value instanceof Map<?, ?> || value instanceof List<?>) {
+            return new Gson().toJson(value);
+        }
+        return String.valueOf(value);
+    }
+
+    private String csvEscape(String value) {
+        if (value == null) {
+            return "";
+        }
+        boolean mustQuote = value.contains(",") || value.contains("\"") || value.contains("\r") || value.contains("\n");
+        String escaped = value.replace("\"", "\"\"");
+        return mustQuote ? "\"" + escaped + "\"" : escaped;
+    }
+
+    private void addDirectoryEntry(ZipOutputStream zip, Set<String> zipEntries, String entryName) throws IOException {
+        if (zipEntries.add(entryName)) {
+            zip.putNextEntry(new ZipEntry(entryName));
+            zip.closeEntry();
+        }
+    }
+
+    private void addFileEntry(ZipOutputStream zip, Set<String> zipEntries, String entryName, FileService.FileResult file) throws IOException {
+        if (!zipEntries.add(entryName)) {
+            logger.warn("Skipping duplicate ZIP entry {}", entryName);
+            return;
+        }
+        zip.putNextEntry(new ZipEntry(entryName));
+        try (InputStream inputStream = file.is()) {
+            inputStream.transferTo(zip);
+        }
+        zip.closeEntry();
+    }
+
+    private void addFileEntry(ZipOutputStream zip, Set<String> zipEntries, String entryName, String content) throws IOException {
+        if (!zipEntries.add(entryName)) {
+            logger.warn("Skipping duplicate ZIP entry {}", entryName);
+            return;
+        }
+        zip.putNextEntry(new ZipEntry(entryName));
+        zip.write(content.getBytes(StandardCharsets.UTF_8));
+        zip.closeEntry();
+    }
+
+    private AssetPath parseAssetPath(String path) {
+        if (path == null) {
+            return null;
+        }
+        String normalized = path.startsWith("/") ? path.substring(1) : path;
+        String[] parts = normalized.split("/", 4);
+        if (parts.length < 4) {
+            return null;
+        }
+        return new AssetPath(parts[0], parts[1], parts[2], parts[3]);
+    }
+
+    private String safeZipPath(String path) {
+        StringBuilder safePath = new StringBuilder();
+        for (String part : path.replace('\\', '/').split("/")) {
+            if (part.isBlank() || part.equals(".") || part.equals("..")) {
+                continue;
+            }
+            if (!safePath.isEmpty()) {
+                safePath.append('/');
+            }
+            safePath.append(part);
+        }
+        return safePath.toString();
+    }
+
+    private String safeZipName(String name) {
+        return safeZipPath(name).replace("/", "_");
+    }
+
+    private record AssetPath(String institution, String collection, String assetGuid, String filePath) {}
 
 
     @POST

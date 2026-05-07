@@ -28,6 +28,8 @@ public class RangeRequestHandler {
         private final String contentType;
         private String rangeHeader;
         private Runnable onComplete;
+        private boolean includeContentDisposition = true;
+        private boolean runOnCompleteForAnyRange = false;
 
         public FileResponseConfig(File file, String filename, String contentType) {
             this.file = file;
@@ -49,6 +51,16 @@ public class RangeRequestHandler {
             return this;
         }
 
+        public FileResponseConfig withoutContentDisposition() {
+            this.includeContentDisposition = false;
+            return this;
+        }
+
+        public FileResponseConfig cleanupAfterAnyRange() {
+            this.runOnCompleteForAnyRange = true;
+            return this;
+        }
+
         public File getFile() {
             return file;
         }
@@ -67,6 +79,14 @@ public class RangeRequestHandler {
 
         public Runnable getOnComplete() {
             return onComplete;
+        }
+
+        public boolean includeContentDisposition() {
+            return includeContentDisposition;
+        }
+
+        public boolean runOnCompleteForAnyRange() {
+            return runOnCompleteForAnyRange;
         }
     }
 
@@ -157,6 +177,10 @@ public class RangeRequestHandler {
      * @return StreamingOutput for the partial file
      */
     public static StreamingOutput createRangeStream(File file, RangeInfo rangeInfo, long fileLength, Runnable onComplete) {
+        return createRangeStream(file, rangeInfo, fileLength, onComplete, false);
+    }
+
+    public static StreamingOutput createRangeStream(File file, RangeInfo rangeInfo, long fileLength, Runnable onComplete, boolean runOnCompleteForAnyRange) {
         return output -> {
             try (RandomAccessFile raf = new RandomAccessFile(file, "r")) {
                 raf.seek(rangeInfo.start());
@@ -171,7 +195,7 @@ public class RangeRequestHandler {
                 }
                 output.flush();
             } finally {
-                if (onComplete != null && rangeInfo.end() == fileLength - 1) {
+                if (onComplete != null && (runOnCompleteForAnyRange || rangeInfo.end() == fileLength - 1)) {
                     onComplete.run();
                 }
             }
@@ -194,12 +218,14 @@ public class RangeRequestHandler {
         if (config.getRangeHeader() == null || config.getRangeHeader().isEmpty()) {
             StreamingOutput streamingOutput = createFullFileStream(file, config.getOnComplete());
 
-            return Response.ok(streamingOutput)
-                    .header("Content-Disposition", contentDisposition)
+            Response.ResponseBuilder responseBuilder = Response.ok(streamingOutput)
                     .header("Content-Type", config.getContentType())
                     .header("Content-Length", fileLength)
-                    .header("Accept-Ranges", "bytes")
-                    .build();
+                    .header("Accept-Ranges", "bytes");
+            if (config.includeContentDisposition()) {
+                responseBuilder.header("Content-Disposition", contentDisposition);
+            }
+            return responseBuilder.build();
         }
 
         // Parse and validate Range header
@@ -209,15 +235,17 @@ public class RangeRequestHandler {
         }
 
         RangeInfo rangeInfo = rangeInfoOpt.get();
-        StreamingOutput streamingOutput = createRangeStream(file, rangeInfo, fileLength, config.getOnComplete());
+        StreamingOutput streamingOutput = createRangeStream(file, rangeInfo, fileLength, config.getOnComplete(), config.runOnCompleteForAnyRange());
 
-        return Response.status(206)
+        Response.ResponseBuilder responseBuilder = Response.status(206)
                 .entity(streamingOutput)
-                .header("Content-Disposition", contentDisposition)
                 .header("Content-Type", config.getContentType())
                 .header("Content-Length", rangeInfo.contentLength())
                 .header("Content-Range", "bytes " + rangeInfo.start() + "-" + rangeInfo.end() + "/" + fileLength)
-                .header("Accept-Ranges", "bytes")
-                .build();
+                .header("Accept-Ranges", "bytes");
+        if (config.includeContentDisposition()) {
+            responseBuilder.header("Content-Disposition", contentDisposition);
+        }
+        return responseBuilder.build();
     }
 }

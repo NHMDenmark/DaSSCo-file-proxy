@@ -16,7 +16,6 @@ import io.micrometer.observation.Observation;
 import io.micrometer.observation.ObservationRegistry;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.core.Response;
-import org.apache.tika.Tika;
 import org.jdbi.v3.core.Jdbi;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -40,7 +39,6 @@ import java.util.zip.CheckedInputStream;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
-import static dk.northtech.dasscofileproxy.domain.HttpAllocationStatus.SUCCESS;
 import static java.util.stream.Collectors.toList;
 
 @Service
@@ -673,7 +671,7 @@ public class FileService {
         return this.jdbi.onDemand(FileRepository.class).getFileByAssetGuid(assetGuid);
     }
 
-    public List<DasscoFile> getDasscoFiles(List<String> assets, User user, String guid) {
+    public List<DasscoFile> getDasscoFiles(List<String> assets, User user) {
         if (assets == null || assets.isEmpty()) {
             return List.of();
         }

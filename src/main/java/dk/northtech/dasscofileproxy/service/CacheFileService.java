@@ -330,9 +330,7 @@ public class CacheFileService {
 
             // 5. Attempt to fetch from ERDA and write to cache
             try {
-                String erdaUrl = String.join("/",
-                        erdaProperties.httpURL(), institution, collection, assetGuid, normalizedFilePath);
-                erdaUrl = erdaUrl.replaceAll("/{2,}", "/");
+                String erdaUrl = UrlEscapers.urlFragmentEscaper().escape(Strings.join(new String[]{erdaProperties.httpURL(), institution, collection, assetGuid, normalizedFilePath}, "/"));
                 logger.debug("Fetching asset from ERDA: {}", erdaUrl);
 
                 try (InputStream remote = fetchFromERDA(erdaUrl)) {
