@@ -14,6 +14,7 @@ import dk.northtech.dasscofileproxy.webapi.RangeRequestHandler;
 import dk.northtech.dasscofileproxy.webapi.UserMapper;
 import dk.northtech.dasscofileproxy.webapi.exceptionmappers.DaSSCoError;
 import dk.northtech.dasscofileproxy.webapi.exceptionmappers.DaSSCoErrorCode;
+import dk.northtech.dasscofileproxy.webapi.exceptionmappers.DaSSCoErrorResponse;
 import dk.northtech.dasscofileproxy.webapi.model.FileUploadData;
 import dk.northtech.dasscofileproxy.webapi.model.FileUploadResult;
 import io.swagger.v3.oas.annotations.Operation;
@@ -78,6 +79,10 @@ public class AssetFiles {
     @Context
     UriInfo uriInfo;
 
+    private Response notFound(String message) {
+        return DaSSCoErrorResponse.notFound(message);
+    }
+
     @GET
     @Path("/{institutionName}/{collectionName}/{assetGuid}/{path: .+}")
     @Operation(summary = "Get Asset File by path", description = "Get an asset file based on institution, collection, asset_guid and path to the file")
@@ -117,7 +122,7 @@ public class AssetFiles {
                     .header("Content-Disposition", "attachment; filename=" + fileResult.filename())
                     .header("Content-Type", contentType).entity(streamingOutput).build();
         }
-        return Response.status(404).build();
+        return notFound("Asset file not found for institution: %s, collection: %s, assetGuid: %s, path: %s".formatted(institutionName, collectionName, assetGuid, path));
     }
 
 
@@ -150,11 +155,11 @@ public class AssetFiles {
         java.nio.file.Path filePath = tempDir.resolve(fileName);
 
         if (java.nio.file.Files.notExists(filePath)){
-            return Response.status(404).entity("File does not exist").build();
+            return notFound("Temporary file not found for guid: %s, fileName: %s".formatted(guid, fileName));
         }
 
         if (java.nio.file.Files.notExists(tempDir)){
-            return Response.status(404).entity("Directory does not exist").build();
+            return notFound("Temporary directory not found for guid: %s".formatted(guid));
         }
 
         StreamingOutput streamingOutput = output -> {
@@ -213,7 +218,7 @@ public class AssetFiles {
                         .header("Content-Disposition", "attachment; filename=" + fileResult.filename())
                         .header("Content-Type", new Tika().detect(fileResult.filename())).entity(streamingOutput).build();
             }
-            return Response.status(404).entity("Missing file: %s".formatted(path)).build();
+            return notFound("Parked file not found for institution: %s, collection: %s, filename: %s, type: %s, scale: %s, path: %s".formatted(institution, collection, filename, type, scale, path));
         }).orElseGet(() -> {
             Optional<FileService.FileResult> getFileResult = parkingService.readFromParking(path, scale);
             if (getFileResult.isPresent()) {
@@ -229,7 +234,7 @@ public class AssetFiles {
                         .header("Content-Disposition", "attachment; filename=" + fileResult.filename())
                         .header("Content-Type", new Tika().detect(fileResult.filename())).entity(streamingOutput).build();
             }
-            return Response.status(404).entity("Missing file: %s".formatted(path)).build();
+            return notFound("Parked file not found for institution: %s, collection: %s, filename: %s, type: %s, scale: %s, path: %s".formatted(institution, collection, filename, type, scale, path));
         });
     }
 
@@ -249,14 +254,14 @@ public class AssetFiles {
                     if(getFileResult.isPresent()) {
                         return Response.status(200).build();
                     }
-                    return Response.status(404).entity("Missing file: %s".formatted(path)).build();
+                    return notFound("Parked file not found for institution: %s, collection: %s, filename: %s, type: %s, scale: %s, path: %s".formatted(institution, collection, filename, type, scale, path));
         })
         .orElseGet(() -> {
             Optional<FileService.FileResult> getFileResult = parkingService.readFromParking(path, scale);
             if(getFileResult.isPresent()) {
                 return Response.status(200).build();
             }
-            return Response.status(404).entity("Missing file: %s".formatted(path)).build();
+            return notFound("Parked file not found for institution: %s, collection: %s, filename: %s, type: %s, scale: %s, path: %s".formatted(institution, collection, filename, type, scale, path));
         });
     }
 
@@ -632,7 +637,7 @@ public class AssetFiles {
         final String path
                 = uriInfo.getPathParameters().getFirst("path");
         boolean deleted = fileService.deleteFile(new FileUploadData(assetGuid, institutionName, collectionName, path, 0,null), user.keycloakId);
-        return Response.status(deleted ? 204 : 404).build();
+        return deleted ? Response.status(Response.Status.NO_CONTENT).build() : notFound("Asset file not found for institution: %s, collection: %s, assetGuid: %s, path: %s".formatted(institutionName, collectionName, assetGuid, path));
     }
 
     //Delete all files under an asset
@@ -650,7 +655,7 @@ public class AssetFiles {
             , @Context SecurityContext securityContext) {
         User user = UserMapper.from(securityContext);
         boolean deleted = fileService.deleteFile(new FileUploadData(assetGuid, institutionName, collectionName, null, 0,null), user.keycloakId);
-        return Response.status(deleted ? 204 : 404).build();
+        return deleted ? Response.status(Response.Status.NO_CONTENT).build() : notFound("Asset files not found for institution: %s, collection: %s, assetGuid: %s".formatted(institutionName, collectionName, assetGuid));
     }
 
 
@@ -711,7 +716,7 @@ public class AssetFiles {
     public Response deleteFileFromParkedFiles(@PathParam("path") String path){
         String decodedPath = URLDecoder.decode(path, StandardCharsets.UTF_8);
         boolean result = this.parkingService.deleteAllFilesFromOriginalInParked(decodedPath);
-        return Response.status(result ? Response.Status.OK : Response.Status.NOT_FOUND).build();
+        return result ? Response.status(Response.Status.OK).build() : notFound("Parked file not found for path: %s".formatted(decodedPath));
     }
 
 }

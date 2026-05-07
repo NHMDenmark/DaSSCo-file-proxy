@@ -9,6 +9,7 @@ import dk.northtech.dasscofileproxy.domain.AssetFull;
 import dk.northtech.dasscofileproxy.service.AssetService;
 import dk.northtech.dasscofileproxy.service.ERDAClient;
 import dk.northtech.dasscofileproxy.service.SFTPService;
+import dk.northtech.dasscofileproxy.webapi.exceptionmappers.DaSSCoErrorResponse;
 import io.swagger.v3.oas.annotations.Hidden;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -78,7 +79,7 @@ public class SFTPApi {
         AssetFull assetFull = assetService.getFullAsset(guid);
         // If there is no asset for the asset_guid in asset service throw exception, as the client needs institution and collection to locate file
         if (assetFull == null)
-            return Response.status(Response.Status.NOT_FOUND).entity("Cannot find asset in asset service.").build();
+            return DaSSCoErrorResponse.notFound("Asset not found in asset service for guid: %s".formatted(guid));
 
         // Determine whether the user should be allowed access to the file
         AtomicBoolean userHasAccess = new AtomicBoolean(false);
@@ -127,7 +128,7 @@ public class SFTPApi {
         InputStream fileStream = new ERDAClient(sftpConfig).getFileInputStream(remotePath + "/" + file);
         if (fileStream == null) {
             // File not found on the FTP server
-            return Response.status(404).entity("The requested resource could not be found.").build();
+            return DaSSCoErrorResponse.notFound("SFTP file not found for guid: %s, file: %s".formatted(guid, file));
         }
 
         // Asynchronously start caching file

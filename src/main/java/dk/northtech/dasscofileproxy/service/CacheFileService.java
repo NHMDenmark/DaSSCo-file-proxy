@@ -88,7 +88,7 @@ public class CacheFileService {
             ticketCache.put(ticketId, dasscoFile.path());
             return ticketId;
         } else {
-            throw new DasscoNotFoundException("File not found");
+            throw new DasscoNotFoundException("File not found for assetGuid: %s".formatted(assetGuid));
         }
     }
 
@@ -149,7 +149,7 @@ public class CacheFileService {
             FileRepository fileRepository = jdbi.onDemand(FileRepository.class);
             DasscoFile filesByAssetPath = fileRepository.getFilesByAssetPath(assetPath);
             if (filesByAssetPath == null) {
-                throw new DasscoNotFoundException("The asset does not have this file");
+                throw new DasscoNotFoundException("File not found for institution: %s, collection: %s, assetGuid: %s, path: %s".formatted(institution, collection, assetGuid, filePath));
             }
             if (filesByAssetPath.syncStatus() != FileSyncStatus.SYNCHRONIZED || filesByAssetPath.deleteAfterSync()) {
                 throw new DasscoIllegalActionException("File is being edited");
@@ -202,7 +202,7 @@ public class CacheFileService {
             FileRepository fileRepository = jdbi.onDemand(FileRepository.class);
             DasscoFile filesByAssetPath = fileRepository.getFilesByAssetPath(filePath);
             if (filesByAssetPath == null) {
-                throw new DasscoNotFoundException("The asset does not have this file");
+                throw new DasscoNotFoundException("File not found for path: %s".formatted(filePath));
             }
             if (filesByAssetPath.syncStatus() != FileSyncStatus.SYNCHRONIZED || filesByAssetPath.deleteAfterSync()) {
                 throw new DasscoIllegalActionException("File is being edited");
@@ -259,7 +259,7 @@ public class CacheFileService {
             FileRepository fileRepository = jdbi.onDemand(FileRepository.class);
             DasscoFile filesByAssetPath = fileRepository.getFilesByAssetPath(assetPath);
             if (filesByAssetPath == null) {
-                throw new DasscoNotFoundException("The asset does not have this file");
+                throw new DasscoNotFoundException("File not found for institution: %s, collection: %s, assetGuid: %s, path: %s".formatted(institution, collection, assetGuid, filePath));
             }
             if (filesByAssetPath.syncStatus() != FileSyncStatus.SYNCHRONIZED || filesByAssetPath.deleteAfterSync()) {
                 throw new DasscoIllegalActionException("File is being edited");
@@ -375,7 +375,7 @@ public class CacheFileService {
         FileRepository fileRepository = jdbi.onDemand(FileRepository.class);
         DasscoFile filesByAssetPath = fileRepository.getFilesByAssetPath(assetPath);
         if (filesByAssetPath == null) {
-            throw new DasscoNotFoundException("The asset does not have this file");
+            throw new DasscoNotFoundException("File not found for institution: %s, collection: %s, assetGuid: %s, path: %s".formatted(institution, collection, assetGuid, filePath));
         }
         if (filesByAssetPath.syncStatus() != FileSyncStatus.SYNCHRONIZED || filesByAssetPath.deleteAfterSync()) {
             throw new DasscoIllegalActionException("File is being edited");
