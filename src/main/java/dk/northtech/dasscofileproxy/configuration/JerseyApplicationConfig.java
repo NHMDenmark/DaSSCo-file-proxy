@@ -1,5 +1,6 @@
 package dk.northtech.dasscofileproxy.configuration;
 
+import dk.northtech.dasscofileproxy.webapi.exceptionmappers.BadRequestExceptionMapper;
 import dk.northtech.dasscofileproxy.webapi.exceptionmappers.DaSScoExceptionMapper;
 import dk.northtech.dasscofileproxy.webapi.exceptionmappers.IllegalArguementExceptionMapper;
 import dk.northtech.dasscofileproxy.webapi.exceptionmappers.NotFoundExceptionMapper;
@@ -18,6 +19,7 @@ public class JerseyApplicationConfig extends ResourceConfig {
     register(RolesAllowedDynamicFeature.class);
     register(ClientAbortInterceptor.class);
     register(IllegalArguementExceptionMapper.class);
+    register(BadRequestExceptionMapper.class);
     register(DaSScoExceptionMapper.class);
     register(NotFoundExceptionMapper.class);
     register(AssetFiles.class);
