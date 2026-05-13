@@ -1,10 +1,8 @@
 package dk.northtech.dasscofileproxy.webapi.v1;
 
-import com.auth0.jwt.JWT;
-import com.auth0.jwt.interfaces.DecodedJWT;
 import com.jcraft.jsch.JSchException;
 import com.jcraft.jsch.SftpException;
-import dk.northtech.dasscofileproxy.configuration.SFTPConfig;
+import dk.northtech.dasscofileproxy.configuration.StorageConfig;
 import dk.northtech.dasscofileproxy.domain.AssetFull;
 import dk.northtech.dasscofileproxy.service.AssetService;
 import dk.northtech.dasscofileproxy.service.ERDAClient;
@@ -40,15 +38,15 @@ public class SFTPApi {
 
     private final SFTPService sftpService;
 
-    private final SFTPConfig sftpConfig;
+    private final StorageConfig storageConfig;
 
     private final AssetService assetService;
 
     @Inject
-    public SFTPApi(SFTPService sftpService, AssetService assetService, SFTPConfig sftpConfig) {
+    public SFTPApi(SFTPService sftpService, AssetService assetService, StorageConfig storageConfig) {
         this.sftpService = sftpService;
         this.assetService = assetService;
-        this.sftpConfig = sftpConfig;
+        this.storageConfig = storageConfig;
     }
 
     @Hidden
@@ -67,7 +65,7 @@ public class SFTPApi {
     public Collection<String> listItems(@PathParam("institution") String institution
             , @PathParam("collection") String collection
             , @PathParam("guid") String guid) throws JSchException, SftpException {
-        return new ERDAClient(sftpConfig).listFiles("/" + institution + "/" + collection + "/" + guid);
+        return new ERDAClient(storageConfig).listFiles("/" + institution + "/" + collection + "/" + guid);
     }
 
     @GET
@@ -112,7 +110,7 @@ public class SFTPApi {
 //
 
 //        } else {
-            userHasAccess.set(true);
+        userHasAccess.set(true);
 //        }
         if (!userHasAccess.get()) {
             return Response.status(Response.Status.UNAUTHORIZED).entity("The requested asset has restricted access and the user does not have any of the required roles.").build();
@@ -123,9 +121,8 @@ public class SFTPApi {
         String remotePath = sftpService.getRemotePath(assetFull.institution, assetFull.collection, assetFull.asset_guid);
 
 
-
         // Download the file from the SFTP server
-        InputStream fileStream = new ERDAClient(sftpConfig).getFileInputStream(remotePath + "/" + file);
+        InputStream fileStream = new ERDAClient(storageConfig).getFileInputStream(remotePath + "/" + file);
         if (fileStream == null) {
             // File not found on the FTP server
             return DaSSCoErrorResponse.notFound("SFTP file not found for guid: %s, file: %s".formatted(guid, file));

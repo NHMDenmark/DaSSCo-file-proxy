@@ -1,7 +1,7 @@
 package dk.northtech.dasscofileproxy.service;
 
 import com.jcraft.jsch.*;
-import dk.northtech.dasscofileproxy.configuration.SFTPConfig;
+import dk.northtech.dasscofileproxy.configuration.StorageConfig;
 import jakarta.inject.Inject;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
@@ -33,7 +33,7 @@ class SftpServiceTest {
     @Inject
     SFTPService sftpService;
     @Inject
-    SFTPConfig sftpConfig;
+    StorageConfig storageConfig;
 
     @Inject
     ErdaDataSource erdaDataSource;
@@ -71,16 +71,16 @@ class SftpServiceTest {
             String localFile = "target/sample.txt";
             String remoteDir = "TestInstitution/test-collection/testAsset_2/file_1.txt";
 
-            ERDAClient erdaClient = new ERDAClient(sftpConfig);
+            ERDAClient erdaClient = new ERDAClient(storageConfig);
             try {
 
-                new ERDAClient(sftpConfig).putFileToPath(localFile, remoteDir);
+                new ERDAClient(storageConfig).putFileToPath(localFile, remoteDir);
                 System.out.println("1");
-                new ERDAClient(sftpConfig).putFileToPath(localFile, remoteDir);
+                new ERDAClient(storageConfig).putFileToPath(localFile, remoteDir);
                 System.out.println("2");
-                new ERDAClient(sftpConfig).putFileToPath(localFile, remoteDir);
+                new ERDAClient(storageConfig).putFileToPath(localFile, remoteDir);
                 System.out.println("3");
-                new ERDAClient(sftpConfig).putFileToPath(localFile, remoteDir);
+                new ERDAClient(storageConfig).putFileToPath(localFile, remoteDir);
                 System.out.println("4");
             } catch (Exception e) {
                 System.out.println("Failed");
@@ -206,7 +206,7 @@ class SftpServiceTest {
         try {
             String remoteDir = "TestInstitution/test-collection/testAsset_2";
 
-            Collection<String> files = new ERDAClient(sftpConfig).listFiles(remoteDir);
+            Collection<String> files = new ERDAClient(storageConfig).listFiles(remoteDir);
 
             files.forEach(System.out::println);
 
@@ -222,7 +222,7 @@ class SftpServiceTest {
             String localFile = "target/sample.txt";
             String remoteDir = "TestInstitution/test-collection/testAsset_2/file_1.txt";
 
-            new ERDAClient(sftpConfig).downloadFile(remoteDir, localFile);
+            new ERDAClient(storageConfig).downloadFile(remoteDir, localFile);
         } catch (SftpException | IOException e) {
             throw new RuntimeException(e);
         }
@@ -234,7 +234,7 @@ class SftpServiceTest {
         try {
             String localFile = "target/sample.txt";
             String remoteDir = "/test-institution/test-collection/a4";
-            boolean exists = new ERDAClient(sftpConfig).exists(remoteDir, true);
+            boolean exists = new ERDAClient(storageConfig).exists(remoteDir, true);
             System.out.println(exists);
             assertThat(exists).isTrue();
         } catch (SftpException | IOException e) {

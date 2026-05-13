@@ -1,6 +1,7 @@
 package dk.northtech.dasscofileproxy.service;
 
-import dk.northtech.dasscofileproxy.configuration.SFTPConfig;
+
+import dk.northtech.dasscofileproxy.configuration.StorageConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -11,14 +12,14 @@ import java.util.Collections;
 import java.util.List;
 
 public class ErdaDataSource extends ResourcePool<ERDAClient> {
-    private final SFTPConfig sftpConfig;
+    private final StorageConfig storageConfig;
     private static final Logger logger = LoggerFactory.getLogger(ErdaDataSource.class);
     Instant lastFailure = null;
 
 
-    public ErdaDataSource(Boolean dynamicCreation, SFTPConfig sftpConfig) {
-        super(sftpConfig.erdaConnectionPoolSize(), dynamicCreation);
-        this.sftpConfig = sftpConfig;
+    public ErdaDataSource(Boolean dynamicCreation, StorageConfig storageConfig) {
+        super(storageConfig.erdaConnectionPoolSize(), dynamicCreation);
+        this.storageConfig = storageConfig;
     }
 
     private final Object lock = new Object();
@@ -26,7 +27,7 @@ public class ErdaDataSource extends ResourcePool<ERDAClient> {
 
     @Override
     protected ERDAClient createObject() {
-        return new ERDAClient(sftpConfig, this);
+        return new ERDAClient(storageConfig, this);
     }
 
     @Override
