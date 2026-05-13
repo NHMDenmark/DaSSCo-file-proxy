@@ -331,7 +331,6 @@ public class AssetFiles {
             logger.error(e.getMessage());
         }
         return Response.status(500).entity("There was an error downloading the files").build();
-//        return fileService.checkAccessCreateZip(assets, UserMapper.from(securityContext), guid);
     }
 
 

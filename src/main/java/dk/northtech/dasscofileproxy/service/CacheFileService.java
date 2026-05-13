@@ -5,7 +5,7 @@ import com.github.benmanes.caffeine.cache.Caffeine;
 import com.github.benmanes.caffeine.cache.LoadingCache;
 import com.google.common.net.UrlEscapers;
 import dk.northtech.dasscofileproxy.assets.AssetServiceProperties;
-import dk.northtech.dasscofileproxy.assets.ErdaProperties;
+import dk.northtech.dasscofileproxy.configuration.StorageConfig;
 import dk.northtech.dasscofileproxy.configuration.ShareConfig;
 import dk.northtech.dasscofileproxy.domain.CacheInfo;
 import dk.northtech.dasscofileproxy.domain.DasscoFile;
@@ -34,6 +34,7 @@ import java.net.URISyntaxException;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -49,18 +50,19 @@ public class CacheFileService {
     private final AssetServiceProperties assetServiceProperties;
     private final FileService fileService;
     private final ShareConfig shareConfig;
-    private final ErdaProperties erdaProperties;
+    private final StorageConfig storageConfig;
     private final Jdbi jdbi;
     private final Cache<String, String> ticketCache;
+    private final Object[] cachePopulationLocks = new Object[256];
 
     private Set<Long> idsToRefresh = new HashSet<>();
 
     @Inject
-    public CacheFileService(AssetServiceProperties assetServiceProperties, FileService fileService, ShareConfig shareConfig, ErdaProperties erdaProperties, Jdbi jdbi) {
+    public CacheFileService(AssetServiceProperties assetServiceProperties, FileService fileService, ShareConfig shareConfig, StorageConfig storageConfig, Jdbi jdbi) {
         this.assetServiceProperties = assetServiceProperties;
         this.fileService = fileService;
         this.shareConfig = shareConfig;
-        this.erdaProperties = erdaProperties;
+        this.storageConfig = storageConfig;
         this.jdbi = jdbi;
         cachedFiles = Caffeine.newBuilder()
                 .maximumSize(100000)
@@ -72,6 +74,9 @@ public class CacheFileService {
         this.ticketCache = Caffeine.newBuilder()
                 .expireAfterWrite(shareConfig.ticketCacheExpire())
                 .maximumSize(100000).build();
+        for (int i = 0; i < cachePopulationLocks.length; i++) {
+            cachePopulationLocks[i] = new Object();
+        }
     }
 
     public String createTicket(User user, String assetGuid) {
@@ -146,34 +151,42 @@ public class CacheFileService {
                 cachedFiles.invalidate(cacheInfo.path());
             }
 
-            FileRepository fileRepository = jdbi.onDemand(FileRepository.class);
-            DasscoFile filesByAssetPath = fileRepository.getFilesByAssetPath(assetPath);
-            if (filesByAssetPath == null) {
-                throw new DasscoNotFoundException("File not found for institution: %s, collection: %s, assetGuid: %s, path: %s".formatted(institution, collection, assetGuid, filePath));
-            }
-            if (filesByAssetPath.syncStatus() != FileSyncStatus.SYNCHRONIZED || filesByAssetPath.deleteAfterSync()) {
-                throw new DasscoIllegalActionException("File is being edited");
-            }
-
-            logger.info("File didn't exist in cache, fetching from ERDA for resumable download");
-            String erdaLocation = UrlEscapers.urlFragmentEscaper().escape(Strings.join(new String[]{erdaProperties.httpURL(), institution, collection, assetGuid, filePath}, "/"));
-
-            try (InputStream inputStream = fetchFromERDA(erdaLocation)) {
-                if (inputStream == null) {
-                    return Optional.empty();
+            Object lock = cachePopulationLockFor(path);
+            synchronized (lock) {
+                cacheInfo = cachedFiles.get(assetPath);
+                if (cacheInfo != null && cachedFile.exists() && cachedFile.isFile() && cachedFile.canRead()) {
+                    idsToRefresh.add(cacheInfo.fileCacheId());
+                    return Optional.of(new CachedFileInfo(cachedFile, cachedFile.getName()));
                 }
-                logger.info("got stream from ERDA");
-                cachedFile.getParentFile().mkdirs();
-                Files.copy(inputStream, Path.of(path), StandardCopyOption.REPLACE_EXISTING);
+
+                FileRepository fileRepository = jdbi.onDemand(FileRepository.class);
+                DasscoFile filesByAssetPath = fileRepository.getFilesByAssetPath(assetPath);
+                if (filesByAssetPath == null) {
+                    throw new DasscoNotFoundException("File not found for institution: %s, collection: %s, assetGuid: %s, path: %s".formatted(institution, collection, assetGuid, filePath));
+                }
+                if (filesByAssetPath.syncStatus() != FileSyncStatus.SYNCHRONIZED || filesByAssetPath.deleteAfterSync()) {
+                    throw new DasscoIllegalActionException("File is being edited");
+                }
+
+                logger.info("File didn't exist in cache, fetching from ERDA for resumable download");
+                String erdaLocation = UrlEscapers.urlFragmentEscaper().escape(Strings.join(new String[]{storageConfig.http(), institution, collection, assetGuid, filePath}, "/"));
+
+                try (InputStream inputStream = fetchFromERDA(erdaLocation)) {
+                    if (inputStream == null) {
+                        return Optional.empty();
+                    }
+                    logger.info("got stream from ERDA");
+                    copyToCacheAtomically(inputStream, Path.of(path));
+                }
+
+                cacheFile(filesByAssetPath);
+
+                if (cachedFile.exists() && cachedFile.isFile() && cachedFile.canRead()) {
+                    return Optional.of(new CachedFileInfo(cachedFile, cachedFile.getName()));
+                }
+
+                return Optional.empty();
             }
-
-            cacheFile(filesByAssetPath);
-
-            if (cachedFile.exists() && cachedFile.isFile() && cachedFile.canRead()) {
-                return Optional.of(new CachedFileInfo(cachedFile, cachedFile.getName()));
-            }
-
-            return Optional.empty();
         } catch (DasscoUnauthorizedException | DasscoNotFoundException | DasscoIllegalActionException e) {
             throw e;
         } catch (Exception e) {
@@ -199,34 +212,42 @@ public class CacheFileService {
                 cachedFiles.invalidate(cacheInfo.path());
             }
 
-            FileRepository fileRepository = jdbi.onDemand(FileRepository.class);
-            DasscoFile filesByAssetPath = fileRepository.getFilesByAssetPath(filePath);
-            if (filesByAssetPath == null) {
-                throw new DasscoNotFoundException("File not found for path: %s".formatted(filePath));
-            }
-            if (filesByAssetPath.syncStatus() != FileSyncStatus.SYNCHRONIZED || filesByAssetPath.deleteAfterSync()) {
-                throw new DasscoIllegalActionException("File is being edited");
-            }
-
-            logger.info("File didn't exist in cache, fetching from ERDA for resumable download");
-            String erdaLocation = UrlEscapers.urlFragmentEscaper().escape(Strings.join(new String[]{erdaProperties.httpURL(), filePath}, ""));
-
-            try (InputStream inputStream = fetchFromERDA(erdaLocation)) {
-                if (inputStream == null) {
-                    return Optional.empty();
+            Object lock = cachePopulationLockFor(path);
+            synchronized (lock) {
+                cacheInfo = cachedFiles.get(filePath);
+                if (cacheInfo != null && cachedFile.exists() && cachedFile.isFile() && cachedFile.canRead()) {
+                    idsToRefresh.add(cacheInfo.fileCacheId());
+                    return Optional.of(new CachedFileInfo(cachedFile, cachedFile.getName()));
                 }
-                logger.info("got stream from ERDA");
-                cachedFile.getParentFile().mkdirs();
-                Files.copy(inputStream, Path.of(path), StandardCopyOption.REPLACE_EXISTING);
+
+                FileRepository fileRepository = jdbi.onDemand(FileRepository.class);
+                DasscoFile filesByAssetPath = fileRepository.getFilesByAssetPath(filePath);
+                if (filesByAssetPath == null) {
+                    throw new DasscoNotFoundException("File not found for path: %s".formatted(filePath));
+                }
+                if (filesByAssetPath.syncStatus() != FileSyncStatus.SYNCHRONIZED || filesByAssetPath.deleteAfterSync()) {
+                    throw new DasscoIllegalActionException("File is being edited");
+                }
+
+                logger.info("File didn't exist in cache, fetching from ERDA for resumable download");
+                String erdaLocation = UrlEscapers.urlFragmentEscaper().escape(Strings.join(new String[]{storageConfig.http(), filePath}, ""));
+
+                try (InputStream inputStream = fetchFromERDA(erdaLocation)) {
+                    if (inputStream == null) {
+                        return Optional.empty();
+                    }
+                    logger.info("got stream from ERDA");
+                    copyToCacheAtomically(inputStream, Path.of(path));
+                }
+
+                cacheFile(filesByAssetPath);
+
+                if (cachedFile.exists() && cachedFile.isFile() && cachedFile.canRead()) {
+                    return Optional.of(new CachedFileInfo(cachedFile, cachedFile.getName()));
+                }
+
+                return Optional.empty();
             }
-
-            cacheFile(filesByAssetPath);
-
-            if (cachedFile.exists() && cachedFile.isFile() && cachedFile.canRead()) {
-                return Optional.of(new CachedFileInfo(cachedFile, cachedFile.getName()));
-            }
-
-            return Optional.empty();
         } catch (DasscoUnauthorizedException | DasscoNotFoundException | DasscoIllegalActionException e) {
             throw e;
         } catch (Exception e) {
@@ -265,7 +286,7 @@ public class CacheFileService {
                 throw new DasscoIllegalActionException("File is being edited");
             }
             logger.info("File didnt exist in cache, fetching from ERDA");
-            String erdaLocation = UrlEscapers.urlFragmentEscaper().escape(Strings.join(new String[]{erdaProperties.httpURL(), institution, collection, assetGuid, filePath}, "/"));
+            String erdaLocation = UrlEscapers.urlFragmentEscaper().escape(Strings.join(new String[]{storageConfig.http(), institution, collection, assetGuid, filePath}, "/"));
 //            erdaLocation = UriUtils.encodePath(erdaLocation, "UTF-8");
             try (InputStream inputStream = fetchFromERDA(erdaLocation)) {
                 logger.info("got stream");
@@ -330,7 +351,7 @@ public class CacheFileService {
 
             // 5. Attempt to fetch from ERDA and write to cache
             try {
-                String erdaUrl = UrlEscapers.urlFragmentEscaper().escape(Strings.join(new String[]{erdaProperties.httpURL(), institution, collection, assetGuid, normalizedFilePath}, "/"));
+                String erdaUrl = UrlEscapers.urlFragmentEscaper().escape(Strings.join(new String[]{storageConfig.http(), institution, collection, assetGuid, normalizedFilePath}, "/"));
                 logger.debug("Fetching asset from ERDA: {}", erdaUrl);
 
                 try (InputStream remote = fetchFromERDA(erdaUrl)) {
@@ -380,7 +401,7 @@ public class CacheFileService {
         if (filesByAssetPath.syncStatus() != FileSyncStatus.SYNCHRONIZED || filesByAssetPath.deleteAfterSync()) {
             throw new DasscoIllegalActionException("File is being edited");
         }
-        String erdaLocation = UrlEscapers.urlFragmentEscaper().escape(Strings.join(new String[]{erdaProperties.httpURL(), institution, collection, assetGuid, filePath}, "/"));
+        String erdaLocation = UrlEscapers.urlFragmentEscaper().escape(Strings.join(new String[]{storageConfig.http(), institution, collection, assetGuid, filePath}, "/"));
 
         try {
             StreamingOutput streamingOutput = output -> {
@@ -412,6 +433,35 @@ public class CacheFileService {
         fileCacheRepository.insertCache(cacheInfo);
         Optional<CacheInfo> fileCacheByPath = fileCacheRepository.getFileCacheByPath(dasscoFile.path());
         cachedFiles.put(dasscoFile.path(), fileCacheByPath.orElseThrow(() -> new RuntimeException("Some thing went wrong :^(")));
+    }
+
+    private void copyToCacheAtomically(InputStream inputStream, Path targetPath) throws IOException {
+        Path parent = targetPath.getParent();
+        if (parent != null) {
+            Files.createDirectories(parent);
+        }
+
+        Path tempPath = parent == null
+                ? Files.createTempFile(targetPath.getFileName().toString(), ".tmp")
+                : Files.createTempFile(parent, targetPath.getFileName().toString(), ".tmp");
+        boolean moved = false;
+        try {
+            Files.copy(inputStream, tempPath, StandardCopyOption.REPLACE_EXISTING);
+            try {
+                Files.move(tempPath, targetPath, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
+            } catch (AtomicMoveNotSupportedException e) {
+                Files.move(tempPath, targetPath, StandardCopyOption.REPLACE_EXISTING);
+            }
+            moved = true;
+        } finally {
+            if (!moved) {
+                Files.deleteIfExists(tempPath);
+            }
+        }
+    }
+
+    private Object cachePopulationLockFor(String path) {
+        return cachePopulationLocks[Math.floorMod(path.hashCode(), cachePopulationLocks.length)];
     }
 
     public void invalidateFileFromCache(String path) {

@@ -98,37 +98,61 @@ public class RangeRequestHandler {
      * @return Optional containing RangeInfo if valid, empty if invalid
      */
     public static Optional<RangeInfo> parseRangeHeader(String rangeHeader, long fileLength) {
-        if (rangeHeader == null || rangeHeader.isEmpty()) {
+        if (rangeHeader == null || rangeHeader.isBlank() || fileLength <= 0) {
             return Optional.empty();
         }
 
-        if (!rangeHeader.startsWith("bytes=")) {
+        String trimmedHeader = rangeHeader.trim();
+        if (!trimmedHeader.regionMatches(true, 0, "bytes=", 0, 6)) {
             return Optional.empty();
         }
 
-        String rangeValue = rangeHeader.substring(6); // Remove "bytes="
-        String[] rangeParts = rangeValue.split("-");
-
-        long start;
-        long end;
+        String rangeValue = trimmedHeader.substring(6).trim();
+        if (rangeValue.isEmpty() || rangeValue.contains(",")) {
+            return Optional.empty();
+        }
 
         try {
-            start = Long.parseLong(rangeParts[0]);
-            if (rangeParts.length > 1 && !rangeParts[1].isEmpty()) {
-                end = Long.parseLong(rangeParts[1]);
-            } else {
-                end = fileLength - 1;
+            if (rangeValue.startsWith("-")) {
+                String suffixPart = rangeValue.substring(1).trim();
+                if (suffixPart.isEmpty() || suffixPart.contains("-")) {
+                    return Optional.empty();
+                }
+
+                long suffixLength = Long.parseLong(suffixPart);
+                if (suffixLength <= 0) {
+                    return Optional.empty();
+                }
+
+                long contentLength = Math.min(suffixLength, fileLength);
+                long start = fileLength - contentLength;
+                long end = fileLength - 1;
+                return Optional.of(new RangeInfo(start, end, contentLength));
             }
+
+            int dashIndex = rangeValue.indexOf('-');
+            if (dashIndex < 0 || rangeValue.indexOf('-', dashIndex + 1) >= 0) {
+                return Optional.empty();
+            }
+
+            String startPart = rangeValue.substring(0, dashIndex).trim();
+            String endPart = rangeValue.substring(dashIndex + 1).trim();
+            if (startPart.isEmpty()) {
+                return Optional.empty();
+            }
+
+            long start = Long.parseLong(startPart);
+            long end = endPart.isEmpty() ? fileLength - 1 : Long.parseLong(endPart);
+
+            if (start < 0 || start >= fileLength || end < start) {
+                return Optional.empty();
+            }
+
+            end = Math.min(end, fileLength - 1);
+            return Optional.of(new RangeInfo(start, end, end - start + 1));
         } catch (NumberFormatException e) {
             return Optional.empty();
         }
-
-        // Validate range
-        if (start < 0 || start >= fileLength || end < start || end >= fileLength) {
-            return Optional.empty();
-        }
-
-        return Optional.of(new RangeInfo(start, end, end - start + 1));
     }
 
     /**
@@ -152,6 +176,7 @@ public class RangeRequestHandler {
      */
     public static StreamingOutput createFullFileStream(File file, Runnable onComplete) {
         return output -> {
+            boolean completed = false;
             try (RandomAccessFile raf = new RandomAccessFile(file, "r")) {
                 byte[] buffer = new byte[8192];
                 int bytesRead;
@@ -159,8 +184,9 @@ public class RangeRequestHandler {
                     output.write(buffer, 0, bytesRead);
                 }
                 output.flush();
+                completed = true;
             } finally {
-                if (onComplete != null) {
+                if (completed && onComplete != null) {
                     onComplete.run();
                 }
             }
@@ -182,6 +208,7 @@ public class RangeRequestHandler {
 
     public static StreamingOutput createRangeStream(File file, RangeInfo rangeInfo, long fileLength, Runnable onComplete, boolean runOnCompleteForAnyRange) {
         return output -> {
+            boolean completed = false;
             try (RandomAccessFile raf = new RandomAccessFile(file, "r")) {
                 raf.seek(rangeInfo.start());
                 byte[] buffer = new byte[8192];
@@ -194,8 +221,9 @@ public class RangeRequestHandler {
                     remaining -= bytesRead;
                 }
                 output.flush();
+                completed = remaining == 0;
             } finally {
-                if (onComplete != null && (runOnCompleteForAnyRange || rangeInfo.end() == fileLength - 1)) {
+                if (completed && onComplete != null && (runOnCompleteForAnyRange || rangeInfo.end() == fileLength - 1)) {
                     onComplete.run();
                 }
             }
