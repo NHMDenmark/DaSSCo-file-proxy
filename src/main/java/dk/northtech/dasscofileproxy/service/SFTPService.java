@@ -78,13 +78,13 @@ public class SFTPService {
         });
     }
 
-    record FailedAsset(String guid, String errorMessage) {
+    record FailedAsset(String guid, String errorMessage, Long specifySyncLogId) {
     }
 
     @Scheduled(cron = "0 * * * * *")
     public void moveFiles() {
         List<Directory> directories = getHttpSharesToSynchronize(shareConfig.maxErdaSyncAttempts());
-        List<FailedAsset> failedGuids = new ArrayList<>();
+        List<FailedAsset> failedAssets = new ArrayList<>();
 
         // If we do not get an ERDA connection immediately all connections are likely being used. Prioritise requests from REST api.
         try(ERDAClient erdaClient = erdaDataSource.acquire(1)) {
@@ -99,7 +99,7 @@ public class SFTPService {
                     AssetFull fullAsset = assetService.getFullAsset(sharedAsset.assetGuid());
                     if (fullAsset.asset_locked) {
                         logger.info("Asset {} is locked", sharedAsset.assetGuid());
-                        failedGuids.add(new FailedAsset(fullAsset.asset_guid, "Asset is locked"));
+                        failedAssets.add(new FailedAsset(fullAsset.asset_guid, "Asset is locked", directory.specifySyncLogId()));
                     }
                     String remotePath = getRemotePath(new MinimalAsset(fullAsset.asset_guid, fullAsset.parent_guids, fullAsset.institution, fullAsset.collection));
                     String localMountFolder = this.shareConfig.mountFolder() + directory.uri();
@@ -146,7 +146,7 @@ public class SFTPService {
 
                     if (directory.erdaSyncAttempts() == shareConfig.maxErdaSyncAttempts()) {
                         logger.info("Asset failed");
-                        failedGuids.add(new FailedAsset(sharedAsset.assetGuid(), e.getMessage()));
+                        failedAssets.add(new FailedAsset(sharedAsset.assetGuid(), e.getMessage(), directory.specifySyncLogId()));
                     }
                     logger.error("Error doing ERDA synchronisation", e);
                 }
@@ -154,9 +154,9 @@ public class SFTPService {
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
-        for (FailedAsset s : failedGuids) {
+        for (FailedAsset s : failedAssets) {
             logger.error("ERDA sync failed for asset {}, retry attemps exhausted", s.guid);
-            assetService.setAssestStatus(s.guid(), InternalStatus.ERDA_FAILED, s.errorMessage);
+            assetService.setAssestStatus(s.guid(), InternalStatus.ERDA_FAILED, s.errorMessage, s.specifySyncLogId);
         }
     }
 

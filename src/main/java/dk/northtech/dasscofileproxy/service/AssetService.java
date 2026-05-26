@@ -48,13 +48,16 @@ public class AssetService {
         this.observationRegistry = observationRegistry;
     }
 
-    public void setAssestStatus(String assetGuid, InternalStatus status, @Nullable String errorMessage) {
+    public void setAssestStatus(String assetGuid, InternalStatus status, @Nullable String errorMessage, Long specifySyncLogId) {
         var token = this.keycloakService.getAdminToken();
         try {
             URIBuilder urlWithParams = new URIBuilder(assetServiceProperties.rootUrl() + "/api/v1/assetmetadata/" + assetGuid + "/setstatus")
                     .addParameter("newStatus", status.name());
             if (errorMessage != null) {
                 urlWithParams.addParameter("errorMessage", errorMessage);
+            }
+            if(specifySyncLogId != null) {
+                urlWithParams.addParameter("specifySyncLogId", specifySyncLogId.toString());
             }
 //                    .build()
             HttpRequest request = HttpRequest.newBuilder()

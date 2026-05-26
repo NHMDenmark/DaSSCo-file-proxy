@@ -41,8 +41,8 @@ public class ParkingService {
     }
 
     public boolean syncParkedFiles(SyncParkingSpaceRequest syncParkingSpaceRequest, User user) {
-        MinimalAsset asset = syncParkingSpaceRequest.asset();
-        String basePath = shareConfig.mountFolder() + "/" + shareConfig.parkingFolder() + "/" + asset.institution() + "/" + asset.collection() + "/" + asset.asset_guid();
+        MinimalAsset asset = syncParkingSpaceRequest.asset;
+        String basePath = shareConfig.mountFolder() + "/" + shareConfig.parkingFolder() + "/" + asset.institution() + "/" + asset.collection() + "/" + syncParkingSpaceRequest.attachmentLocation;
         logger.info("Syncing parkingspace: " + basePath);
         File file = new File(basePath);
         // If there are no files in parking space, do nothing. We currently dont allow empty parking space to overwrite files.
@@ -67,9 +67,9 @@ public class ParkingService {
             for (File parkedFile : files) {
                 try {
                     logger.info("Moving parked file: " + parkedFile);
-
                     try (InputStream inputStream = Files.newInputStream(parkedFile.toPath())) {
-                        File target = new File(shareConfig.mountFolder() + "/assetfiles/" + asset.institution() + "/" + asset.collection() + "/" + asset.asset_guid() + "/" + parkedFile.getName());
+                        String renamedFileName = getRenamedParkedFileName(parkedFile.getName(), syncParkingSpaceRequest.attachmentLocation, asset.asset_guid(), files.size() == 1);
+                        File target = new File(shareConfig.mountFolder() + "/assetfiles/" + asset.institution() + "/" + asset.collection() + "/" + asset.asset_guid() + "/" + renamedFileName);
                         logger.info("Moving file to: " + target);
                         long crc = writeToDiskAndGetCRC(inputStream, target);
                         jdbi.withHandle(h -> {
@@ -80,7 +80,7 @@ public class ParkingService {
                             } catch (IOException e) {
                                 throw new RuntimeException(e);
                             }
-                            fileRepository.insertFile(new DasscoFile(null, asset.asset_guid(), "/" + asset.institution() + "/" + asset.collection() + "/" + asset.asset_guid() + "/" + file.getName(), parkedFile.length(), crc, FileSyncStatus.NEW_FILE, mimetype, true));
+                            fileRepository.insertFile(new DasscoFile(null, asset.asset_guid(), "/" + asset.institution() + "/" + asset.collection() + "/" + asset.asset_guid() + "/" + renamedFileName, parkedFile.length(), crc, FileSyncStatus.NEW_FILE, mimetype, true));
                             return h;
                         });
                         deleteParkedFileMetadata(parkedFile.getPath());
@@ -94,7 +94,7 @@ public class ParkingService {
             //sync the share we just opened
             Optional<Directory> directoryToSync = fileService.getWriteableDirectory(asset.asset_guid());
             if (directoryToSync.isPresent()) {
-                fileService.scheduleDirectoryForSynchronization(directoryToSync.get().directoryId(), new AssetUpdate(asset.asset_guid(), null, null, user.username), syncParkingSpaceRequest.specifySyncLogId());
+                fileService.scheduleDirectoryForSynchronization(directoryToSync.get().directoryId(), new AssetUpdate(asset.asset_guid(), null, null, user.username), syncParkingSpaceRequest.specifySyncLogId);
                 return true;
             } else {
                 throw new RuntimeException("Directory not found");
@@ -123,10 +123,10 @@ public class ParkingService {
         File file = new File(originalPath.replace("thumbnails", "originals"));
         if (file.exists()) {
             file.delete();
-            deleteParkedFileMetadata(path);
         } else {
             return false;
         }
+        deleteParkedFileMetadata(path);
 
         // Thumbnails have been pulled out of the parking spot, no need for this, waiting final confirm.
     /*try (DirectoryStream<Path> stream = Files.newDirectoryStream(dir, filenameParts[0] + "_*." + filenameParts[1])) {
@@ -215,5 +215,38 @@ public class ParkingService {
         }
 
         return normalizedPath;
+    }
+
+    static String getRenamedParkedFileName(String parkedFileName, String attachmentLocation, String assetGuid, boolean singleParkedFile) {
+        String attachmentToken = getAttachmentLocationTokenWithoutExtension(attachmentLocation);
+
+        if (!attachmentToken.isBlank() && parkedFileName.contains(attachmentToken)) {
+            return parkedFileName.replace(attachmentToken, assetGuid);
+        }
+
+        if (singleParkedFile) {
+            int extensionIndex = parkedFileName.lastIndexOf('.');
+            if (extensionIndex > 0 && extensionIndex < parkedFileName.length() - 1) {
+                return assetGuid + parkedFileName.substring(extensionIndex);
+            }
+            return assetGuid;
+        }
+
+        return parkedFileName;
+    }
+
+    static String getAttachmentLocationTokenWithoutExtension(String attachmentLocation) {
+        if (attachmentLocation == null) {
+            return "";
+        }
+        String token = attachmentLocation.trim();
+        if (token.isBlank()) {
+            return "";
+        }
+        int extensionIndex = token.lastIndexOf('.');
+        if (extensionIndex > 0) {
+            return token.substring(0, extensionIndex);
+        }
+        return token;
     }
 }

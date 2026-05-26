@@ -241,7 +241,8 @@ public class FileService {
             attach.scheduleDiretoryForSynchronization(directoryId, assetUpdate, specifySyncLogId);
             return h;
         }).close();
-        assetService.setAssestStatus(assetUpdate.assetGuid(), InternalStatus.ASSET_RECEIVED, null);
+        //We dont set the sync log id here as we dont need to inform specify that sync has started.
+        assetService.setAssestStatus(assetUpdate.assetGuid(), InternalStatus.ASSET_RECEIVED, null, null);
     }
 
     public void deleteFilesMarkedAsDeleteByAsset(String asset_guid) {
