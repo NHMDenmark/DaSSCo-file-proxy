@@ -1,14 +1,13 @@
 package dk.northtech.dasscofileproxy.webapi.v1;
 
-import com.auth0.jwt.JWT;
-import com.auth0.jwt.interfaces.DecodedJWT;
 import com.jcraft.jsch.JSchException;
 import com.jcraft.jsch.SftpException;
-import dk.northtech.dasscofileproxy.configuration.SFTPConfig;
+import dk.northtech.dasscofileproxy.configuration.StorageConfig;
 import dk.northtech.dasscofileproxy.domain.AssetFull;
 import dk.northtech.dasscofileproxy.service.AssetService;
 import dk.northtech.dasscofileproxy.service.ERDAClient;
 import dk.northtech.dasscofileproxy.service.SFTPService;
+import dk.northtech.dasscofileproxy.webapi.exceptionmappers.DaSSCoErrorResponse;
 import io.swagger.v3.oas.annotations.Hidden;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -39,15 +38,15 @@ public class SFTPApi {
 
     private final SFTPService sftpService;
 
-    private final SFTPConfig sftpConfig;
+    private final StorageConfig storageConfig;
 
     private final AssetService assetService;
 
     @Inject
-    public SFTPApi(SFTPService sftpService, AssetService assetService, SFTPConfig sftpConfig) {
+    public SFTPApi(SFTPService sftpService, AssetService assetService, StorageConfig storageConfig) {
         this.sftpService = sftpService;
         this.assetService = assetService;
-        this.sftpConfig = sftpConfig;
+        this.storageConfig = storageConfig;
     }
 
     @Hidden
@@ -66,7 +65,7 @@ public class SFTPApi {
     public Collection<String> listItems(@PathParam("institution") String institution
             , @PathParam("collection") String collection
             , @PathParam("guid") String guid) throws JSchException, SftpException {
-        return new ERDAClient(sftpConfig).listFiles("/" + institution + "/" + collection + "/" + guid);
+        return new ERDAClient(storageConfig).listFiles("/" + institution + "/" + collection + "/" + guid);
     }
 
     @GET
@@ -78,7 +77,7 @@ public class SFTPApi {
         AssetFull assetFull = assetService.getFullAsset(guid);
         // If there is no asset for the asset_guid in asset service throw exception, as the client needs institution and collection to locate file
         if (assetFull == null)
-            return Response.status(Response.Status.NOT_FOUND).entity("Cannot find asset in asset service.").build();
+            return DaSSCoErrorResponse.notFound("Asset not found in asset service for guid: %s".formatted(guid));
 
         // Determine whether the user should be allowed access to the file
         AtomicBoolean userHasAccess = new AtomicBoolean(false);
@@ -111,7 +110,7 @@ public class SFTPApi {
 //
 
 //        } else {
-            userHasAccess.set(true);
+        userHasAccess.set(true);
 //        }
         if (!userHasAccess.get()) {
             return Response.status(Response.Status.UNAUTHORIZED).entity("The requested asset has restricted access and the user does not have any of the required roles.").build();
@@ -122,12 +121,11 @@ public class SFTPApi {
         String remotePath = sftpService.getRemotePath(assetFull.institution, assetFull.collection, assetFull.asset_guid);
 
 
-
         // Download the file from the SFTP server
-        InputStream fileStream = new ERDAClient(sftpConfig).getFileInputStream(remotePath + "/" + file);
+        InputStream fileStream = new ERDAClient(storageConfig).getFileInputStream(remotePath + "/" + file);
         if (fileStream == null) {
             // File not found on the FTP server
-            return Response.status(404).entity("The requested resource could not be found.").build();
+            return DaSSCoErrorResponse.notFound("SFTP file not found for guid: %s, file: %s".formatted(guid, file));
         }
 
         // Asynchronously start caching file

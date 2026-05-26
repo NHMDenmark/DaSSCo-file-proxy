@@ -1,8 +1,7 @@
 package dk.northtech.dasscofileproxy.service;
 
 import com.jcraft.jsch.*;
-import dk.northtech.dasscofileproxy.configuration.SFTPConfig;
-import org.apache.commons.lang3.NotImplementedException;
+import dk.northtech.dasscofileproxy.configuration.StorageConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -15,18 +14,18 @@ import java.util.*;
 public class ERDAClient implements AutoCloseable {
     private static final Logger logger = LoggerFactory.getLogger(ERDAClient.class);
     private Session session;
-    private final SFTPConfig sftpConfig;
+    private final StorageConfig storageConfig;
     private ErdaDataSource creator;
 
-    public ERDAClient(SFTPConfig sftpConfig) {
-        this.sftpConfig = sftpConfig;
+    public ERDAClient(StorageConfig storageConfig) {
+        this.storageConfig = storageConfig;
         try {
             JSch jSch = new JSch();
             // Add the private key file for authentication
-            jSch.addIdentity(sftpConfig.privateKey(), sftpConfig.passphrase());
+            jSch.addIdentity(storageConfig.privateKey(), storageConfig.passphrase());
             logger.info("Added credz");
 
-            session = jSch.getSession(sftpConfig.username(), sftpConfig.host(), sftpConfig.port());
+            session = jSch.getSession(storageConfig.username(), storageConfig.host(), storageConfig.port());
             session.setConfig("PreferredAuthentications", "publickey");
             logger.info("Got sesh");
             // Disable strict host key checking
@@ -41,16 +40,16 @@ public class ERDAClient implements AutoCloseable {
         }
     }
 
-    public ERDAClient(SFTPConfig sftpConfig, ErdaDataSource erdaDataSource) {
-        this.sftpConfig = sftpConfig;
+    public ERDAClient(StorageConfig storageConfig, ErdaDataSource erdaDataSource) {
+        this.storageConfig = storageConfig;
         this.creator = erdaDataSource;
         try {
             JSch jSch = new JSch();
             // Add the private key file for authentication
-            jSch.addIdentity(sftpConfig.privateKey(), sftpConfig.passphrase());
+            jSch.addIdentity(storageConfig.privateKey(), storageConfig.passphrase());
             logger.info("Added credz");
 
-            session = jSch.getSession(sftpConfig.username(), sftpConfig.host(), sftpConfig.port());
+            session = jSch.getSession(storageConfig.username(), storageConfig.host(), storageConfig.port());
             session.setConfig("PreferredAuthentications", "publickey");
             logger.info("Got sesh");
             // Disable strict host key checking
@@ -69,10 +68,10 @@ public class ERDAClient implements AutoCloseable {
         try {
             JSch jSch = new JSch();
             // Add the private key file for authentication
-            jSch.addIdentity(sftpConfig.privateKey(), sftpConfig.passphrase());
+            jSch.addIdentity(storageConfig.privateKey(), storageConfig.passphrase());
             logger.info("Added credz");
 
-            this.session = jSch.getSession(sftpConfig.username(), sftpConfig.host(), sftpConfig.port());
+            this.session = jSch.getSession(storageConfig.username(), storageConfig.host(), storageConfig.port());
             this.session.setConfig("PreferredAuthentications", "publickey");
             logger.info("Got sesh");
             // Disable strict host key checking

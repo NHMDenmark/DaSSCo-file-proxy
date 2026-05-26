@@ -8,6 +8,7 @@ import dk.northtech.dasscofileproxy.service.CacheFileService;
 import dk.northtech.dasscofileproxy.service.FileService;
 import dk.northtech.dasscofileproxy.webapi.RangeRequestHandler;
 import dk.northtech.dasscofileproxy.webapi.UserMapper;
+import dk.northtech.dasscofileproxy.webapi.exceptionmappers.DaSSCoErrorResponse;
 import dk.northtech.dasscofileproxy.webapi.model.FileUploadData;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -41,6 +42,11 @@ public class Files {
     private final CacheFileService cacheFileService;
     private FileService fileService;
     private final AssetServiceProperties assetServiceProperties;
+
+    private Response notFound(String message) {
+        return DaSSCoErrorResponse.notFound(message);
+    }
+
     @Context
     UriInfo uriInfo;
 
@@ -75,7 +81,7 @@ public class Files {
                 logger.info("got file");
 
                 if (cachedFileInfo.isEmpty()) {
-                    return Response.status(404).build();
+                    return notFound("File not found for institution: %s, collection: %s, assetGuid: %s, path: %s".formatted(institution, collection, guid, path));
                 }
 
                 CacheFileService.CachedFileInfo fileInfo = cachedFileInfo.get();
@@ -114,7 +120,7 @@ public class Files {
             Optional<CacheFileService.CachedFileInfo> cachedFileInfo = cacheFileService.getCachedFileWithoutUser(path);
 
             if (cachedFileInfo.isEmpty()) {
-                return Response.status(404).build();
+                return notFound("Download file not found for institution: %s, collection: %s, assetGuid: %s, ticket: %s, path: %s".formatted(institution, collection, assetGuid, ticket, path));
             }
 
             CacheFileService.CachedFileInfo fileInfo = cachedFileInfo.get();
@@ -148,7 +154,7 @@ public class Files {
             String path = dasscoFile.get().path();
             if (!(path.toLowerCase().endsWith(".jpeg") || path.toLowerCase().endsWith(".jpg")
                     || path.toLowerCase().endsWith(".png"))) {
-                return Response.status(404).build();
+                return notFound("Thumbnail not found for institution: %s, collection: %s, assetGuid: %s".formatted(institutionName, collectionName, assetGuid));
             }
             try {
                 String fileName = List.of(path.split("/")).getLast();
@@ -158,7 +164,7 @@ public class Files {
                             institutionName, collectionName, assetGuid, fileName, user);
 
                     if (cachedFileInfo.isEmpty()) {
-                        return Response.status(404).build();
+                        return notFound("Thumbnail not found for institution: %s, collection: %s, assetGuid: %s".formatted(institutionName, collectionName, assetGuid));
                     }
 
                     CacheFileService.CachedFileInfo fileInfo = cachedFileInfo.get();
@@ -176,7 +182,7 @@ public class Files {
             }
         }
 
-        return Response.status(404).build();
+        return notFound("Thumbnail not found for institution: %s, collection: %s, assetGuid: %s".formatted(institutionName, collectionName, assetGuid));
     }
 
     @GET
@@ -200,7 +206,7 @@ public class Files {
                         institutionName, collectionName, assetGuid, fileName, user);
 
                 if (cachedFileInfo.isEmpty()) {
-                    return Response.status(404).build();
+                    return notFound("External file not found for institution: %s, collection: %s, assetGuid: %s".formatted(institutionName, collectionName, assetGuid));
                 }
 
                 CacheFileService.CachedFileInfo fileInfo = cachedFileInfo.get();
@@ -214,7 +220,7 @@ public class Files {
             }
         }
 
-        return Response.status(404).build();
+        return notFound("External file not found for institution: %s, collection: %s, assetGuid: %s".formatted(institutionName, collectionName, assetGuid));
     }
 
     @GET

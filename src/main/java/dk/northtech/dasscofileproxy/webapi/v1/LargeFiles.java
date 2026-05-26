@@ -20,10 +20,11 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Paths;
-import java.nio.file.StandardCopyOption;
 import java.util.Base64;
+import java.util.Optional;
 
 @Path("/large-files/{institutionName}/{collectionName}/{assetGuid}/upload{path: (/.*)?}")
 public class LargeFiles {
@@ -46,9 +47,11 @@ public class LargeFiles {
     @POST
     public void tusPost(@PathParam("institutionName") String institutionName, @PathParam("collectionName") String collectionName, @PathParam("assetGuid") String assetGuid, @Context HttpServletRequest request, @Context HttpServletResponse response, @Context SecurityContext securityContext){
         String uploadLength = request.getHeader("Upload-Length");
+        if (uploadLength == null || uploadLength.isBlank()) {
+            throw new BadRequestException("Upload-Length header is missing");
+        }
         if(this.fileService.enoughStorage(assetGuid, (Integer.parseInt(uploadLength) / 1000000))){
             this.handleTusFileUpload(request, response, securityContext, institutionName, collectionName, assetGuid);
-
         }else{
             throw new IllegalArgumentException("Total size of asset files exceeds allocated disk space");
         }
@@ -97,6 +100,24 @@ public class LargeFiles {
         catch (IOException | TusException e) {
             logger.error("get upload info", e);
         }
+        if ("POST".equals(request.getMethod())) {
+            String location = response.getHeader("Location");
+            if (location != null) {
+                try {
+                    fileService.registerActiveLargeUpload(getTusId(location), assetGuid, getUploadMetadata(request, "path").orElse(""));
+                } catch (RuntimeException e) {
+                    try {
+                        this.tusFileUploadService.deleteUpload(location);
+                    } catch (IOException | TusException deleteException) {
+                        logger.warn("Failed to delete rejected TUS upload", deleteException);
+                    }
+                    throw e;
+                }
+            }
+        }
+        if ("DELETE".equals(request.getMethod())) {
+            fileService.unregisterActiveLargeUpload(getTusId(uploadURI));
+        }
         if (uploadInfo != null && !uploadInfo.isUploadInProgress()) {
             String tusId = uploadURI.substring(uploadURI.lastIndexOf('/') + 1);
             Long fileSize = uploadInfo.getLength() / 1000000;
@@ -108,6 +129,7 @@ public class LargeFiles {
 
             try (InputStream is = this.tusFileUploadService.getUploadedBytes(uploadURI)) {
                 fileService.largeFileUpload(is, fileUploadData, user.keycloakId);
+                fileService.unregisterActiveLargeUpload(tusId);
                 this.tusFileUploadService.deleteUpload(uploadURI);
             }
             catch (IOException | TusException e) {
@@ -116,5 +138,31 @@ public class LargeFiles {
 
             }
         }
+    }
+
+    private static String getTusId(String location) {
+        String path = location;
+        try {
+            URI uri = new URI(location);
+            if (uri.getPath() != null) {
+                path = uri.getPath();
+            }
+        } catch (URISyntaxException ignored) {
+        }
+        return path.substring(path.lastIndexOf('/') + 1);
+    }
+
+    private static Optional<String> getUploadMetadata(HttpServletRequest request, String key) {
+        String uploadMetadata = request.getHeader("Upload-Metadata");
+        if (uploadMetadata == null || uploadMetadata.isBlank()) {
+            return Optional.empty();
+        }
+        for (String metadataPair : uploadMetadata.split(",")) {
+            String[] keyAndValue = metadataPair.trim().split(" ", 2);
+            if (keyAndValue.length == 2 && keyAndValue[0].equals(key)) {
+                return Optional.of(new String(Base64.getDecoder().decode(keyAndValue[1]), StandardCharsets.UTF_8));
+            }
+        }
+        return Optional.empty();
     }
 }

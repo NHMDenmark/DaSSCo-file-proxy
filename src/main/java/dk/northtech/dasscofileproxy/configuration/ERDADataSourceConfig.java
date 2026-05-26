@@ -8,20 +8,20 @@ import org.springframework.context.annotation.Configuration;
 
 @Configuration
 public class ERDADataSourceConfig {
-    private SFTPConfig sftpConfig;
+    private StorageConfig storageConfig;
 
     @Inject
-    public ERDADataSourceConfig(SFTPConfig sftpConfig) {
-        this.sftpConfig = sftpConfig;
+    public ERDADataSourceConfig(StorageConfig storageConfig) {
+        this.storageConfig = storageConfig;
     }
     
     @Bean
     public ErdaDataSource erdaDataSource() {
-        return new ErdaDataSource( true, sftpConfig);
+        return new ErdaDataSource( true, storageConfig);
     }
 
     @Bean
     public ErdaDataSource2 erdaDataSource2() {
-        return new ErdaDataSource2( sftpConfig);
+        return new ErdaDataSource2( storageConfig);
     }
 }

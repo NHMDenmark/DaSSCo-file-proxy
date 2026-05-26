@@ -1,6 +1,6 @@
 package dk.northtech.dasscofileproxy.webapi.v1;
 
-import dk.northtech.dasscofileproxy.configuration.SFTPConfig;
+import dk.northtech.dasscofileproxy.configuration.StorageConfig;
 import dk.northtech.dasscofileproxy.domain.SecurityRoles;
 import dk.northtech.dasscofileproxy.domain.exceptions.DasscoInternalErrorException;
 import dk.northtech.dasscofileproxy.service.ERDAClient;
@@ -29,11 +29,11 @@ import java.util.LinkedHashMap;
 @SecurityRequirement(name = "dassco-idp")
 public class DebugTools {
     private static final Logger logger = LoggerFactory.getLogger(DebugTools.class);
-    private final SFTPConfig sftpConfig;
+    private final StorageConfig storageConfig;
 
     @Inject
-    public DebugTools(SFTPConfig sftpConfig) {
-        this.sftpConfig = sftpConfig;
+    public DebugTools(StorageConfig storageConfig) {
+        this.storageConfig = storageConfig;
     }
 
 
@@ -48,9 +48,9 @@ public class DebugTools {
     ) {
         //This exhausts ERDA connections and disconnects all ERDA client for the next 5 minutes
         for (int i = 0; i < 100; i++) {
-            try (ERDAClient erdaClient = new ERDAClient(sftpConfig);) {
+            try (ERDAClient erdaClient = new ERDAClient(storageConfig);) {
                 erdaClient.testAndRestore();
-                logger.info("Created {} clients",i+1);
+                logger.info("Created {} clients", i + 1);
             } catch (Exception e) {
                 return;
             }

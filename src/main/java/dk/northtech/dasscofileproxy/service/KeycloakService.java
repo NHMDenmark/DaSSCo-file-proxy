@@ -3,7 +3,7 @@ package dk.northtech.dasscofileproxy.service;
 import com.fasterxml.jackson.core.Version;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.module.SimpleModule;
-import dk.northtech.dasscofileproxy.assets.KeycloakAdminConfig;
+import dk.northtech.dasscofileproxy.assets.KeycloakConfig;
 import dk.northtech.dasscofileproxy.domain.KeycloakToken;
 import dk.northtech.dasscofileproxy.utils.CustomKeycloakTokenDeserializer;
 import dk.northtech.dasscofileproxy.utils.KeycloakAuthenticator;
@@ -27,7 +27,7 @@ import java.util.Base64;
 public class KeycloakService {
     private static final Logger LOGGER = LoggerFactory.getLogger(KeycloakService.class);
     KeycloakAuthenticator keycloakAuthenticator;
-    KeycloakAdminConfig keycloakAdminConfig;
+    KeycloakConfig keycloakConfig;
     ObjectMapper objectMapper = new ObjectMapper();
     SimpleModule module = new SimpleModule("CustomKeycloakTokenDeserializer", new Version(1, 0, 0, null, null, null));
     private static KeycloakToken keycloakToken;
@@ -35,10 +35,10 @@ public class KeycloakService {
     private final ObservationRegistry observationRegistry;
 
     @Inject
-    public KeycloakService(KeycloakAuthenticator keycloakAuthenticator, KeycloakAdminConfig keycloakAdminConfig,
+    public KeycloakService(KeycloakAuthenticator keycloakAuthenticator, KeycloakConfig keycloakConfig,
                            ObservationRegistry observationRegistry) {
         this.keycloakAuthenticator = keycloakAuthenticator;
-        this.keycloakAdminConfig = keycloakAdminConfig;
+        this.keycloakConfig = keycloakConfig;
         this.module.addDeserializer(KeycloakToken.class, new CustomKeycloakTokenDeserializer());
         this.objectMapper.registerModule(module);
         this.observationRegistry = observationRegistry;
@@ -75,12 +75,12 @@ public class KeycloakService {
     public KeycloakToken refreshToken() {
         try {
             HttpRequest request = HttpRequest.newBuilder()
-                    .uri(new URI(this.keycloakAdminConfig.keycloakUrl() + "realms/" + this.keycloakAdminConfig.adminRealm() + "/protocol/openid-connect/token"))
+                    .uri(new URI(this.keycloakConfig.keycloakUrl() + "realms/" + this.keycloakConfig.realm() + "/protocol/openid-connect/token"))
                     .header("Content-Type", "application/x-www-form-urlencoded")
                     .POST(HttpRequest.BodyPublishers.ofString("grant_type=refresh_token&" +
                             "refresh_token=" + keycloakToken.refreshToken() + "&" +
                             "scope=openid offline_access&" +
-                            "client_id=" + this.keycloakAdminConfig.clientId()))
+                            "client_id=" + this.keycloakConfig.clientId()))
                     .build();
 
             HttpResponse<String> response = HttpClient.newBuilder()
@@ -99,15 +99,15 @@ public class KeycloakService {
     public KeycloakToken newAccessToken() {
         //Order new token token
         try {
-            String clientCredentials = this.keycloakAdminConfig.clientId() + ":" + this.keycloakAdminConfig.clientSecret();
+            String clientCredentials = this.keycloakConfig.clientId() + ":" + this.keycloakConfig.clientSecret();
             String base64ClientCredentials = Base64.getEncoder().encodeToString(clientCredentials.getBytes());
 
             HttpRequest request = HttpRequest.newBuilder()
-                    .uri(new URI(this.keycloakAdminConfig.keycloakUrl() + "realms/" + this.keycloakAdminConfig.adminRealm() + "/protocol/openid-connect/token"))
+                    .uri(new URI(this.keycloakConfig.keycloakUrl() + "realms/" + this.keycloakConfig.realm() + "/protocol/openid-connect/token"))
                     .header("Content-Type", "application/x-www-form-urlencoded")
                     //.header("Authorization", "Basic " + base64ClientCredentials)
                     .POST(HttpRequest.BodyPublishers.ofString("grant_type=client_credentials&"
-                            + "client_id=" + this.keycloakAdminConfig.clientId() + "&" + "client_secret=" + this.keycloakAdminConfig.clientSecret()
+                            + "client_id=" + this.keycloakConfig.clientId() + "&" + "client_secret=" + this.keycloakConfig.clientSecret()
                             + "&scope=openid offline_access"))
                     .build();
 

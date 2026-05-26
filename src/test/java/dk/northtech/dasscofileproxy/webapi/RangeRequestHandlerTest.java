@@ -92,9 +92,12 @@ class RangeRequestHandlerTest {
     }
 
     @Test
-    void parseRangeHeader_endBeyondFileLength_returnsEmpty() {
+    void parseRangeHeader_endBeyondFileLength_clampsToEndOfFile() {
         Optional<RangeRequestHandler.RangeInfo> result = RangeRequestHandler.parseRangeHeader("bytes=0-150", 100);
-        assertThat(result.isPresent()).isFalse();
+        assertThat(result.isPresent()).isTrue();
+        assertThat(result.get().start()).isEqualTo(0);
+        assertThat(result.get().end()).isEqualTo(99);
+        assertThat(result.get().contentLength()).isEqualTo(100);
     }
 
     @Test

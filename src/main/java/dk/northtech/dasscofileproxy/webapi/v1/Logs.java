@@ -6,6 +6,7 @@ import dk.northtech.dasscofileproxy.service.FileService;
 import dk.northtech.dasscofileproxy.service.LogService;
 import dk.northtech.dasscofileproxy.webapi.UserMapper;
 import dk.northtech.dasscofileproxy.webapi.exceptionmappers.DaSSCoError;
+import dk.northtech.dasscofileproxy.webapi.exceptionmappers.DaSSCoErrorResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -72,7 +73,7 @@ public class Logs {
                     .header("Content-Disposition", "attachment; filename=" + fileResult.filename())
                     .header("Content-Type", "text/plain").entity(streamingOutput).build();
         }
-        return Response.status(404).build();
+        return DaSSCoErrorResponse.notFound("Log file not found for fileName: %s".formatted(name));
     }
 
 }

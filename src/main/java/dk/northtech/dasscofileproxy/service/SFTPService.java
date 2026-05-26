@@ -1,9 +1,7 @@
 package dk.northtech.dasscofileproxy.service;
 
-//import com.jcraft.jsch.*;
-
-import dk.northtech.dasscofileproxy.configuration.SFTPConfig;
 import dk.northtech.dasscofileproxy.configuration.ShareConfig;
+import dk.northtech.dasscofileproxy.configuration.StorageConfig;
 import dk.northtech.dasscofileproxy.domain.*;
 import dk.northtech.dasscofileproxy.repository.DirectoryRepository;
 import dk.northtech.dasscofileproxy.repository.SharedAssetRepository;
@@ -27,7 +25,7 @@ import java.util.stream.Collectors;
 
 @Service
 public class SFTPService {
-    private final SFTPConfig sftpConfig;
+    private final StorageConfig storageConfig;
     private final Jdbi jdbi;
 
     private final FileService fileService;
@@ -41,9 +39,9 @@ public class SFTPService {
     private final ObservationRegistry observationRegistry;
 
     @Inject
-    public SFTPService(SFTPConfig sftpConfig, FileService fileService, CacheFileService cacheFileService, ShareConfig shareConfig, AssetService assetService,
+    public SFTPService(StorageConfig storageConfig, FileService fileService, CacheFileService cacheFileService, ShareConfig shareConfig, AssetService assetService,
                        Jdbi jdbi, ErdaDataSource erdaDataSource, ObservationRegistry observationRegistry) {
-        this.sftpConfig = sftpConfig;
+        this.storageConfig = storageConfig;
         this.assetService = assetService;
         this.fileService = fileService;
         this.cacheFileService = cacheFileService;
@@ -161,19 +159,19 @@ public class SFTPService {
     }
 
     public String getRemotePath(String institution, String collection, String assetGuid) {
-        return sftpConfig.remoteFolder() + institution + "/" + collection + "/" + assetGuid;
+        return storageConfig.remoteFolder() + institution + "/" + collection + "/" + assetGuid;
     }
 
     public String getRemotePath(MinimalAsset asset) {
-        return sftpConfig.remoteFolder() + asset.institution() + "/" + asset.collection() + "/" + asset.asset_guid() + "/";
+        return storageConfig.remoteFolder() + asset.institution() + "/" + asset.collection() + "/" + asset.asset_guid() + "/";
     }
 
     public List<String> getRemotePathElements(AssetFull asset) {
-        return Arrays.asList(sftpConfig.remoteFolder(), asset.institution, asset.collection, asset.asset_guid);
+        return Arrays.asList(storageConfig.remoteFolder(), asset.institution, asset.collection, asset.asset_guid);
     }
 
     public String getLocalFolder(String institution, String collection, String assetGuid) {
-        return sftpConfig.localFolder() + institution + "/" + collection + "/" + assetGuid;
+        return storageConfig.localFolder() + institution + "/" + collection + "/" + assetGuid;
     }
 
     public void initAssetShare(String sharePath, MinimalAsset minimalAsset) {
@@ -226,7 +224,7 @@ public class SFTPService {
 
 
     public void cacheFile(String remotePath, String localPath) {
-        try (ERDAClient erdaClient = new ERDAClient(sftpConfig)) {
+        try (ERDAClient erdaClient = new ERDAClient(storageConfig)) {
 
             String parentPath = localPath.substring(0, localPath.lastIndexOf('/'));
 

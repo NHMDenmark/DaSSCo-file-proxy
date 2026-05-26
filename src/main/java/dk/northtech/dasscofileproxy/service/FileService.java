@@ -8,6 +8,7 @@ import com.nimbusds.jose.shaded.gson.Gson;
 import dk.northtech.dasscofileproxy.assets.AssetServiceProperties;
 import dk.northtech.dasscofileproxy.configuration.ShareConfig;
 import dk.northtech.dasscofileproxy.domain.*;
+import dk.northtech.dasscofileproxy.domain.exceptions.DasscoConflictException;
 import dk.northtech.dasscofileproxy.domain.exceptions.DasscoInternalErrorException;
 import dk.northtech.dasscofileproxy.repository.*;
 import dk.northtech.dasscofileproxy.webapi.model.FileUploadData;
@@ -40,7 +41,6 @@ import java.util.zip.CheckedInputStream;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
-import static dk.northtech.dasscofileproxy.domain.HttpAllocationStatus.SUCCESS;
 import static java.util.stream.Collectors.toList;
 
 @Service
@@ -236,13 +236,45 @@ public class FileService {
     }
 
     public void scheduleDirectoryForSynchronization(long directoryId, AssetUpdate assetUpdate, Long specifySyncLogId) {
-        jdbi.withHandle(h -> {
+        jdbi.useTransaction(h -> {
             DirectoryRepository attach = h.attach(DirectoryRepository.class);
+            ActiveLargeUploadRepository activeLargeUploadRepository = h.attach(ActiveLargeUploadRepository.class);
+            h.createQuery("SELECT directory_id FROM directories WHERE directory_id = :directoryId FOR UPDATE")
+                    .bind("directoryId", directoryId)
+                    .mapTo(Long.class)
+                    .findOne()
+                    .orElseThrow(() -> new IllegalArgumentException("No writeable share for asset found"));
+            if (activeLargeUploadRepository.existsByDirectoryId(directoryId)) {
+                throw new DasscoConflictException("Asset has active large file uploads");
+            }
             attach.scheduleDiretoryForSynchronization(directoryId, assetUpdate, specifySyncLogId);
-            return h;
-        }).close();
-        //We dont set the sync log id here as we dont need to inform specify that sync has started.
-        assetService.setAssestStatus(assetUpdate.assetGuid(), InternalStatus.ASSET_RECEIVED, null, null);
+        });
+        if (assetService != null) {
+            //We dont set the sync log id here as we dont need to inform specify that sync has started.
+            assetService.setAssestStatus(assetUpdate.assetGuid(), InternalStatus.ASSET_RECEIVED, null,null);
+        }
+    }
+
+    public void registerActiveLargeUpload(String uploadId, String assetGuid, String path) {
+        jdbi.useTransaction(h -> {
+            DirectoryRepository directoryRepository = h.attach(DirectoryRepository.class);
+            List<Directory> writeableDirectoriesByAsset = directoryRepository.getWriteableDirectoriesByAssetForUpdate(assetGuid);
+            if (writeableDirectoriesByAsset.isEmpty()) {
+                throw new IllegalArgumentException("There is no writeable directory for this asset");
+            }
+            if (writeableDirectoriesByAsset.size() > 1) {
+                throw new DasscoInternalErrorException("Multiple writeable directories found for asset " + assetGuid + " this has to be fixed manually");
+            }
+            Directory directory = writeableDirectoriesByAsset.getFirst();
+            if (directory.awaitingErdaSync()) {
+                throw new DasscoConflictException("Share is synchronizing");
+            }
+            h.attach(ActiveLargeUploadRepository.class).insert(uploadId, assetGuid, directory.directoryId(), path);
+        });
+    }
+
+    public void unregisterActiveLargeUpload(String uploadId) {
+        jdbi.useHandle(h -> h.attach(ActiveLargeUploadRepository.class).delete(uploadId));
     }
 
     public void deleteFilesMarkedAsDeleteByAsset(String asset_guid) {
@@ -292,10 +324,10 @@ public class FileService {
         }).close();
     }
 
-    public boolean enoughStorage(String assetGuide, int sizeMb) {
+    public boolean enoughStorage(String assetGuid, int sizeMb) {
         FileRepository fileRepository = jdbi.onDemand(FileRepository.class);
-        Optional<Directory> directory = getWriteableDirectory(assetGuide);
-        long totalAllocatedByAsset = fileRepository.getTotalAllocatedByAsset(Set.of(assetGuide));
+        Optional<Directory> directory = getWriteableDirectory(assetGuid);
+        long totalAllocatedByAsset = fileRepository.getTotalAllocatedByAsset(Set.of(assetGuid));
         double total = (totalAllocatedByAsset + sizeMb * 1000000) / 1000000d;
         return directory.isPresent() && total < directory.get().allocatedStorageMb();
     }
@@ -674,7 +706,7 @@ public class FileService {
         return this.jdbi.onDemand(FileRepository.class).getFileByAssetGuid(assetGuid);
     }
 
-    public List<DasscoFile> getDasscoFiles(List<String> assets, User user, String guid) {
+    public List<DasscoFile> getDasscoFiles(List<String> assets, User user) {
         if (assets == null || assets.isEmpty()) {
             return List.of();
         }
