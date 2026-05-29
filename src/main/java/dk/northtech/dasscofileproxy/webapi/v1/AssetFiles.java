@@ -7,6 +7,10 @@ import dk.northtech.dasscofileproxy.domain.DasscoFile;
 import dk.northtech.dasscofileproxy.domain.SecurityRoles;
 import dk.northtech.dasscofileproxy.domain.SyncParkingSpaceRequest;
 import dk.northtech.dasscofileproxy.domain.User;
+import dk.northtech.dasscofileproxy.service.AssetBundleJobService;
+import dk.northtech.dasscofileproxy.service.AssetBundleJobSnapshot;
+import dk.northtech.dasscofileproxy.service.AssetBundleJobStatus;
+import dk.northtech.dasscofileproxy.service.AssetBundleJobType;
 import dk.northtech.dasscofileproxy.service.CacheFileService;
 import dk.northtech.dasscofileproxy.service.FileService;
 import dk.northtech.dasscofileproxy.service.ParkingService;
@@ -64,16 +68,18 @@ public class AssetFiles {
     private FileService fileService;
     private CacheFileService cacheFileService;
     private ParkingService parkingService;
+    private final AssetBundleJobService assetBundleJobService;
     private final ShareConfig shareConfig;
     private final AssetServiceProperties assetServiceProperties;
     private static final Logger logger = LoggerFactory.getLogger(AssetFiles.class);
     @Inject
-    public AssetFiles(FileService fileService, CacheFileService cacheFileService, ShareConfig shareConfig, ParkingService parkingService, AssetServiceProperties assetServiceProperties) {
+    public AssetFiles(FileService fileService, CacheFileService cacheFileService, ShareConfig shareConfig, ParkingService parkingService, AssetServiceProperties assetServiceProperties, AssetBundleJobService assetBundleJobService) {
         this.fileService = fileService;
         this.parkingService = parkingService;
         this.cacheFileService = cacheFileService;
         this.shareConfig = shareConfig;
         this.assetServiceProperties = assetServiceProperties;
+        this.assetBundleJobService = assetBundleJobService;
     }
 
     @Context
@@ -410,6 +416,173 @@ public class AssetFiles {
                                 logger.warn("Failed to delete temporary ZIP {}", tempZipFile.getAbsolutePath());
                             }
                         }));
+    }
+
+    @POST
+    @Path("/asset-bundles/jobs")
+    @Operation(summary = "Prepare ZIP containing multiple assets", description = """
+            Starts an asynchronous asset bundle preparation job and returns immediately.
+            Poll the returned Location until the status is READY, then download from the download endpoint.
+            """)
+    @Consumes(APPLICATION_JSON)
+    @Produces(APPLICATION_JSON)
+    @ApiResponse(responseCode = "202", content = @Content(mediaType = APPLICATION_JSON, schema = @Schema(implementation = AssetBundleJobSnapshot.class)), description = "Asset bundle preparation started.")
+    @ApiResponse(responseCode = "400-599", content = @Content(mediaType = APPLICATION_JSON, schema = @Schema(implementation = DaSSCoError.class)))
+    public Response startAssetBundleJob(@Context SecurityContext securityContext, List<String> assetGuids) {
+        Response validationError = validateAssetBundleRequest(assetGuids);
+        if (validationError != null) {
+            return validationError;
+        }
+
+        AssetBundleJobSnapshot job = assetBundleJobService.start(assetGuids, UserMapper.from(securityContext));
+        URI statusUri = uriInfo.getAbsolutePathBuilder().path(job.jobId()).build();
+        URI downloadUri = uriInfo.getAbsolutePathBuilder().path(job.jobId()).path("download").build();
+
+        return Response.accepted(job)
+                .location(statusUri)
+                .link(downloadUri, "download")
+                .build();
+    }
+
+    @POST
+    @Path("/asset-bundles/extern/jobs")
+    @Operation(summary = "Prepare ZIP containing multiple externally available assets", description = """
+            Starts an asynchronous external asset bundle preparation job and returns immediately.
+            This endpoint supports anonymous access and uses external asset metadata/access rules.
+            """)
+    @Consumes(APPLICATION_JSON)
+    @Produces(APPLICATION_JSON)
+    @ApiResponse(responseCode = "202", content = @Content(mediaType = APPLICATION_JSON, schema = @Schema(implementation = AssetBundleJobSnapshot.class)), description = "External asset bundle preparation started.")
+    @ApiResponse(responseCode = "400-599", content = @Content(mediaType = APPLICATION_JSON, schema = @Schema(implementation = DaSSCoError.class)))
+    public Response startExternalAssetBundleJob(@Context SecurityContext securityContext, List<String> assetGuids) {
+        Response validationError = validateAssetBundleRequest(assetGuids);
+        if (validationError != null) {
+            return validationError;
+        }
+
+        AssetBundleJobSnapshot job = assetBundleJobService.startExternal(assetGuids, new User("anonymous"));
+        URI statusUri = uriInfo.getAbsolutePathBuilder().path(job.jobId()).build();
+        URI downloadUri = uriInfo.getAbsolutePathBuilder().path(job.jobId()).path("download").build();
+
+        return Response.accepted(job)
+                .location(statusUri)
+                .link(downloadUri, "download")
+                .build();
+    }
+
+    @GET
+    @Path("/asset-bundles/jobs/{jobId}")
+    @Operation(summary = "Get asset bundle preparation status", description = "Returns PREPARING, READY, or FAILED for an asynchronous asset bundle job.")
+    @Produces(APPLICATION_JSON)
+    @ApiResponse(responseCode = "200", content = @Content(mediaType = APPLICATION_JSON, schema = @Schema(implementation = AssetBundleJobSnapshot.class)), description = "Returns the job status.")
+    @ApiResponse(responseCode = "404", content = @Content(mediaType = APPLICATION_JSON, schema = @Schema(implementation = DaSSCoError.class)), description = "Asset bundle job not found.")
+    public Response getAssetBundleJob(@PathParam("jobId") String jobId, @Context SecurityContext securityContext) {
+        return getAssetBundleJob(jobId, AssetBundleJobType.INTERNAL, UserMapper.from(securityContext));
+    }
+
+    private Response getAssetBundleJob(String jobId, AssetBundleJobType jobType, User user) {
+        return assetBundleJobService.get(jobId, jobType, user)
+                .map(job -> Response.ok(job).build())
+                .orElseGet(() -> notFound("Asset bundle job not found: %s".formatted(jobId)));
+    }
+
+    @DELETE
+    @Path("/asset-bundles/jobs/{jobId}")
+    @Operation(summary = "Cancel asset bundle preparation", description = "Cancels an asynchronous asset bundle job and removes any prepared ZIP file.")
+    @ApiResponse(responseCode = "204", description = "Asset bundle job cancelled.")
+    @ApiResponse(responseCode = "404", content = @Content(mediaType = APPLICATION_JSON, schema = @Schema(implementation = DaSSCoError.class)), description = "Asset bundle job not found.")
+    public Response cancelAssetBundleJob(@PathParam("jobId") String jobId, @Context SecurityContext securityContext) {
+        return cancelAssetBundleJob(jobId, AssetBundleJobType.INTERNAL, UserMapper.from(securityContext));
+    }
+
+    private Response cancelAssetBundleJob(String jobId, AssetBundleJobType jobType, User user) {
+        if (assetBundleJobService.cancel(jobId, jobType, user)) {
+            return Response.noContent().build();
+        }
+        return notFound("Asset bundle job not found: %s".formatted(jobId));
+    }
+
+    @GET
+    @Path("/asset-bundles/extern/jobs/{jobId}")
+    @Operation(summary = "Get external asset bundle preparation status", description = "Returns PREPARING, READY, or FAILED for an asynchronous external asset bundle job.")
+    @Produces(APPLICATION_JSON)
+    @ApiResponse(responseCode = "200", content = @Content(mediaType = APPLICATION_JSON, schema = @Schema(implementation = AssetBundleJobSnapshot.class)), description = "Returns the job status.")
+    @ApiResponse(responseCode = "404", content = @Content(mediaType = APPLICATION_JSON, schema = @Schema(implementation = DaSSCoError.class)), description = "Asset bundle job not found.")
+    public Response getExternalAssetBundleJob(@PathParam("jobId") String jobId) {
+        return getAssetBundleJob(jobId, AssetBundleJobType.EXTERNAL, new User("anonymous"));
+    }
+
+    @DELETE
+    @Path("/asset-bundles/extern/jobs/{jobId}")
+    @Operation(summary = "Cancel external asset bundle preparation", description = "Cancels an asynchronous external asset bundle job and removes any prepared ZIP file.")
+    @ApiResponse(responseCode = "204", description = "External asset bundle job cancelled.")
+    @ApiResponse(responseCode = "404", content = @Content(mediaType = APPLICATION_JSON, schema = @Schema(implementation = DaSSCoError.class)), description = "Asset bundle job not found.")
+    public Response cancelExternalAssetBundleJob(@PathParam("jobId") String jobId) {
+        return cancelAssetBundleJob(jobId, AssetBundleJobType.EXTERNAL, new User("anonymous"));
+    }
+
+    @GET
+    @Path("/asset-bundles/jobs/{jobId}/download")
+    @Operation(summary = "Download prepared asset bundle", description = "Downloads a prepared asynchronous asset bundle ZIP. Returns 409 until the job is READY.")
+    @Produces("application/zip")
+    @ApiResponse(responseCode = "200", content = @Content(mediaType = "application/zip"), description = "Returns the ZIP file.")
+    @ApiResponse(responseCode = "409", content = @Content(mediaType = APPLICATION_JSON, schema = @Schema(implementation = DaSSCoError.class)), description = "Asset bundle is not ready yet.")
+    @ApiResponse(responseCode = "404", content = @Content(mediaType = APPLICATION_JSON, schema = @Schema(implementation = DaSSCoError.class)), description = "Asset bundle job not found.")
+    public Response downloadAssetBundleJob(@PathParam("jobId") String jobId, @HeaderParam("Range") String rangeHeader, @Context SecurityContext securityContext) {
+        return downloadAssetBundleJob(jobId, rangeHeader, AssetBundleJobType.INTERNAL, UserMapper.from(securityContext));
+    }
+
+    private Response downloadAssetBundleJob(String jobId, String rangeHeader, AssetBundleJobType jobType, User user) {
+        Optional<AssetBundleJobSnapshot> job = assetBundleJobService.get(jobId, jobType, user);
+        if (job.isEmpty()) {
+            return notFound("Asset bundle job not found: %s".formatted(jobId));
+        }
+        if (job.get().status() != AssetBundleJobStatus.READY) {
+            return Response.status(Response.Status.CONFLICT)
+                    .entity(new DaSSCoError("1.0", DaSSCoErrorCode.BAD_REQUEST, "Asset bundle is not ready"))
+                    .build();
+        }
+
+        Optional<File> bundleFile = assetBundleJobService.getBundleFileForDownload(jobId, jobType, user);
+        if (bundleFile.isEmpty()) {
+            return notFound("Asset bundle file not found for job: %s".formatted(jobId));
+        }
+
+        return RangeRequestHandler.buildFileResponse(
+                new RangeRequestHandler.FileResponseConfig(bundleFile.get(), "asset-bundle.zip", "application/zip")
+                        .withRangeHeader(rangeHeader)
+                        .withoutContentDisposition()
+                        .onStart(() -> assetBundleJobService.startDownload(jobId, jobType, user))
+                        .onFinished(() -> assetBundleJobService.finishDownload(jobId))
+                        .onComplete(() -> assetBundleJobService.complete(jobId)));
+    }
+
+    @GET
+    @Path("/asset-bundles/extern/jobs/{jobId}/download")
+    @Operation(summary = "Download prepared external asset bundle", description = "Downloads a prepared asynchronous external asset bundle ZIP. Returns 409 until the job is READY.")
+    @Produces("application/zip")
+    @ApiResponse(responseCode = "200", content = @Content(mediaType = "application/zip"), description = "Returns the ZIP file.")
+    @ApiResponse(responseCode = "409", content = @Content(mediaType = APPLICATION_JSON, schema = @Schema(implementation = DaSSCoError.class)), description = "Asset bundle is not ready yet.")
+    @ApiResponse(responseCode = "404", content = @Content(mediaType = APPLICATION_JSON, schema = @Schema(implementation = DaSSCoError.class)), description = "Asset bundle job not found.")
+    public Response downloadExternalAssetBundleJob(@PathParam("jobId") String jobId, @HeaderParam("Range") String rangeHeader) {
+        return downloadAssetBundleJob(jobId, rangeHeader, AssetBundleJobType.EXTERNAL, new User("anonymous"));
+    }
+
+    private Response validateAssetBundleRequest(List<String> assetGuids) {
+        if (assetGuids == null || assetGuids.isEmpty()) {
+            return Response.status(Response.Status.BAD_REQUEST)
+                    .entity(new DaSSCoError("1.0", DaSSCoErrorCode.BAD_REQUEST, "Need to pass a list of assets"))
+                    .build();
+        }
+
+        for (String assetGuid : assetGuids) {
+            if (assetGuid == null || assetGuid.isBlank()) {
+                return Response.status(Response.Status.BAD_REQUEST)
+                        .entity(new DaSSCoError("1.0", DaSSCoErrorCode.BAD_REQUEST, "Asset GUID cannot be blank"))
+                        .build();
+            }
+        }
+        return null;
     }
 
     private void createAssetBundleZip(File zipFile, List<String> assetGuids, Map<String, String> metadataCsvByAsset, Map<String, List<DasscoFile>> filesByAsset, User user) throws IOException {
