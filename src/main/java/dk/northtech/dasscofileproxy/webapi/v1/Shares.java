@@ -46,7 +46,7 @@ public class Shares {
     @Path("/")
     @Operation(summary = "List Shares", description = "List of Open Shares")
     @Produces(MediaType.APPLICATION_JSON)
-    @Consumes(APPLICATION_JSON)
+    @Consumes(MediaType.APPLICATION_JSON)
     @RolesAllowed({SecurityRoles.USER, SecurityRoles.ADMIN, SecurityRoles.SERVICE})
     @ApiResponse(responseCode = "200", content = @Content(mediaType = APPLICATION_JSON,array = @ArraySchema(schema = @Schema(implementation = HttpShareService.Share.class))))
     @ApiResponse(responseCode = "400-599", content = @Content(mediaType = APPLICATION_JSON, schema = @Schema(implementation = DaSSCoError.class) ))
@@ -105,8 +105,8 @@ public class Shares {
     @Path("/assets/{assetGuid}/deleteShare")
     @Operation(summary = "Delete Share", description = "This service deletes a share and all files in the share without synchronizing ERDA. Files already persisted in ERDA will not be deleted.")
     @Produces(MediaType.APPLICATION_JSON)
-    @RolesAllowed({ SecurityRoles.SERVICE, SecurityRoles.USER, SecurityRoles.ADMIN })
-    @Consumes(APPLICATION_JSON)
+    @RolesAllowed({ SecurityRoles.SERVICE, SecurityRoles.DEVELOPER, SecurityRoles.ADMIN })
+    @Consumes(MediaType.APPLICATION_JSON)
     @ApiResponse(responseCode = "200", content = @Content(mediaType = APPLICATION_JSON, schema = @Schema(implementation = HttpInfo.class)))
     @ApiResponse(responseCode = "400-599", content = @Content(mediaType = APPLICATION_JSON, schema = @Schema(implementation = HttpInfo.class)))
     public Response close(@Context SecurityContext securityContext
@@ -120,8 +120,8 @@ public class Shares {
     @POST
     @Path("/assets/{assetGuid}/changeAllocation")
     @Operation(summary = "Change Allocation", description = "Changes allocation for an asset")
-    @Produces(APPLICATION_JSON)
-    @Consumes(APPLICATION_JSON)
+    @Produces(MediaType.APPLICATION_JSON)
+    @Consumes(MediaType.APPLICATION_JSON)
     @ApiResponse(responseCode = "200", content = @Content(mediaType = APPLICATION_JSON, schema = @Schema(implementation = HttpInfo.class)))
     @ApiResponse(responseCode = "400-599", content = @Content(mediaType = APPLICATION_JSON, schema = @Schema(implementation = HttpInfo.class)))
     @RolesAllowed({SecurityRoles.USER, SecurityRoles.ADMIN, SecurityRoles.SERVICE})
@@ -132,8 +132,8 @@ public class Shares {
     @POST
     @Path("/assets/{assetGuid}/synchronize")
     @Operation(summary = "Synchronize ERDA", description = "Close for further uploads to the asset, and schedules the asset files for ERDA. Once this has been called the asset is 'closed' for now and awaits upload to ERDA.") // I think.
-    @Produces(APPLICATION_JSON)
-    @Consumes(APPLICATION_JSON)
+    @Produces(MediaType.APPLICATION_JSON)
+    @Consumes(MediaType.APPLICATION_JSON)
     @ApiResponse(responseCode = "204", description = "No Content")
     @ApiResponse(responseCode = "400-599", content = @Content(mediaType = APPLICATION_JSON, schema = @Schema(implementation = DaSSCoError.class)))
     @RolesAllowed({SecurityRoles.USER, SecurityRoles.ADMIN, SecurityRoles.SERVICE})
