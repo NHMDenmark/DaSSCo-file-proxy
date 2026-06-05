@@ -278,6 +278,7 @@ public class AssetFiles {
                                                         "Can be called multiple times to upload multiple files to the same asset. If the files are called the same, the file will be overwritten.")
     @Produces(MediaType.APPLICATION_JSON)
     //@Consumes(MediaType.APPLICATION_OCTET_STREAM)
+    @RolesAllowed({SecurityRoles.ADMIN, SecurityRoles.SERVICE, SecurityRoles.DEVELOPER})
     @ApiResponse(responseCode = "200", content = @Content(mediaType = APPLICATION_JSON, schema = @Schema(implementation = FileUploadResult.class)))
     @ApiResponse(responseCode = "400-599", content = @Content(mediaType = APPLICATION_JSON, schema = @Schema(implementation = DaSSCoError.class)))
     public Response putFile(
@@ -783,7 +784,7 @@ public class AssetFiles {
     @Consumes(APPLICATION_JSON)
     @ApiResponse(responseCode = "200", description = "File has been uploaded")
     @ApiResponse(responseCode = "500", content = @Content(mediaType = APPLICATION_OCTET_STREAM))
-//    @RolesAllowed({SecurityRoles.DEVELOPER, SecurityRoles.ADMIN, SecurityRoles.SERVICE})
+    @RolesAllowed({SecurityRoles.DEVELOPER, SecurityRoles.ADMIN, SecurityRoles.SERVICE})
     public Response syncParkedFiles(SyncParkingSpaceRequest syncParkingSpaceRequest, @Context SecurityContext securityContext) {
         User user = UserMapper.from(securityContext);
         if(parkingService.syncParkedFiles(syncParkingSpaceRequest, user)){
@@ -799,6 +800,7 @@ public class AssetFiles {
     @Path("/{institutionName}/{collectionName}/{assetGuid}/{path: .+}")
     @Operation(summary = "Delete Asset File by path", description = "Delete resource at the given path. If the resource is a directory, it will be deleted along its content. If the resource is the base directory for an asset the directory will not be deleted, only the content.")
     @ApiResponse(responseCode = "204", description = "No Content. File has been deleted.")
+    @RolesAllowed({SecurityRoles.ADMIN})
     @ApiResponse(responseCode = "400-599", content = @Content(mediaType = APPLICATION_JSON, schema = @Schema(implementation = DaSSCoError.class)))
     public Response deletefile(
             @PathParam("institutionName") String institutionName
@@ -818,6 +820,7 @@ public class AssetFiles {
     @Operation(summary = "Delete Asset Files", description = "Deletes all files for an asset based on institution, collection and asset_guid")
     @Produces(MediaType.APPLICATION_JSON)
     @Consumes(APPLICATION_JSON)
+    @RolesAllowed({SecurityRoles.ADMIN})
     @ApiResponse(responseCode = "204", description = "No Content. File has been deleted.")
     @ApiResponse(responseCode = "400-599", content = @Content(mediaType = APPLICATION_JSON, schema = @Schema(implementation = DaSSCoError.class)))
     public Response deleteAsset(
@@ -833,6 +836,7 @@ public class AssetFiles {
 
     @DELETE
     @Path("/deleteLocalFiles/{institution}/{collection}/{assetGuid}/{file}")
+    @RolesAllowed({SecurityRoles.ADMIN})
     @Operation(summary = "Delete Local File", description = "Deletes a file saved in the local machine, such as the generated .csv and .zip files for the Detailed View")
     @ApiResponse(responseCode = "204", description = "No Content. File has been deleted.")
     @ApiResponse(responseCode = "400-599", content = @Content(mediaType = APPLICATION_JSON, schema = @Schema(implementation = DaSSCoError.class)))
@@ -884,7 +888,7 @@ public class AssetFiles {
     @ApiResponse(responseCode = "200", content = @Content(mediaType = APPLICATION_OCTET_STREAM), description = "File deleted")
     @ApiResponse(responseCode = "404", content = @Content(mediaType = APPLICATION_OCTET_STREAM), description = "Failed to delete the file")
     @ApiResponse(responseCode = "500", content = @Content(mediaType = APPLICATION_OCTET_STREAM))
-    @RolesAllowed({SecurityRoles.DEVELOPER, SecurityRoles.ADMIN, SecurityRoles.SERVICE})
+    @RolesAllowed({SecurityRoles.ADMIN})
     public Response deleteFileFromParkedFiles(@PathParam("path") String path){
         String decodedPath = URLDecoder.decode(path, StandardCharsets.UTF_8);
         boolean result = this.parkingService.deleteAllFilesFromOriginalInParked(decodedPath);
