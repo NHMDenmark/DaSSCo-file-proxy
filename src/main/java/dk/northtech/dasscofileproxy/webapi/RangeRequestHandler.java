@@ -28,6 +28,8 @@ public class RangeRequestHandler {
         private final String contentType;
         private String rangeHeader;
         private Runnable onComplete;
+        private Runnable onStart;
+        private Runnable onFinished;
         private boolean includeContentDisposition = true;
         private boolean runOnCompleteForAnyRange = false;
 
@@ -48,6 +50,16 @@ public class RangeRequestHandler {
          */
         public FileResponseConfig onComplete(Runnable onComplete) {
             this.onComplete = onComplete;
+            return this;
+        }
+
+        public FileResponseConfig onStart(Runnable onStart) {
+            this.onStart = onStart;
+            return this;
+        }
+
+        public FileResponseConfig onFinished(Runnable onFinished) {
+            this.onFinished = onFinished;
             return this;
         }
 
@@ -79,6 +91,14 @@ public class RangeRequestHandler {
 
         public Runnable getOnComplete() {
             return onComplete;
+        }
+
+        public Runnable getOnStart() {
+            return onStart;
+        }
+
+        public Runnable getOnFinished() {
+            return onFinished;
         }
 
         public boolean includeContentDisposition() {
@@ -175,9 +195,18 @@ public class RangeRequestHandler {
      * @return StreamingOutput for the full file
      */
     public static StreamingOutput createFullFileStream(File file, Runnable onComplete) {
+        return createFullFileStream(file, onComplete, null, null);
+    }
+
+    public static StreamingOutput createFullFileStream(File file, Runnable onComplete, Runnable onStart, Runnable onFinished) {
         return output -> {
             boolean completed = false;
+            boolean started = false;
             try (RandomAccessFile raf = new RandomAccessFile(file, "r")) {
+                if (onStart != null) {
+                    onStart.run();
+                }
+                started = true;
                 byte[] buffer = new byte[8192];
                 int bytesRead;
                 while ((bytesRead = raf.read(buffer)) != -1) {
@@ -188,6 +217,9 @@ public class RangeRequestHandler {
             } finally {
                 if (completed && onComplete != null) {
                     onComplete.run();
+                }
+                if (started && onFinished != null) {
+                    onFinished.run();
                 }
             }
         };
@@ -207,9 +239,18 @@ public class RangeRequestHandler {
     }
 
     public static StreamingOutput createRangeStream(File file, RangeInfo rangeInfo, long fileLength, Runnable onComplete, boolean runOnCompleteForAnyRange) {
+        return createRangeStream(file, rangeInfo, fileLength, onComplete, runOnCompleteForAnyRange, null, null);
+    }
+
+    public static StreamingOutput createRangeStream(File file, RangeInfo rangeInfo, long fileLength, Runnable onComplete, boolean runOnCompleteForAnyRange, Runnable onStart, Runnable onFinished) {
         return output -> {
             boolean completed = false;
+            boolean started = false;
             try (RandomAccessFile raf = new RandomAccessFile(file, "r")) {
+                if (onStart != null) {
+                    onStart.run();
+                }
+                started = true;
                 raf.seek(rangeInfo.start());
                 byte[] buffer = new byte[8192];
                 long remaining = rangeInfo.contentLength();
@@ -225,6 +266,9 @@ public class RangeRequestHandler {
             } finally {
                 if (completed && onComplete != null && (runOnCompleteForAnyRange || rangeInfo.end() == fileLength - 1)) {
                     onComplete.run();
+                }
+                if (started && onFinished != null) {
+                    onFinished.run();
                 }
             }
         };
@@ -244,7 +288,7 @@ public class RangeRequestHandler {
 
         // If no Range header, return the entire file
         if (config.getRangeHeader() == null || config.getRangeHeader().isEmpty()) {
-            StreamingOutput streamingOutput = createFullFileStream(file, config.getOnComplete());
+            StreamingOutput streamingOutput = createFullFileStream(file, config.getOnComplete(), config.getOnStart(), config.getOnFinished());
 
             Response.ResponseBuilder responseBuilder = Response.ok(streamingOutput)
                     .header("Content-Type", config.getContentType())
@@ -263,7 +307,7 @@ public class RangeRequestHandler {
         }
 
         RangeInfo rangeInfo = rangeInfoOpt.get();
-        StreamingOutput streamingOutput = createRangeStream(file, rangeInfo, fileLength, config.getOnComplete(), config.runOnCompleteForAnyRange());
+        StreamingOutput streamingOutput = createRangeStream(file, rangeInfo, fileLength, config.getOnComplete(), config.runOnCompleteForAnyRange(), config.getOnStart(), config.getOnFinished());
 
         Response.ResponseBuilder responseBuilder = Response.status(206)
                 .entity(streamingOutput)
