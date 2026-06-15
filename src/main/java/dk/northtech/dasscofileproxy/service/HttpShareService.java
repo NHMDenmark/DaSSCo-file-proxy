@@ -341,14 +341,6 @@ public class HttpShareService {
                     , 0);
         }
         return jdbi.withHandle(h -> {
-            UserAccessList attach = h.attach(UserAccessList.class);
-            List<UserAccess> userAccess = attach.getUserAccess(directoryToDelete.directoryId());
-            Optional<UserAccess> first = userAccess.stream()
-                    .filter(x -> x.username().equals(user.username)).findFirst();
-            if (first.isEmpty() && !user.roles.contains(Role.ADMIN.roleName)) {
-                logger.warn("User {} tried to delete directory they do not have access to", user.username);
-                throw new DasscoIllegalActionException();
-            }
             //Clean up database structures
             fileService.resetDirectoryAndResetFiles(directoryToDelete.directoryId(), assetGuid);
             //Clean up files
