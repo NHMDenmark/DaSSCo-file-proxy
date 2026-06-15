@@ -105,7 +105,7 @@ public class Shares {
     @DELETE
     @Path("/assets/{assetGuid}/deleteShare")
     @Operation(summary = "Delete Share", description = "This service deletes a share and all files in the share without synchronizing ERDA. Files already persisted in ERDA will not be deleted.")
-    @RolesAllowed({SecurityRoles.ADMIN})
+    @RolesAllowed({SecurityRoles.ADMIN, SecurityRoles.DEVELOPER, SecurityRoles.SERVICE})
     @Produces(MediaType.APPLICATION_JSON)
     @Consumes(MediaType.APPLICATION_JSON)
     @ApiResponse(responseCode = "200", content = @Content(mediaType = APPLICATION_JSON, schema = @Schema(implementation = HttpInfo.class)))
