@@ -888,7 +888,7 @@ public class AssetFiles {
     @ApiResponse(responseCode = "200", content = @Content(mediaType = APPLICATION_OCTET_STREAM), description = "File deleted")
     @ApiResponse(responseCode = "404", content = @Content(mediaType = APPLICATION_OCTET_STREAM), description = "Failed to delete the file")
     @ApiResponse(responseCode = "500", content = @Content(mediaType = APPLICATION_OCTET_STREAM))
-    @RolesAllowed({SecurityRoles.ADMIN})
+    @RolesAllowed({SecurityRoles.ADMIN, SecurityRoles.SERVICE})
     public Response deleteFileFromParkedFiles(@PathParam("path") String path){
         String decodedPath = URLDecoder.decode(path, StandardCharsets.UTF_8);
         boolean result = this.parkingService.deleteAllFilesFromOriginalInParked(decodedPath);
