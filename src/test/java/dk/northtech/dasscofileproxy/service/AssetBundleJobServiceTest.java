@@ -1,5 +1,6 @@
 package dk.northtech.dasscofileproxy.service;
 
+import dk.northtech.dasscofileproxy.configuration.AssetBundleConfig;
 import dk.northtech.dasscofileproxy.domain.User;
 import org.junit.jupiter.api.Test;
 
@@ -11,6 +12,7 @@ import java.util.Optional;
 import java.util.concurrent.Executor;
 
 import static com.google.common.truth.Truth.assertThat;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class AssetBundleJobServiceTest {
 
@@ -75,6 +77,77 @@ class AssetBundleJobServiceTest {
 
         internalBundle.delete();
         externalBundle.delete();
+    }
+
+    @Test
+    void startBundleJob_rejectsBundleAboveConfiguredDecimalGbLimitBeforeWorkerStarts() {
+        RecordingExecutor executor = new RecordingExecutor();
+        long maxSizeBytes = new AssetBundleConfig(20).maxSizeBytes();
+        AssetBundleJobService service = new AssetBundleJobService(
+                (assetGuids, user) -> {
+                    throw new AssertionError("creator should not be called");
+                },
+                (assetGuids) -> maxSizeBytes + 1,
+                maxSizeBytes,
+                executor
+        );
+
+        AssetBundleTooLargeException exception = assertThrows(
+                AssetBundleTooLargeException.class,
+                () -> service.start(List.of("asset-1", "asset-2"), new User("user"))
+        );
+
+        assertThat(exception.totalSizeBytes()).isEqualTo(20_000_000_001L);
+        assertThat(exception.maxSizeBytes()).isEqualTo(20_000_000_000L);
+        assertThat(exception.assetCount()).isEqualTo(2);
+        assertThat(executor.hasRecordedCommand()).isFalse();
+    }
+
+    @Test
+    void startBundleJob_allowsBundleAtConfiguredDecimalGbLimit() throws Exception {
+        RecordingExecutor executor = new RecordingExecutor();
+        long maxSizeBytes = new AssetBundleConfig(20).maxSizeBytes();
+        File bundle = File.createTempFile("asset-bundle-job-limit", ".zip");
+        AssetBundleJobService service = new AssetBundleJobService(
+                (assetGuids, user) -> bundle,
+                (assetGuids) -> maxSizeBytes,
+                maxSizeBytes,
+                executor
+        );
+
+        AssetBundleJobSnapshot started = service.start(List.of("asset-1"), new User("user"));
+
+        assertThat(started.status()).isEqualTo(AssetBundleJobStatus.PREPARING);
+        assertThat(executor.hasRecordedCommand()).isTrue();
+
+        bundle.delete();
+    }
+
+    @Test
+    void startExternalBundleJob_rejectsOversizedBundleBeforeWorkerStarts() {
+        RecordingExecutor executor = new RecordingExecutor();
+        long maxSizeBytes = 20_000_000_000L;
+        AssetBundleJobService service = new AssetBundleJobService(
+                (assetGuids, user) -> {
+                    throw new AssertionError("internal creator should not be called");
+                },
+                (assetGuids, user) -> {
+                    throw new AssertionError("external creator should not be called");
+                },
+                (assetGuids) -> maxSizeBytes + 1,
+                maxSizeBytes,
+                executor
+        );
+
+        AssetBundleTooLargeException exception = assertThrows(
+                AssetBundleTooLargeException.class,
+                () -> service.startExternal(List.of("asset-1"), new User("anonymous"))
+        );
+
+        assertThat(exception.totalSizeBytes()).isEqualTo(20_000_000_001L);
+        assertThat(exception.maxSizeBytes()).isEqualTo(20_000_000_000L);
+        assertThat(exception.assetCount()).isEqualTo(1);
+        assertThat(executor.hasRecordedCommand()).isFalse();
     }
 
     @Test
@@ -291,6 +364,10 @@ class AssetBundleJobServiceTest {
 
         void runRecordedCommand() {
             command.run();
+        }
+
+        boolean hasRecordedCommand() {
+            return command != null;
         }
     }
 

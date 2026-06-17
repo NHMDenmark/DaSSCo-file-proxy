@@ -67,7 +67,7 @@ public interface FileRepository {
     @SqlUpdate("UPDATE file SET sync_status = 'SYNCHRONIZED' WHERE asset_guid = :assetGuid AND sync_status = 'NEW_FILE'")
     void setSynchronizedStatus(@Bind String assetGuid);
 
-    @SqlQuery("SELECT sum(size_bytes) AS totalAllocated FROM file WHERE asset_guid IN (<asset_guids>) AND delete_after_sync = FALSE")
+    @SqlQuery("SELECT coalesce(sum(size_bytes), 0) AS totalAllocated FROM file WHERE asset_guid IN (<asset_guids>) AND delete_after_sync = FALSE")
     long getTotalAllocatedByAsset(@BindList Set<String> asset_guids);
 
      @SqlQuery("""

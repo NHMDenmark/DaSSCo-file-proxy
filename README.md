@@ -11,6 +11,9 @@
 * Click the run button or use the command ``mvn spring-boot:run`` 
 * You can add the ``docker-compose-app.yaml`` file to the ``docker-compose.yaml`` file if you want to run it with the keycloak and database instead 
 
+## Configuration
+* ``ASSET_BUNDLE_MAX_SIZE_GB`` sets the maximum total size for an asset bundle download in decimal GB. Default: ``20``.
+
 
 ## Large file upload
 For all API's the following headers are required

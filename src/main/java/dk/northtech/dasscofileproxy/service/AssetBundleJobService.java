@@ -1,6 +1,7 @@
 package dk.northtech.dasscofileproxy.service;
 
 import dk.northtech.dasscofileproxy.domain.User;
+import dk.northtech.dasscofileproxy.configuration.AssetBundleConfig;
 import jakarta.annotation.PreDestroy;
 import jakarta.inject.Inject;
 import org.springframework.stereotype.Service;
@@ -20,13 +21,16 @@ public class AssetBundleJobService {
 
     private final AssetBundleCreator assetBundleCreator;
     private final ExternalAssetBundleCreator externalAssetBundleCreator;
+    private final AssetBundleSizeCalculator assetBundleSizeCalculator;
+    private final long maxBundleSizeBytes;
     private final Executor executor;
     private final Duration assetBundleJobDelay;
     private final Duration assetBundleJobTtl;
     private final ConcurrentHashMap<String, AssetBundleJob> jobs = new ConcurrentHashMap<>();
 
     @Inject
-    public AssetBundleJobService(AssetBundleCreator assetBundleCreator, ExternalAssetBundleCreator externalAssetBundleCreator) {
+    public AssetBundleJobService(AssetBundleCreator assetBundleCreator, ExternalAssetBundleCreator externalAssetBundleCreator,
+                                 AssetBundleSizeCalculator assetBundleSizeCalculator, AssetBundleConfig assetBundleConfig) {
         this(assetBundleCreator, externalAssetBundleCreator, new ThreadPoolExecutor(
                 1,
                 4,
@@ -34,34 +38,55 @@ public class AssetBundleJobService {
                 TimeUnit.SECONDS,
                 new ArrayBlockingQueue<>(100),
                 new ThreadPoolExecutor.AbortPolicy()
-        ), MANUAL_TEST_DELAY, ABANDONED_JOB_TTL);
+        ), MANUAL_TEST_DELAY, ABANDONED_JOB_TTL, assetBundleSizeCalculator, assetBundleConfig.maxSizeBytes());
     }
 
     AssetBundleJobService(AssetBundleCreator assetBundleCreator, Executor executor) {
-        this(assetBundleCreator, assetBundleCreator::create, executor, Duration.ZERO, Duration.ofHours(1));
+        this(assetBundleCreator, assetBundleCreator::create, executor, Duration.ZERO, Duration.ofHours(1), assetGuids -> 0L, Long.MAX_VALUE);
     }
 
     AssetBundleJobService(AssetBundleCreator assetBundleCreator, Executor executor, Duration assetBundleJobDelay) {
-        this(assetBundleCreator, assetBundleCreator::create, executor, assetBundleJobDelay, Duration.ofHours(1));
+        this(assetBundleCreator, assetBundleCreator::create, executor, assetBundleJobDelay, Duration.ofHours(1), assetGuids -> 0L, Long.MAX_VALUE);
     }
 
     AssetBundleJobService(AssetBundleCreator assetBundleCreator, ExternalAssetBundleCreator externalAssetBundleCreator, Executor executor) {
-        this(assetBundleCreator, externalAssetBundleCreator, executor, Duration.ZERO, Duration.ofHours(1));
+        this(assetBundleCreator, externalAssetBundleCreator, executor, Duration.ZERO, Duration.ofHours(1), assetGuids -> 0L, Long.MAX_VALUE);
     }
 
     AssetBundleJobService(AssetBundleCreator assetBundleCreator, ExternalAssetBundleCreator externalAssetBundleCreator, Executor executor, Duration assetBundleJobDelay) {
-        this(assetBundleCreator, externalAssetBundleCreator, executor, assetBundleJobDelay, Duration.ofHours(1));
+        this(assetBundleCreator, externalAssetBundleCreator, executor, assetBundleJobDelay, Duration.ofHours(1), assetGuids -> 0L, Long.MAX_VALUE);
     }
 
     AssetBundleJobService(AssetBundleCreator assetBundleCreator, ExternalAssetBundleCreator externalAssetBundleCreator, Executor executor, Duration assetBundleJobDelay, Duration assetBundleJobTtl) {
+        this(assetBundleCreator, externalAssetBundleCreator, executor, assetBundleJobDelay, assetBundleJobTtl, assetGuids -> 0L, Long.MAX_VALUE);
+    }
+
+    AssetBundleJobService(AssetBundleCreator assetBundleCreator, AssetBundleSizeCalculator assetBundleSizeCalculator,
+                          long maxBundleSizeBytes, Executor executor) {
+        this(assetBundleCreator, assetBundleCreator::create, executor, Duration.ZERO, Duration.ofHours(1),
+                assetBundleSizeCalculator, maxBundleSizeBytes);
+    }
+
+    AssetBundleJobService(AssetBundleCreator assetBundleCreator, ExternalAssetBundleCreator externalAssetBundleCreator,
+                          AssetBundleSizeCalculator assetBundleSizeCalculator, long maxBundleSizeBytes, Executor executor) {
+        this(assetBundleCreator, externalAssetBundleCreator, executor, Duration.ZERO, Duration.ofHours(1),
+                assetBundleSizeCalculator, maxBundleSizeBytes);
+    }
+
+    AssetBundleJobService(AssetBundleCreator assetBundleCreator, ExternalAssetBundleCreator externalAssetBundleCreator,
+                          Executor executor, Duration assetBundleJobDelay, Duration assetBundleJobTtl,
+                          AssetBundleSizeCalculator assetBundleSizeCalculator, long maxBundleSizeBytes) {
         this.assetBundleCreator = assetBundleCreator;
         this.externalAssetBundleCreator = externalAssetBundleCreator;
+        this.assetBundleSizeCalculator = assetBundleSizeCalculator;
+        this.maxBundleSizeBytes = maxBundleSizeBytes;
         this.executor = executor;
         this.assetBundleJobDelay = assetBundleJobDelay == null ? Duration.ZERO : assetBundleJobDelay;
         this.assetBundleJobTtl = assetBundleJobTtl == null ? Duration.ofHours(1) : assetBundleJobTtl;
     }
 
     public AssetBundleJobSnapshot start(List<String> assetGuids, User user) {
+        validateBundleSize(assetGuids);
         String jobId = UUID.randomUUID().toString();
         AssetBundleJob job = new AssetBundleJob(jobId, List.copyOf(assetGuids), AssetBundleJobType.INTERNAL, ownerKey(user));
         jobs.put(jobId, job);
@@ -71,6 +96,7 @@ public class AssetBundleJobService {
     }
 
     public AssetBundleJobSnapshot startExternal(List<String> assetGuids, User user) {
+        validateBundleSize(assetGuids);
         String jobId = UUID.randomUUID().toString();
         AssetBundleJob job = new AssetBundleJob(jobId, List.copyOf(assetGuids), AssetBundleJobType.EXTERNAL, null);
         jobs.put(jobId, job);
@@ -99,6 +125,17 @@ public class AssetBundleJobService {
             });
         } catch (RejectedExecutionException e) {
             job.failed("Asset bundle preparation queue is full");
+        }
+    }
+
+    private void validateBundleSize(List<String> assetGuids) {
+        if (maxBundleSizeBytes <= 0) {
+            return;
+        }
+        long totalSizeBytes = assetBundleSizeCalculator.totalSizeBytes(assetGuids);
+        if (totalSizeBytes > maxBundleSizeBytes) {
+            int assetCount = assetGuids == null ? 0 : assetGuids.size();
+            throw new AssetBundleTooLargeException(totalSizeBytes, maxBundleSizeBytes, assetCount);
         }
     }
 

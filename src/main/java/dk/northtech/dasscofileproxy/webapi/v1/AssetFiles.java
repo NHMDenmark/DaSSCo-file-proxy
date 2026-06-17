@@ -11,6 +11,7 @@ import dk.northtech.dasscofileproxy.service.AssetBundleJobService;
 import dk.northtech.dasscofileproxy.service.AssetBundleJobSnapshot;
 import dk.northtech.dasscofileproxy.service.AssetBundleJobStatus;
 import dk.northtech.dasscofileproxy.service.AssetBundleJobType;
+import dk.northtech.dasscofileproxy.service.AssetBundleTooLargeException;
 import dk.northtech.dasscofileproxy.service.CacheFileService;
 import dk.northtech.dasscofileproxy.service.FileService;
 import dk.northtech.dasscofileproxy.service.ParkingService;
@@ -435,7 +436,12 @@ public class AssetFiles {
             return validationError;
         }
 
-        AssetBundleJobSnapshot job = assetBundleJobService.start(assetGuids, UserMapper.from(securityContext));
+        AssetBundleJobSnapshot job;
+        try {
+            job = assetBundleJobService.start(assetGuids, UserMapper.from(securityContext));
+        } catch (AssetBundleTooLargeException e) {
+            return assetBundleTooLarge(e);
+        }
         URI statusUri = uriInfo.getAbsolutePathBuilder().path(job.jobId()).build();
         URI downloadUri = uriInfo.getAbsolutePathBuilder().path(job.jobId()).path("download").build();
 
@@ -461,7 +467,12 @@ public class AssetFiles {
             return validationError;
         }
 
-        AssetBundleJobSnapshot job = assetBundleJobService.startExternal(assetGuids, new User("anonymous"));
+        AssetBundleJobSnapshot job;
+        try {
+            job = assetBundleJobService.startExternal(assetGuids, new User("anonymous"));
+        } catch (AssetBundleTooLargeException e) {
+            return assetBundleTooLarge(e);
+        }
         URI statusUri = uriInfo.getAbsolutePathBuilder().path(job.jobId()).build();
         URI downloadUri = uriInfo.getAbsolutePathBuilder().path(job.jobId()).path("download").build();
 
@@ -584,6 +595,16 @@ public class AssetFiles {
             }
         }
         return null;
+    }
+
+    private Response assetBundleTooLarge(AssetBundleTooLargeException e) {
+        return Response.status(413)
+                .type(APPLICATION_JSON)
+                .entity(new AssetBundleTooLargeResponse(e.getMessage(), e.totalSizeBytes(), e.maxSizeBytes(), e.assetCount()))
+                .build();
+    }
+
+    private record AssetBundleTooLargeResponse(String message, long totalSizeBytes, long maxSizeBytes, int assetCount) {
     }
 
     private void createAssetBundleZip(File zipFile, List<String> assetGuids, Map<String, String> metadataCsvByAsset, Map<String, List<DasscoFile>> filesByAsset, User user) throws IOException {

@@ -19,5 +19,6 @@ services:
       SFTP_PRIVATE_KEY_LOCATION: /private.pem
       SFTP_PRIVATE_KEY_PASSPHRASE: password
       ASSET_SERVICE_ROOT_URL: http://asset-service:8084
+      ASSET_BUNDLE_MAX_SIZE_GB: 20
     volumes:
       - ./private.pem:/private.pem
