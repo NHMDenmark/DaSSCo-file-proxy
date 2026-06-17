@@ -141,19 +141,16 @@ public class AssetBundleCreatorService implements AssetBundleCreator, ExternalAs
         return metadataCsvByAsset;
     }
 
-    private Map<String, String> createExternalMetadataCsvByAsset(List<String> assetGuids) {
+    private Map<String, String> createExternalMetadataCsvByAsset(List<String> assetGuids) throws IOException, InterruptedException {
         Map<String, String> metadataCsvByAsset = new java.util.LinkedHashMap<>();
         for (String assetGuid : assetGuids) {
-            try {
-                HttpResponse<String> response = fetchExternalMetadataCsv(assetGuid);
-                if (response.statusCode() >= 200 && response.statusCode() < 300 && response.body() != null) {
-                    metadataCsvByAsset.put(assetGuid, response.body());
-                } else {
-                    logger.warn("External metadata CSV not available for {} (HTTP {})", assetGuid, response.statusCode());
-                }
-            } catch (Exception e) {
-                logger.warn("Error fetching external metadata CSV for {}: {}", assetGuid, e.getMessage());
+            HttpResponse<String> response = fetchExternalMetadataCsv(assetGuid);
+            if (response.statusCode() < 200 || response.statusCode() >= 300 || response.body() == null) {
+                throw new AssetBundleCreationException(
+                        "External metadata CSV not available for " + assetGuid + " (HTTP " + response.statusCode() + ")"
+                );
             }
+            metadataCsvByAsset.put(assetGuid, response.body());
         }
         return metadataCsvByAsset;
     }
