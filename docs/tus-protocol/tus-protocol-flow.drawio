@@ -1,0 +1,121 @@
+<mxfile host="app.diagrams.net" modified="2026-06-25T00:00:00.000Z" agent="Codex" version="24.7.17" type="device">
+  <diagram id="dassco-large-files-tus-flow" name="DaSSCo LargeFiles tus flow">
+    <mxGraphModel dx="1200" dy="2200" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1250" pageHeight="2180" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <mxCell id="title" value="DaSSCo large file upload: tus resumable flow" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=26;fontStyle=1;fontColor=#263238;" vertex="1" parent="1">
+          <mxGeometry x="220" y="30" width="810" height="45" as="geometry" />
+        </mxCell>
+
+        <mxCell id="intro" value="Based on LargeFiles.java&lt;br&gt;&lt;br&gt;POST only creates the tus upload resource. It requires Upload-Length and may include Upload-Metadata. The file bytes are sent later with PATCH." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFDE7;strokeColor=#F9A825;fontColor=#3E2723;arcSize=8;fontSize=14;align=left;spacing=12;" vertex="1" parent="1">
+          <mxGeometry x="165" y="100" width="920" height="95" as="geometry" />
+        </mxCell>
+
+        <mxCell id="start" value="Client starts a large file upload" style="ellipse;whiteSpace=wrap;html=1;fillColor=#E3F2FD;strokeColor=#1565C0;fontColor=#0D47A1;fontStyle=1;fontSize=16;" vertex="1" parent="1">
+          <mxGeometry x="455" y="235" width="340" height="65" as="geometry" />
+        </mxCell>
+
+        <mxCell id="step1" value="1. Create upload resource&lt;br&gt;&lt;br&gt;POST /large-files/{institution}/{collection}/{assetGuid}/upload&lt;br&gt;Tus-Resumable: 1.0.0&lt;br&gt;Upload-Length: required&lt;br&gt;Upload-Metadata: filename, path&lt;br&gt;&lt;br&gt;No file bytes in the POST body." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#455A64;fontColor=#263238;arcSize=8;fontSize=14;align=left;spacing=14;" vertex="1" parent="1">
+          <mxGeometry x="385" y="345" width="480" height="180" as="geometry" />
+        </mxCell>
+
+        <mxCell id="decision1" value="Upload-Length present&lt;br&gt;and enough storage?" style="rhombus;whiteSpace=wrap;html=1;fillColor=#FFF8E1;strokeColor=#F9A825;fontColor=#3E2723;fontStyle=1;fontSize=14;spacing=10;" vertex="1" parent="1">
+          <mxGeometry x="505" y="570" width="240" height="125" as="geometry" />
+        </mxCell>
+
+        <mxCell id="reject" value="Reject creation request&lt;br&gt;&lt;br&gt;Missing Upload-Length or insufficient storage." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFEBEE;strokeColor=#C62828;fontColor=#B71C1C;arcSize=8;fontSize=14;align=left;spacing=12;" vertex="1" parent="1">
+          <mxGeometry x="820" y="590" width="300" height="95" as="geometry" />
+        </mxCell>
+
+        <mxCell id="step2" value="2. Tus service creates the temporary upload&lt;br&gt;&lt;br&gt;LargeFiles delegates to TusFileUploadService.process().&lt;br&gt;&lt;br&gt;Response: 201 Created + Location" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E8F5E9;strokeColor=#2E7D32;fontColor=#1B5E20;arcSize=8;fontSize=14;align=left;spacing=14;" vertex="1" parent="1">
+          <mxGeometry x="385" y="740" width="480" height="140" as="geometry" />
+        </mxCell>
+
+        <mxCell id="step3" value="3. DaSSCo records the active upload&lt;br&gt;&lt;br&gt;registerActiveLargeUpload(tusId, assetGuid, path)&lt;br&gt;&lt;br&gt;The client stores the Location URL for HEAD, PATCH, and DELETE." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E8F5E9;strokeColor=#2E7D32;fontColor=#1B5E20;arcSize=8;fontSize=14;align=left;spacing=14;" vertex="1" parent="1">
+          <mxGeometry x="385" y="925" width="480" height="140" as="geometry" />
+        </mxCell>
+
+        <mxCell id="step4" value="4. Client checks where to continue&lt;br&gt;&lt;br&gt;HEAD Location&lt;br&gt;&lt;br&gt;Response: 200 or 204&lt;br&gt;Upload-Offset + Upload-Length" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#455A64;fontColor=#263238;arcSize=8;fontSize=14;align=left;spacing=14;" vertex="1" parent="1">
+          <mxGeometry x="385" y="1110" width="480" height="140" as="geometry" />
+        </mxCell>
+
+        <mxCell id="step5" value="5. Client uploads bytes from that offset&lt;br&gt;&lt;br&gt;PATCH Location&lt;br&gt;Content-Type: application/offset+octet-stream&lt;br&gt;Upload-Offset: current offset&lt;br&gt;Body: file bytes&lt;br&gt;&lt;br&gt;Response: 204 No Content + new Upload-Offset" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#455A64;fontColor=#263238;arcSize=8;fontSize=14;align=left;spacing=14;" vertex="1" parent="1">
+          <mxGeometry x="385" y="1295" width="480" height="190" as="geometry" />
+        </mxCell>
+
+        <mxCell id="complete_note" value="When the upload is not complete, the client repeats steps 4 and 5 using the latest Upload-Offset." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF3E0;strokeColor=#EF6C00;fontColor=#E65100;arcSize=8;fontSize=13;align=left;spacing=10;" vertex="1" parent="1">
+          <mxGeometry x="65" y="1340" width="260" height="95" as="geometry" />
+        </mxCell>
+
+        <mxCell id="step6" value="6. DaSSCo detects completion&lt;br&gt;&lt;br&gt;uploadInfo != null&lt;br&gt;and !uploadInfo.isUploadInProgress()" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E8F5E9;strokeColor=#2E7D32;fontColor=#1B5E20;arcSize=8;fontSize=14;align=left;spacing=14;" vertex="1" parent="1">
+          <mxGeometry x="385" y="1530" width="480" height="120" as="geometry" />
+        </mxCell>
+
+        <mxCell id="step7" value="7. Persist the completed file&lt;br&gt;&lt;br&gt;Read uploaded bytes from TusFileUploadService.&lt;br&gt;&lt;br&gt;fileService.largeFileUpload(inputStream, metadata, userId)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E8F5E9;strokeColor=#2E7D32;fontColor=#1B5E20;arcSize=8;fontSize=14;align=left;spacing=14;" vertex="1" parent="1">
+          <mxGeometry x="385" y="1695" width="480" height="140" as="geometry" />
+        </mxCell>
+
+        <mxCell id="step8" value="8. Cleanup&lt;br&gt;&lt;br&gt;unregisterActiveLargeUpload(tusId)&lt;br&gt;delete temporary tus upload" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E8F5E9;strokeColor=#2E7D32;fontColor=#1B5E20;arcSize=8;fontSize=14;align=left;spacing=14;" vertex="1" parent="1">
+          <mxGeometry x="385" y="1880" width="480" height="120" as="geometry" />
+        </mxCell>
+
+        <mxCell id="done" value="Done" style="ellipse;whiteSpace=wrap;html=1;fillColor=#E3F2FD;strokeColor=#1565C0;fontColor=#0D47A1;fontStyle=1;fontSize=16;" vertex="1" parent="1">
+          <mxGeometry x="515" y="2045" width="220" height="65" as="geometry" />
+        </mxCell>
+
+        <mxCell id="resume_rules" value="Resume and error handling&lt;br&gt;&lt;br&gt;Network interruption: keep Location, call HEAD, continue from returned offset.&lt;br&gt;&lt;br&gt;409 offset conflict: call HEAD again, then PATCH from the returned offset.&lt;br&gt;&lt;br&gt;404 or 410: upload resource is gone, start a new POST." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF3E0;strokeColor=#EF6C00;fontColor=#E65100;arcSize=8;fontSize=14;align=left;spacing=14;" vertex="1" parent="1">
+          <mxGeometry x="900" y="1110" width="300" height="230" as="geometry" />
+        </mxCell>
+
+        <mxCell id="cancel" value="Cancel upload&lt;br&gt;&lt;br&gt;DELETE Location delegates to TusFileUploadService, then unregisterActiveLargeUpload(tusId)." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F3E5F5;strokeColor=#6A1B9A;fontColor=#4A148C;arcSize=8;fontSize=14;align=left;spacing=14;" vertex="1" parent="1">
+          <mxGeometry x="900" y="1390" width="300" height="130" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e_start_step1" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#455A64;" edge="1" parent="1" source="start" target="step1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_step1_decision" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#455A64;" edge="1" parent="1" source="step1" target="decision1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_decision_reject" value="No" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#C62828;fontSize=13;fontColor=#C62828;" edge="1" parent="1" source="decision1" target="reject">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_decision_step2" value="Yes" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#2E7D32;fontSize=13;fontColor=#2E7D32;" edge="1" parent="1" source="decision1" target="step2">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_step2_step3" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#455A64;" edge="1" parent="1" source="step2" target="step3">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_step3_step4" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#455A64;" edge="1" parent="1" source="step3" target="step4">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_step4_step5" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#455A64;" edge="1" parent="1" source="step4" target="step5">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_step5_step6" value="Complete" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#2E7D32;fontSize=13;fontColor=#2E7D32;" edge="1" parent="1" source="step5" target="step6">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_continue_note" value="Not complete" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#EF6C00;fontSize=13;fontColor=#EF6C00;" edge="1" parent="1" source="step5" target="complete_note">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_step6_step7" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#455A64;" edge="1" parent="1" source="step6" target="step7">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_step7_step8" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#455A64;" edge="1" parent="1" source="step7" target="step8">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_step8_done" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#455A64;" edge="1" parent="1" source="step8" target="done">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_step4_resume" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=open;endFill=0;strokeWidth=1.5;strokeColor=#EF6C00;dashed=1;" edge="1" parent="1" source="step4" target="resume_rules">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_step5_resume" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=open;endFill=0;strokeWidth=1.5;strokeColor=#EF6C00;dashed=1;" edge="1" parent="1" source="step5" target="resume_rules">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
