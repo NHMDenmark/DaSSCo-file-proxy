@@ -443,11 +443,9 @@ public class AssetFiles {
             return assetBundleTooLarge(e);
         }
         URI statusUri = uriInfo.getAbsolutePathBuilder().path(job.jobId()).build();
-        URI downloadUri = uriInfo.getAbsolutePathBuilder().path(job.jobId()).path("download").build();
 
         return Response.accepted(job)
                 .location(statusUri)
-                .link(downloadUri, "download")
                 .build();
     }
 
@@ -474,11 +472,9 @@ public class AssetFiles {
             return assetBundleTooLarge(e);
         }
         URI statusUri = uriInfo.getAbsolutePathBuilder().path(job.jobId()).build();
-        URI downloadUri = uriInfo.getAbsolutePathBuilder().path(job.jobId()).path("download").build();
 
         return Response.accepted(job)
                 .location(statusUri)
-                .link(downloadUri, "download")
                 .build();
     }
 
