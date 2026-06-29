@@ -41,6 +41,7 @@ public class ParkingService {
     }
 
     public boolean syncParkedFiles(SyncParkingSpaceRequest syncParkingSpaceRequest, User user) {
+        logger.info("Sync parked files: {}", syncParkingSpaceRequest);
         MinimalAsset asset = syncParkingSpaceRequest.asset;
         String basePath = shareConfig.mountFolder() + "/" + shareConfig.parkingFolder() + "/" + asset.institution() + "/" + asset.collection() + "/" + syncParkingSpaceRequest.attachmentLocation;
         logger.info("Syncing parkingspace: " + basePath);
