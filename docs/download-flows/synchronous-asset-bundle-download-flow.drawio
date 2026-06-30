@@ -1,0 +1,191 @@
+<mxfile host="app.diagrams.net" modified="2026-06-29T00:00:00.000Z" agent="Codex" version="24.7.17" type="device">
+  <diagram id="sync-asset-bundle-download-flow" name="Synchronous asset bundle download">
+    <mxGraphModel dx="1400" dy="2200" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1650" pageHeight="2700" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <mxCell id="title" value="Synchronous asset bundle ZIP download flow" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=26;fontStyle=1;fontColor=#263238;" vertex="1" parent="1">
+          <mxGeometry x="300" y="30" width="1050" height="45" as="geometry" />
+        </mxCell>
+
+        <mxCell id="intro" value="Source: AssetFiles#downloadAssetBundles(...)&lt;br&gt;Endpoint: POST /assetfiles/asset-bundles&lt;br&gt;Creates a temporary ZIP immediately, then streams it with RangeRequestHandler using full or partial content responses." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFDE7;strokeColor=#F9A825;fontColor=#3E2723;arcSize=8;fontSize=14;align=left;spacing=12;" vertex="1" parent="1">
+          <mxGeometry x="120" y="95" width="1410" height="95" as="geometry" />
+        </mxCell>
+
+        <mxCell id="start" value="Client requests immediate bundle ZIP" style="ellipse;whiteSpace=wrap;html=1;fillColor=#E3F2FD;strokeColor=#1565C0;fontColor=#0D47A1;fontStyle=1;fontSize=16;" vertex="1" parent="1">
+          <mxGeometry x="620" y="230" width="410" height="65" as="geometry" />
+        </mxCell>
+
+        <mxCell id="request" value="POST /assetfiles/asset-bundles&lt;br&gt;Body: List&lt;String&gt; assetGuids&lt;br&gt;Optional header: Range&lt;br&gt;Produces: application/zip" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#455A64;fontColor=#263238;arcSize=8;fontSize=14;align=left;spacing=14;" vertex="1" parent="1">
+          <mxGeometry x="535" y="340" width="580" height="120" as="geometry" />
+        </mxCell>
+
+        <mxCell id="validate" value="Validate request&lt;br&gt;&lt;br&gt;Reject if assetGuids is null/empty or any asset GUID is blank.&lt;br&gt;user = UserMapper.from(securityContext)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#455A64;fontColor=#263238;arcSize=8;fontSize=14;align=left;spacing=14;" vertex="1" parent="1">
+          <mxGeometry x="535" y="510" width="580" height="115" as="geometry" />
+        </mxCell>
+
+        <mxCell id="valid_decision" value="Request valid?" style="rhombus;whiteSpace=wrap;html=1;fillColor=#FFF8E1;strokeColor=#F9A825;fontColor=#3E2723;fontStyle=1;fontSize=14;spacing=10;" vertex="1" parent="1">
+          <mxGeometry x="685" y="670" width="280" height="120" as="geometry" />
+        </mxCell>
+
+        <mxCell id="bad_request" value="400 Bad Request&lt;br&gt;&lt;br&gt;DaSSCoErrorCode.BAD_REQUEST&lt;br&gt;&quot;Need to pass a list of assets&quot; or &quot;Asset GUID cannot be blank&quot;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFEBEE;strokeColor=#C62828;fontColor=#B71C1C;arcSize=8;fontSize=14;align=left;spacing=12;" vertex="1" parent="1">
+          <mxGeometry x="1170" y="670" width="360" height="125" as="geometry" />
+        </mxCell>
+
+        <mxCell id="fetch_assets" value="Fetch asset metadata and read-access result&lt;br&gt;&lt;br&gt;fetchAssets(assetGuids, user)&lt;br&gt;POST {assetService.rootUrl}/api/v1/assets/list&lt;br&gt;Headers: Content-Type/Accept application/json&lt;br&gt;Authorization: Bearer token when available" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#455A64;fontColor=#263238;arcSize=8;fontSize=14;align=left;spacing=14;" vertex="1" parent="1">
+          <mxGeometry x="535" y="840" width="580" height="155" as="geometry" />
+        </mxCell>
+
+        <mxCell id="asset_403" value="403 Forbidden&lt;br&gt;&lt;br&gt;If asset service returns 403, return 403 with the asset-service response body." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFEBEE;strokeColor=#C62828;fontColor=#B71C1C;arcSize=8;fontSize=14;align=left;spacing=12;" vertex="1" parent="1">
+          <mxGeometry x="1170" y="850" width="360" height="100" as="geometry" />
+        </mxCell>
+
+        <mxCell id="asset_non2xx" value="Non-2xx asset-service response&lt;br&gt;&lt;br&gt;Return the same HTTP status and response body." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFEBEE;strokeColor=#C62828;fontColor=#B71C1C;arcSize=8;fontSize=14;align=left;spacing=12;" vertex="1" parent="1">
+          <mxGeometry x="1170" y="980" width="360" height="100" as="geometry" />
+        </mxCell>
+
+        <mxCell id="asset_exception" value="Interrupted/exception branch&lt;br&gt;&lt;br&gt;InterruptedException -&gt; 500 &quot;Interrupted while checking asset read access&quot;&lt;br&gt;Other exception -&gt; 500 &quot;Failed to check asset read access&quot;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFEBEE;strokeColor=#C62828;fontColor=#B71C1C;arcSize=8;fontSize=14;align=left;spacing=12;" vertex="1" parent="1">
+          <mxGeometry x="1170" y="1110" width="360" height="135" as="geometry" />
+        </mxCell>
+
+        <mxCell id="metadata" value="Create metadata CSV per asset&lt;br&gt;&lt;br&gt;createMetadataCsvByAsset(assetsResponse.body(), assetGuids)&lt;br&gt;Adds sep=, header/row content and fills missing requested assets with a header-only CSV." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#455A64;fontColor=#263238;arcSize=8;fontSize=14;align=left;spacing=14;" vertex="1" parent="1">
+          <mxGeometry x="535" y="1060" width="580" height="135" as="geometry" />
+        </mxCell>
+
+        <mxCell id="get_files" value="Resolve bundle file list&lt;br&gt;&lt;br&gt;fileService.getDasscoFiles(assetGuids, user)&lt;br&gt;Group DasscoFile rows by DasscoFile::assetGuid" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#455A64;fontColor=#263238;arcSize=8;fontSize=14;align=left;spacing=14;" vertex="1" parent="1">
+          <mxGeometry x="535" y="1245" width="580" height="110" as="geometry" />
+        </mxCell>
+
+        <mxCell id="temp_file" value="Create temporary ZIP file&lt;br&gt;&lt;br&gt;File.createTempFile(&quot;asset-bundle-&quot;, &quot;.zip&quot;)&lt;br&gt;tempZipFile.deleteOnExit()" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#455A64;fontColor=#263238;arcSize=8;fontSize=14;align=left;spacing=14;" vertex="1" parent="1">
+          <mxGeometry x="535" y="1405" width="580" height="100" as="geometry" />
+        </mxCell>
+
+        <mxCell id="zip" value="createAssetBundleZip(tempZipFile, ...)&lt;br&gt;&lt;br&gt;For each requested asset:&lt;br&gt;- add {assetGuid}/ directory&lt;br&gt;- add {assetGuid}/metadata.csv when available&lt;br&gt;- parse each DasscoFile path&lt;br&gt;- cacheFileService.tryGetFile(...)&lt;br&gt;- add file entry with safe ZIP path&lt;br&gt;Missing/unexpected/duplicate files are skipped." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E8F5E9;strokeColor=#2E7D32;fontColor=#1B5E20;arcSize=8;fontSize=14;align=left;spacing=14;" vertex="1" parent="1">
+          <mxGeometry x="535" y="1555" width="580" height="210" as="geometry" />
+        </mxCell>
+
+        <mxCell id="zip_error" value="500 Internal Server Error&lt;br&gt;&lt;br&gt;DaSSCoErrorCode.INTERNAL_ERROR&lt;br&gt;&quot;Failed to create asset bundle ZIP&quot;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFEBEE;strokeColor=#C62828;fontColor=#B71C1C;arcSize=8;fontSize=14;align=left;spacing=12;" vertex="1" parent="1">
+          <mxGeometry x="1170" y="1605" width="360" height="105" as="geometry" />
+        </mxCell>
+
+        <mxCell id="range" value="Build streaming response&lt;br&gt;&lt;br&gt;RangeRequestHandler.buildFileResponse(new FileResponseConfig(tempZipFile, &quot;asset-bundle.zip&quot;, &quot;application/zip&quot;)&lt;br&gt;  .withRangeHeader(rangeHeader)&lt;br&gt;  .withoutContentDisposition()&lt;br&gt;  .cleanupAfterAnyRange()&lt;br&gt;  .onComplete(delete tempZipFile))" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#455A64;fontColor=#263238;arcSize=8;fontSize=14;align=left;spacing=14;" vertex="1" parent="1">
+          <mxGeometry x="535" y="1825" width="580" height="185" as="geometry" />
+        </mxCell>
+
+        <mxCell id="range_decision" value="Range header?" style="rhombus;whiteSpace=wrap;html=1;fillColor=#FFF8E1;strokeColor=#F9A825;fontColor=#3E2723;fontStyle=1;fontSize=14;spacing=10;" vertex="1" parent="1">
+          <mxGeometry x="685" y="2060" width="280" height="120" as="geometry" />
+        </mxCell>
+
+        <mxCell id="full_response" value="No Range&lt;br&gt;&lt;br&gt;200 OK&lt;br&gt;Content-Type: application/zip&lt;br&gt;Content-Length: full file length&lt;br&gt;Accept-Ranges: bytes&lt;br&gt;No Content-Disposition" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E8F5E9;strokeColor=#2E7D32;fontColor=#1B5E20;arcSize=8;fontSize=14;align=left;spacing=14;" vertex="1" parent="1">
+          <mxGeometry x="210" y="2230" width="380" height="140" as="geometry" />
+        </mxCell>
+
+        <mxCell id="partial_response" value="Valid Range&lt;br&gt;&lt;br&gt;206 Partial Content&lt;br&gt;Content-Range: bytes start-end/length&lt;br&gt;Content-Length: range length&lt;br&gt;Accept-Ranges: bytes&lt;br&gt;No Content-Disposition" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E8F5E9;strokeColor=#2E7D32;fontColor=#1B5E20;arcSize=8;fontSize=14;align=left;spacing=14;" vertex="1" parent="1">
+          <mxGeometry x="635" y="2230" width="380" height="150" as="geometry" />
+        </mxCell>
+
+        <mxCell id="range_error" value="Invalid Range&lt;br&gt;&lt;br&gt;416 Range Not Satisfiable&lt;br&gt;Content-Range: bytes */length&lt;br&gt;Streaming callbacks do not run; deleteOnExit is fallback cleanup." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFEBEE;strokeColor=#C62828;fontColor=#B71C1C;arcSize=8;fontSize=14;align=left;spacing=12;" vertex="1" parent="1">
+          <mxGeometry x="1060" y="2230" width="390" height="140" as="geometry" />
+        </mxCell>
+
+        <mxCell id="cleanup" value="Cleanup behavior&lt;br&gt;&lt;br&gt;After a successful full stream or any completed range stream, onComplete deletes the temporary ZIP. If deletion fails, a warning is logged; deleteOnExit is already registered." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECEFF1;strokeColor=#546E7A;fontColor=#263238;arcSize=8;fontSize=14;align=left;spacing=14;" vertex="1" parent="1">
+          <mxGeometry x="535" y="2430" width="580" height="125" as="geometry" />
+        </mxCell>
+
+        <mxCell id="done" value="Bundle response complete" style="ellipse;whiteSpace=wrap;html=1;fillColor=#E3F2FD;strokeColor=#1565C0;fontColor=#0D47A1;fontStyle=1;fontSize=16;" vertex="1" parent="1">
+          <mxGeometry x="690" y="2610" width="270" height="60" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e_start_request" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#455A64;fontSize=12;fontColor=#263238;" edge="1" parent="1" source="start" target="request">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e_request_validate" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#455A64;fontSize=12;fontColor=#263238;" edge="1" parent="1" source="request" target="validate">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e_validate_decision" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#455A64;fontSize=12;fontColor=#263238;" edge="1" parent="1" source="validate" target="valid_decision">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e_invalid" value="No" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#C62828;fontSize=12;fontColor=#B71C1C;" edge="1" parent="1" source="valid_decision" target="bad_request">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e_valid" value="Yes" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#2E7D32;fontSize=12;fontColor=#1B5E20;" edge="1" parent="1" source="valid_decision" target="fetch_assets">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e_fetch_403" value="403" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#C62828;fontSize=12;fontColor=#B71C1C;" edge="1" parent="1" source="fetch_assets" target="asset_403">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e_fetch_non2xx" value="other non-2xx" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#C62828;fontSize=12;fontColor=#B71C1C;" edge="1" parent="1" source="fetch_assets" target="asset_non2xx">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e_fetch_exception" value="exception" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#C62828;fontSize=12;fontColor=#B71C1C;exitX=1;exitY=0.5;entryX=0;entryY=0.5;" edge="1" parent="1" source="fetch_assets" target="asset_exception">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1145" y="917.5" />
+              <mxPoint x="1145" y="1177.5" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+
+        <mxCell id="e_fetch_metadata" value="2xx" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#2E7D32;fontSize=12;fontColor=#1B5E20;" edge="1" parent="1" source="fetch_assets" target="metadata">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e_metadata_files" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#455A64;fontSize=12;fontColor=#263238;" edge="1" parent="1" source="metadata" target="get_files">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e_files_temp" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#455A64;fontSize=12;fontColor=#263238;" edge="1" parent="1" source="get_files" target="temp_file">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e_temp_zip" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#455A64;fontSize=12;fontColor=#263238;" edge="1" parent="1" source="temp_file" target="zip">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e_zip_error" value="IOException" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#C62828;fontSize=12;fontColor=#B71C1C;" edge="1" parent="1" source="zip" target="zip_error">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e_zip_range" value="ZIP created" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#2E7D32;fontSize=12;fontColor=#1B5E20;" edge="1" parent="1" source="zip" target="range">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e_range_decision" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#455A64;fontSize=12;fontColor=#263238;" edge="1" parent="1" source="range" target="range_decision">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e_no_range" value="Absent" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#2E7D32;fontSize=12;fontColor=#1B5E20;" edge="1" parent="1" source="range_decision" target="full_response">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e_valid_range" value="Valid" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#2E7D32;fontSize=12;fontColor=#1B5E20;" edge="1" parent="1" source="range_decision" target="partial_response">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e_invalid_range" value="Invalid" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#C62828;fontSize=12;fontColor=#B71C1C;" edge="1" parent="1" source="range_decision" target="range_error">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e_full_cleanup" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#455A64;fontSize=12;fontColor=#263238;" edge="1" parent="1" source="full_response" target="cleanup">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e_partial_cleanup" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#455A64;fontSize=12;fontColor=#263238;" edge="1" parent="1" source="partial_response" target="cleanup">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e_cleanup_done" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#455A64;fontSize=12;fontColor=#263238;" edge="1" parent="1" source="cleanup" target="done">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

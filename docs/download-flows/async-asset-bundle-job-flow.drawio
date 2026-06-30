@@ -1,0 +1,327 @@
+<mxfile host="app.diagrams.net" modified="2026-06-29T00:00:00.000Z" agent="Codex" version="24.7.17" type="device">
+  <diagram id="async-asset-bundle-job-flow" name="Async asset bundle jobs">
+    <mxGraphModel dx="1400" dy="2200" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1800" pageHeight="4100" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <mxCell id="title" value="Asynchronous asset bundle job lifecycle: internal and external" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=26;fontStyle=1;fontColor=#263238;" vertex="1" parent="1">
+          <mxGeometry x="300" y="30" width="1200" height="45" as="geometry" />
+        </mxCell>
+
+        <mxCell id="intro" value="Sources: AssetFiles async job endpoints, AssetBundleJobService, AssetBundleCreatorService, RangeRequestHandler&lt;br&gt;Internal jobs are authenticated and owner-scoped. External jobs use anonymous access and external metadata rules. Both share validation, preparation, polling, cancellation, download, and cleanup behavior." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFDE7;strokeColor=#F9A825;fontColor=#3E2723;arcSize=8;fontSize=14;align=left;spacing=12;" vertex="1" parent="1">
+          <mxGeometry x="130" y="95" width="1540" height="105" as="geometry" />
+        </mxCell>
+
+        <mxCell id="internal_start" value="Internal authenticated start&lt;br&gt;&lt;br&gt;POST /assetfiles/asset-bundles/jobs&lt;br&gt;AssetFiles#startAssetBundleJob(...)&lt;br&gt;UserMapper.from(securityContext)&lt;br&gt;Job type: INTERNAL; ownerKey is stored" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#455A64;fontColor=#263238;arcSize=8;fontSize=14;align=left;spacing=14;" vertex="1" parent="1">
+          <mxGeometry x="170" y="250" width="500" height="145" as="geometry" />
+        </mxCell>
+
+        <mxCell id="external_start" value="External anonymous start&lt;br&gt;&lt;br&gt;POST /assetfiles/asset-bundles/extern/jobs&lt;br&gt;AssetFiles#startExternalAssetBundleJob(...)&lt;br&gt;new User(&quot;anonymous&quot;)&lt;br&gt;Job type: EXTERNAL; no ownerKey restriction" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F3E5F5;strokeColor=#6A1B9A;fontColor=#4A148C;arcSize=8;fontSize=14;align=left;spacing=14;" vertex="1" parent="1">
+          <mxGeometry x="1130" y="250" width="500" height="145" as="geometry" />
+        </mxCell>
+
+        <mxCell id="validation" value="Shared request validation&lt;br&gt;&lt;br&gt;validateAssetBundleRequest(assetGuids)&lt;br&gt;Reject null/empty list or blank asset GUID." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#455A64;fontColor=#263238;arcSize=8;fontSize=14;align=left;spacing=14;" vertex="1" parent="1">
+          <mxGeometry x="625" y="460" width="550" height="110" as="geometry" />
+        </mxCell>
+
+        <mxCell id="valid_decision" value="Request valid?" style="rhombus;whiteSpace=wrap;html=1;fillColor=#FFF8E1;strokeColor=#F9A825;fontColor=#3E2723;fontStyle=1;fontSize=14;spacing=10;" vertex="1" parent="1">
+          <mxGeometry x="760" y="625" width="280" height="115" as="geometry" />
+        </mxCell>
+
+        <mxCell id="bad_request" value="400 Bad Request&lt;br&gt;&lt;br&gt;DaSSCoErrorCode.BAD_REQUEST&lt;br&gt;&quot;Need to pass a list of assets&quot; or &quot;Asset GUID cannot be blank&quot;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFEBEE;strokeColor=#C62828;fontColor=#B71C1C;arcSize=8;fontSize=14;align=left;spacing=12;" vertex="1" parent="1">
+          <mxGeometry x="1250" y="620" width="360" height="120" as="geometry" />
+        </mxCell>
+
+        <mxCell id="size_check" value="Bundle size limit check&lt;br&gt;&lt;br&gt;AssetBundleJobService.validateBundleSize(assetGuids)&lt;br&gt;Uses AssetBundleSizeCalculator.totalSizeBytes(...) and configured maxBundleSizeBytes." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#455A64;fontColor=#263238;arcSize=8;fontSize=14;align=left;spacing=14;" vertex="1" parent="1">
+          <mxGeometry x="625" y="790" width="550" height="130" as="geometry" />
+        </mxCell>
+
+        <mxCell id="size_decision" value="Over max bundle size?" style="rhombus;whiteSpace=wrap;html=1;fillColor=#FFF8E1;strokeColor=#F9A825;fontColor=#3E2723;fontStyle=1;fontSize=14;spacing=10;" vertex="1" parent="1">
+          <mxGeometry x="760" y="975" width="280" height="120" as="geometry" />
+        </mxCell>
+
+        <mxCell id="too_large" value="413 Payload Too Large&lt;br&gt;&lt;br&gt;assetBundleTooLarge(...) returns AssetBundleTooLargeResponse(message, totalSizeBytes, maxSizeBytes, assetCount)." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFEBEE;strokeColor=#C62828;fontColor=#B71C1C;arcSize=8;fontSize=14;align=left;spacing=12;" vertex="1" parent="1">
+          <mxGeometry x="1250" y="975" width="360" height="125" as="geometry" />
+        </mxCell>
+
+        <mxCell id="create_job" value="Create in-memory job&lt;br&gt;&lt;br&gt;UUID jobId; jobs.put(jobId, job)&lt;br&gt;Initial snapshot: status PREPARING, processedAssets 0, message &quot;Preparing asset bundle&quot;&lt;br&gt;startJob(...) submits worker to executor." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E8F5E9;strokeColor=#2E7D32;fontColor=#1B5E20;arcSize=8;fontSize=14;align=left;spacing=14;" vertex="1" parent="1">
+          <mxGeometry x="625" y="1150" width="550" height="155" as="geometry" />
+        </mxCell>
+
+        <mxCell id="accepted" value="202 Accepted&lt;br&gt;&lt;br&gt;Response entity: AssetBundleJobSnapshot&lt;br&gt;Location: current endpoint path + /{jobId}&lt;br&gt;Client polls Location until READY, or sees FAILED." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E8F5E9;strokeColor=#2E7D32;fontColor=#1B5E20;arcSize=8;fontSize=14;align=left;spacing=14;" vertex="1" parent="1">
+          <mxGeometry x="625" y="1360" width="550" height="130" as="geometry" />
+        </mxCell>
+
+        <mxCell id="worker" value="Background worker executes&lt;br&gt;&lt;br&gt;ThreadPoolExecutor: core 1, max 4, queue 100&lt;br&gt;RejectedExecutionException marks the job FAILED: &quot;Asset bundle preparation queue is full&quot;." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#455A64;fontColor=#263238;arcSize=8;fontSize=14;align=left;spacing=14;" vertex="1" parent="1">
+          <mxGeometry x="625" y="1550" width="550" height="130" as="geometry" />
+        </mxCell>
+
+        <mxCell id="queue_full" value="FAILED&lt;br&gt;&lt;br&gt;Queue full before worker starts. Job remains readable as FAILED until cleanup/cancel." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFEBEE;strokeColor=#C62828;fontColor=#B71C1C;arcSize=8;fontSize=14;align=left;spacing=12;" vertex="1" parent="1">
+          <mxGeometry x="1250" y="1555" width="360" height="100" as="geometry" />
+        </mxCell>
+
+        <mxCell id="creator_decision" value="Job type / creator?" style="rhombus;whiteSpace=wrap;html=1;fillColor=#FFF8E1;strokeColor=#F9A825;fontColor=#3E2723;fontStyle=1;fontSize=14;spacing=10;" vertex="1" parent="1">
+          <mxGeometry x="760" y="1735" width="280" height="120" as="geometry" />
+        </mxCell>
+
+        <mxCell id="internal_creator" value="INTERNAL creator path&lt;br&gt;&lt;br&gt;AssetBundleCreatorService#create(assetGuids, user)&lt;br&gt;fetchAssets -&gt; POST {assetService.rootUrl}/api/v1/assets/list with bearer token&lt;br&gt;403/non-2xx becomes AssetBundleCreationException.&lt;br&gt;fileService.getDasscoFiles(...) supplies file rows." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#455A64;fontColor=#263238;arcSize=8;fontSize=14;align=left;spacing=14;" vertex="1" parent="1">
+          <mxGeometry x="110" y="1725" width="520" height="190" as="geometry" />
+        </mxCell>
+
+        <mxCell id="external_creator" value="EXTERNAL creator path&lt;br&gt;&lt;br&gt;AssetBundleCreatorService#createExternal(assetGuids, anonymous)&lt;br&gt;For each asset: GET {assetService.rootUrl}/api/extern/metadata/{assetGuid}/csv&lt;br&gt;fileService.listFilesByAssetGuid(...) supplies file rows." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F3E5F5;strokeColor=#6A1B9A;fontColor=#4A148C;arcSize=8;fontSize=14;align=left;spacing=14;" vertex="1" parent="1">
+          <mxGeometry x="1170" y="1725" width="520" height="180" as="geometry" />
+        </mxCell>
+
+        <mxCell id="zip" value="Create prepared ZIP file&lt;br&gt;&lt;br&gt;File.createTempFile(&quot;asset-bundle-...&quot;, &quot;.zip&quot;); deleteOnExit()&lt;br&gt;createAssetBundleZip(...) adds asset folder, metadata.csv, and file entries via cacheFileService.tryGetFile(...).&lt;br&gt;Partial ZIP is deleted when creation throws." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E8F5E9;strokeColor=#2E7D32;fontColor=#1B5E20;arcSize=8;fontSize=14;align=left;spacing=14;" vertex="1" parent="1">
+          <mxGeometry x="625" y="1990" width="550" height="175" as="geometry" />
+        </mxCell>
+
+        <mxCell id="worker_outcome" value="Worker outcome?" style="rhombus;whiteSpace=wrap;html=1;fillColor=#FFF8E1;strokeColor=#F9A825;fontColor=#3E2723;fontStyle=1;fontSize=14;spacing=10;" vertex="1" parent="1">
+          <mxGeometry x="760" y="2220" width="280" height="120" as="geometry" />
+        </mxCell>
+
+        <mxCell id="failed" value="FAILED status&lt;br&gt;&lt;br&gt;InterruptedException -&gt; &quot;Asset bundle preparation was interrupted&quot;&lt;br&gt;Other exception -&gt; exception message or &quot;Failed to create asset bundle&quot;&lt;br&gt;finishedAt is set." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFEBEE;strokeColor=#C62828;fontColor=#B71C1C;arcSize=8;fontSize=14;align=left;spacing=12;" vertex="1" parent="1">
+          <mxGeometry x="1250" y="2215" width="380" height="140" as="geometry" />
+        </mxCell>
+
+        <mxCell id="cancelled_worker" value="Cancelled while worker finishes&lt;br&gt;&lt;br&gt;If job.isCancelled(), the just-created bundle file is deleted instead of marking READY. cancel(...) has already removed the job." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECEFF1;strokeColor=#546E7A;fontColor=#263238;arcSize=8;fontSize=14;align=left;spacing=14;" vertex="1" parent="1">
+          <mxGeometry x="110" y="2205" width="390" height="140" as="geometry" />
+        </mxCell>
+
+        <mxCell id="ready" value="READY status&lt;br&gt;&lt;br&gt;job.ready(bundleFile)&lt;br&gt;processedAssets = totalAssets&lt;br&gt;message = &quot;Asset bundle is ready&quot;&lt;br&gt;finishedAt is set." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E8F5E9;strokeColor=#2E7D32;fontColor=#1B5E20;arcSize=8;fontSize=14;align=left;spacing=14;" vertex="1" parent="1">
+          <mxGeometry x="625" y="2395" width="550" height="125" as="geometry" />
+        </mxCell>
+
+        <mxCell id="poll" value="Poll status&lt;br&gt;&lt;br&gt;Internal: GET /assetfiles/asset-bundles/jobs/{jobId}&lt;br&gt;External: GET /assetfiles/asset-bundles/extern/jobs/{jobId}&lt;br&gt;200 AssetBundleJobSnapshot, or 404 if unknown/type mismatch/internal owner mismatch." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#455A64;fontColor=#263238;arcSize=8;fontSize=14;align=left;spacing=14;" vertex="1" parent="1">
+          <mxGeometry x="110" y="2590" width="500" height="170" as="geometry" />
+        </mxCell>
+
+        <mxCell id="cancel" value="Cancel job&lt;br&gt;&lt;br&gt;Internal: DELETE /assetfiles/asset-bundles/jobs/{jobId}&lt;br&gt;External: DELETE /assetfiles/asset-bundles/extern/jobs/{jobId}&lt;br&gt;assetBundleJobService.cancel(...) -&gt; job.cancel(), remove from map, delete bundle file.&lt;br&gt;204 if cancelled; 404 if inaccessible/not found." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECEFF1;strokeColor=#546E7A;fontColor=#263238;arcSize=8;fontSize=14;align=left;spacing=14;" vertex="1" parent="1">
+          <mxGeometry x="650" y="2590" width="530" height="190" as="geometry" />
+        </mxCell>
+
+        <mxCell id="download_req" value="Download prepared ZIP&lt;br&gt;&lt;br&gt;Internal: GET /assetfiles/asset-bundles/jobs/{jobId}/download&lt;br&gt;External: GET /assetfiles/asset-bundles/extern/jobs/{jobId}/download&lt;br&gt;Optional Range header." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#455A64;fontColor=#263238;arcSize=8;fontSize=14;align=left;spacing=14;" vertex="1" parent="1">
+          <mxGeometry x="1230" y="2590" width="520" height="170" as="geometry" />
+        </mxCell>
+
+        <mxCell id="download_ready" value="Job exists and status READY?" style="rhombus;whiteSpace=wrap;html=1;fillColor=#FFF8E1;strokeColor=#F9A825;fontColor=#3E2723;fontStyle=1;fontSize=14;spacing=10;" vertex="1" parent="1">
+          <mxGeometry x="1345" y="2825" width="290" height="125" as="geometry" />
+        </mxCell>
+
+        <mxCell id="download_not_ready" value="Download rejected&lt;br&gt;&lt;br&gt;404 if job is missing/inaccessible.&lt;br&gt;409 Conflict with DaSSCoErrorCode.BAD_REQUEST if status is not READY." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFEBEE;strokeColor=#C62828;fontColor=#B71C1C;arcSize=8;fontSize=14;align=left;spacing=12;" vertex="1" parent="1">
+          <mxGeometry x="1440" y="3005" width="330" height="125" as="geometry" />
+        </mxCell>
+
+        <mxCell id="bundle_file" value="Prepared bundle file present?&lt;br&gt;&lt;br&gt;assetBundleJobService.getBundleFileForDownload(jobId, jobType, user)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#455A64;fontColor=#263238;arcSize=8;fontSize=14;align=left;spacing=14;" vertex="1" parent="1">
+          <mxGeometry x="1230" y="3170" width="520" height="105" as="geometry" />
+        </mxCell>
+
+        <mxCell id="bundle_missing" value="404 Not Found&lt;br&gt;&lt;br&gt;&quot;Asset bundle file not found for job: ...&quot;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFEBEE;strokeColor=#C62828;fontColor=#B71C1C;arcSize=8;fontSize=14;align=left;spacing=12;" vertex="1" parent="1">
+          <mxGeometry x="1440" y="3330" width="330" height="95" as="geometry" />
+        </mxCell>
+
+        <mxCell id="range_response" value="Range-enabled streaming response&lt;br&gt;&lt;br&gt;RangeRequestHandler.buildFileResponse(...)&lt;br&gt;200 full response, 206 valid range, or 416 invalid range.&lt;br&gt;withoutContentDisposition()&lt;br&gt;onStart -&gt; startDownload(...)&lt;br&gt;onFinished -&gt; finishDownload(...)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E8F5E9;strokeColor=#2E7D32;fontColor=#1B5E20;arcSize=8;fontSize=14;align=left;spacing=14;" vertex="1" parent="1">
+          <mxGeometry x="1230" y="3490" width="520" height="165" as="geometry" />
+        </mxCell>
+
+        <mxCell id="complete" value="Completion cleanup&lt;br&gt;&lt;br&gt;onComplete -&gt; assetBundleJobService.complete(jobId)&lt;br&gt;Removes job from map and deletes bundle file.&lt;br&gt;For range downloads, completion runs when the served range reaches end-of-file." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECEFF1;strokeColor=#546E7A;fontColor=#263238;arcSize=8;fontSize=14;align=left;spacing=14;" vertex="1" parent="1">
+          <mxGeometry x="1230" y="3720" width="520" height="145" as="geometry" />
+        </mxCell>
+
+        <mxCell id="scheduled_cleanup" value="Scheduled cleanup&lt;br&gt;&lt;br&gt;cleanupExpiredJobs() runs every 300 seconds.&lt;br&gt;Removes expired non-PREPARING jobs when activeDownloads == 0, then deletes the bundle file. Default abandoned-job TTL is 12 hours." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECEFF1;strokeColor=#546E7A;fontColor=#263238;arcSize=8;fontSize=14;align=left;spacing=14;" vertex="1" parent="1">
+          <mxGeometry x="110" y="3005" width="500" height="160" as="geometry" />
+        </mxCell>
+
+        <mxCell id="access_note" value="Access rules&lt;br&gt;&lt;br&gt;AssetBundleJobService#get/cancel/download filters by requested job type.&lt;br&gt;EXTERNAL jobs are readable anonymously.&lt;br&gt;INTERNAL jobs require the same ownerKey as the creator." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFDE7;strokeColor=#F9A825;fontColor=#3E2723;arcSize=8;fontSize=14;align=left;spacing=12;" vertex="1" parent="1">
+          <mxGeometry x="650" y="3005" width="530" height="145" as="geometry" />
+        </mxCell>
+
+        <mxCell id="done" value="Async bundle lifecycle complete" style="ellipse;whiteSpace=wrap;html=1;fillColor=#E3F2FD;strokeColor=#1565C0;fontColor=#0D47A1;fontStyle=1;fontSize=16;" vertex="1" parent="1">
+          <mxGeometry x="765" y="3950" width="270" height="65" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e_internal_validation" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#455A64;fontSize=12;fontColor=#263238;" edge="1" parent="1" source="internal_start" target="validation">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e_external_validation" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#455A64;fontSize=12;fontColor=#263238;" edge="1" parent="1" source="external_start" target="validation">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e_validation_decision" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#455A64;fontSize=12;fontColor=#263238;" edge="1" parent="1" source="validation" target="valid_decision">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e_invalid" value="No" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#C62828;fontSize=12;fontColor=#B71C1C;" edge="1" parent="1" source="valid_decision" target="bad_request">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e_valid" value="Yes" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#2E7D32;fontSize=12;fontColor=#1B5E20;" edge="1" parent="1" source="valid_decision" target="size_check">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e_size_decision" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#455A64;fontSize=12;fontColor=#263238;" edge="1" parent="1" source="size_check" target="size_decision">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e_too_large" value="Yes" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#C62828;fontSize=12;fontColor=#B71C1C;" edge="1" parent="1" source="size_decision" target="too_large">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e_size_ok" value="No" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#2E7D32;fontSize=12;fontColor=#1B5E20;" edge="1" parent="1" source="size_decision" target="create_job">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e_create_accepted" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#455A64;fontSize=12;fontColor=#263238;" edge="1" parent="1" source="create_job" target="accepted">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e_create_worker" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#455A64;fontSize=12;fontColor=#263238;exitX=1;exitY=0.7;entryX=1;entryY=0.5;" edge="1" parent="1" source="create_job" target="worker">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1210" y="1260" />
+              <mxPoint x="1210" y="1615" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+
+        <mxCell id="e_worker_queue" value="queue rejected" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#C62828;fontSize=12;fontColor=#B71C1C;" edge="1" parent="1" source="worker" target="queue_full">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e_worker_creator" value="accepted by executor" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#2E7D32;fontSize=12;fontColor=#1B5E20;" edge="1" parent="1" source="worker" target="creator_decision">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e_creator_internal" value="INTERNAL" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#455A64;fontSize=12;fontColor=#263238;" edge="1" parent="1" source="creator_decision" target="internal_creator">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e_creator_external" value="EXTERNAL" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#455A64;fontSize=12;fontColor=#263238;" edge="1" parent="1" source="creator_decision" target="external_creator">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e_internal_zip" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#455A64;fontSize=12;fontColor=#263238;" edge="1" parent="1" source="internal_creator" target="zip">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e_external_zip" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#455A64;fontSize=12;fontColor=#263238;" edge="1" parent="1" source="external_creator" target="zip">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e_zip_outcome" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#455A64;fontSize=12;fontColor=#263238;" edge="1" parent="1" source="zip" target="worker_outcome">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e_outcome_failed" value="Exception/interrupted" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#C62828;fontSize=12;fontColor=#B71C1C;" edge="1" parent="1" source="worker_outcome" target="failed">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e_outcome_cancelled" value="Cancelled" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#C62828;fontSize=12;fontColor=#B71C1C;" edge="1" parent="1" source="worker_outcome" target="cancelled_worker">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e_outcome_ready" value="Success" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#2E7D32;fontSize=12;fontColor=#1B5E20;" edge="1" parent="1" source="worker_outcome" target="ready">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e_accepted_poll" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#455A64;fontSize=12;fontColor=#263238;exitX=0;exitY=0.5;entryX=0;entryY=0.5;" edge="1" parent="1" source="accepted" target="poll">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="70" y="1425" />
+              <mxPoint x="70" y="2675" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+
+        <mxCell id="e_accepted_cancel" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#455A64;fontSize=12;fontColor=#263238;exitX=0;exitY=0.5;entryX=0.5;entryY=0;" edge="1" parent="1" source="accepted" target="cancel">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="70" y="1425" />
+              <mxPoint x="70" y="2560" />
+              <mxPoint x="915" y="2560" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+
+        <mxCell id="e_ready_download" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#455A64;fontSize=12;fontColor=#263238;" edge="1" parent="1" source="ready" target="download_req">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e_poll_download" value="when READY" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#2E7D32;fontSize=12;fontColor=#1B5E20;exitX=0.5;exitY=1;entryX=0.5;entryY=1;" edge="1" parent="1" source="poll" target="download_req">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="360" y="2805" />
+              <mxPoint x="1490" y="2805" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+
+        <mxCell id="e_download_decision" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#455A64;fontSize=12;fontColor=#263238;" edge="1" parent="1" source="download_req" target="download_ready">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e_download_no" value="No" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#C62828;fontSize=12;fontColor=#B71C1C;" edge="1" parent="1" source="download_ready" target="download_not_ready">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e_download_yes" value="Yes" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#2E7D32;fontSize=12;fontColor=#1B5E20;exitX=0.5;exitY=1;entryX=0;entryY=0.5;" edge="1" parent="1" source="download_ready" target="bundle_file">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1490" y="2985" />
+              <mxPoint x="1210" y="2985" />
+              <mxPoint x="1210" y="3222.5" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+
+        <mxCell id="e_file_missing" value="No" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#C62828;fontSize=12;fontColor=#B71C1C;exitX=1;exitY=0.5;entryX=1;entryY=0.5;" edge="1" parent="1" source="bundle_file" target="bundle_missing">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1790" y="3222.5" />
+              <mxPoint x="1790" y="3377.5" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+
+        <mxCell id="e_file_present" value="Yes" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#2E7D32;fontSize=12;fontColor=#1B5E20;exitX=0.5;exitY=1;entryX=0;entryY=0.5;" edge="1" parent="1" source="bundle_file" target="range_response">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1490" y="3300" />
+              <mxPoint x="1210" y="3300" />
+              <mxPoint x="1210" y="3572.5" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+
+        <mxCell id="e_range_complete" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#455A64;fontSize=12;fontColor=#263238;" edge="1" parent="1" source="range_response" target="complete">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e_complete_done" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#455A64;fontSize=12;fontColor=#263238;" edge="1" parent="1" source="complete" target="done">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e_cancel_cleanup" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#455A64;fontSize=12;fontColor=#263238;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" edge="1" parent="1" source="cancel" target="done">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1205" y="2860" />
+              <mxPoint x="1205" y="3915" />
+              <mxPoint x="900" y="3915" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+
+        <mxCell id="e_sched_done" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#455A64;fontSize=12;fontColor=#263238;exitX=0;exitY=0.5;entryX=0;entryY=0.5;" edge="1" parent="1" source="scheduled_cleanup" target="done">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="70" y="3085" />
+              <mxPoint x="70" y="3982.5" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
