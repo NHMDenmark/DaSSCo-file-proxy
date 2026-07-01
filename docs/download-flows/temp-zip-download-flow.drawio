@@ -1,0 +1,182 @@
+<mxfile host="app.diagrams.net" modified="2026-06-29T00:00:00.000Z" agent="Codex" version="24.7.17" type="device">
+  <diagram id="temp-zip-download-flow" name="Temp ZIP creation and download">
+    <mxGraphModel dx="1400" dy="2200" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1400" pageHeight="2620" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <mxCell id="title" value="Legacy temp ZIP creation and temporary file download flow" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=26;fontStyle=1;fontColor=#263238;" vertex="1" parent="1">
+          <mxGeometry x="210" y="30" width="980" height="45" as="geometry" />
+        </mxCell>
+
+        <mxCell id="intro" value="Sources: AssetFiles#createZip(...), AssetFiles#getTempFile(...), FileService#createZipFile(...)&lt;br&gt;Used by the query page to copy selected asset files into {mountFolder}/temp/{guid}, create assets.zip, and later download a temp file." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFDE7;strokeColor=#F9A825;fontColor=#3E2723;arcSize=8;fontSize=14;align=left;spacing=12;" vertex="1" parent="1">
+          <mxGeometry x="100" y="95" width="1200" height="95" as="geometry" />
+        </mxCell>
+
+        <mxCell id="start" value="Frontend has asset GUID list and guid" style="ellipse;whiteSpace=wrap;html=1;fillColor=#E3F2FD;strokeColor=#1565C0;fontColor=#0D47A1;fontStyle=1;fontSize=16;" vertex="1" parent="1">
+          <mxGeometry x="515" y="230" width="370" height="65" as="geometry" />
+        </mxCell>
+
+        <mxCell id="create_req" value="Create temp ZIP&lt;br&gt;&lt;br&gt;POST /assetfiles/createZipFile/{guid}&lt;br&gt;AssetFiles#createZip(securityContext, List&lt;String&gt; assets, guid)&lt;br&gt;Consumes application/json; produces text/plain" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#455A64;fontColor=#263238;arcSize=8;fontSize=14;align=left;spacing=14;" vertex="1" parent="1">
+          <mxGeometry x="430" y="340" width="540" height="135" as="geometry" />
+        </mxCell>
+
+        <mxCell id="get_dassco" value="Resolve accessible synchronized files&lt;br&gt;&lt;br&gt;user = UserMapper.from(securityContext)&lt;br&gt;fileService.getDasscoFiles(assets, user)&lt;br&gt;returns DasscoFile rows, then maps DasscoFile::path" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#455A64;fontColor=#263238;arcSize=8;fontSize=14;align=left;spacing=14;" vertex="1" parent="1">
+          <mxGeometry x="430" y="525" width="540" height="135" as="geometry" />
+        </mxCell>
+
+        <mxCell id="files_decision" value="dasscoFiles is not empty?" style="rhombus;whiteSpace=wrap;html=1;fillColor=#FFF8E1;strokeColor=#F9A825;fontColor=#3E2723;fontStyle=1;fontSize=14;spacing=10;" vertex="1" parent="1">
+          <mxGeometry x="560" y="710" width="280" height="120" as="geometry" />
+        </mxCell>
+
+        <mxCell id="save_temp" value="Copy files into temp folder&lt;br&gt;&lt;br&gt;cacheFileService.saveFilesTempFolder(assetFiles, user, guid)&lt;br&gt;Target base: {mountFolder}/temp/{guid}" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#455A64;fontColor=#263238;arcSize=8;fontSize=14;align=left;spacing=14;" vertex="1" parent="1">
+          <mxGeometry x="95" y="710" width="345" height="125" as="geometry" />
+        </mxCell>
+
+        <mxCell id="skip_save" value="No file rows&lt;br&gt;&lt;br&gt;Skip saveFilesTempFolder(...). createZip(...) still tries to create the ZIP." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFDE7;strokeColor=#F9A825;fontColor=#3E2723;arcSize=8;fontSize=14;align=left;spacing=12;" vertex="1" parent="1">
+          <mxGeometry x="965" y="720" width="320" height="100" as="geometry" />
+        </mxCell>
+
+        <mxCell id="create_zip" value="Create ZIP on disk&lt;br&gt;&lt;br&gt;fileService.createZipFile(guid)&lt;br&gt;Walks {mountFolder}/temp/{guid} and writes:&lt;br&gt;{mountFolder}/temp/{guid}/assets.zip&lt;br&gt;The output ZIP itself is excluded from the walk." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E8F5E9;strokeColor=#2E7D32;fontColor=#1B5E20;arcSize=8;fontSize=14;align=left;spacing=14;" vertex="1" parent="1">
+          <mxGeometry x="430" y="890" width="540" height="160" as="geometry" />
+        </mxCell>
+
+        <mxCell id="zip_decision" value="createZipFile throws IOException?" style="rhombus;whiteSpace=wrap;html=1;fillColor=#FFF8E1;strokeColor=#F9A825;fontColor=#3E2723;fontStyle=1;fontSize=14;spacing=10;" vertex="1" parent="1">
+          <mxGeometry x="560" y="1100" width="280" height="120" as="geometry" />
+        </mxCell>
+
+        <mxCell id="zip_error" value="500 text/plain&lt;br&gt;&lt;br&gt;&quot;There was an error downloading the files&quot;&lt;br&gt;IOException is logged." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFEBEE;strokeColor=#C62828;fontColor=#B71C1C;arcSize=8;fontSize=14;align=left;spacing=12;" vertex="1" parent="1">
+          <mxGeometry x="965" y="1110" width="320" height="100" as="geometry" />
+        </mxCell>
+
+        <mxCell id="zip_ok" value="200 text/plain&lt;br&gt;&lt;br&gt;Response body is the guid.&lt;br&gt;Client can use it to download assets.zip or another temp file." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E8F5E9;strokeColor=#2E7D32;fontColor=#1B5E20;arcSize=8;fontSize=14;align=left;spacing=14;" vertex="1" parent="1">
+          <mxGeometry x="430" y="1280" width="540" height="95" as="geometry" />
+        </mxCell>
+
+        <mxCell id="download_start" value="Client downloads a temp file" style="ellipse;whiteSpace=wrap;html=1;fillColor=#E3F2FD;strokeColor=#1565C0;fontColor=#0D47A1;fontStyle=1;fontSize=16;" vertex="1" parent="1">
+          <mxGeometry x="515" y="1430" width="370" height="65" as="geometry" />
+        </mxCell>
+
+        <mxCell id="get_temp" value="GET /assetfiles/getTempFile/{guid}/{fileName}&lt;br&gt;AssetFiles#getTempFile(guid, fileName)&lt;br&gt;Example fileName: assets.zip or assets.csv" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#455A64;fontColor=#263238;arcSize=8;fontSize=14;align=left;spacing=14;" vertex="1" parent="1">
+          <mxGeometry x="430" y="1540" width="540" height="115" as="geometry" />
+        </mxCell>
+
+        <mxCell id="resolve" value="Resolve paths&lt;br&gt;&lt;br&gt;basePath = shareConfig.mountFolder()&lt;br&gt;tempDir = Paths.get(basePath, &quot;temp&quot;, guid)&lt;br&gt;filePath = tempDir.resolve(fileName)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#455A64;fontColor=#263238;arcSize=8;fontSize=14;align=left;spacing=14;" vertex="1" parent="1">
+          <mxGeometry x="430" y="1700" width="540" height="115" as="geometry" />
+        </mxCell>
+
+        <mxCell id="file_exists" value="filePath exists?" style="rhombus;whiteSpace=wrap;html=1;fillColor=#FFF8E1;strokeColor=#F9A825;fontColor=#3E2723;fontStyle=1;fontSize=14;spacing=10;" vertex="1" parent="1">
+          <mxGeometry x="560" y="1860" width="280" height="120" as="geometry" />
+        </mxCell>
+
+        <mxCell id="file_missing" value="404 Not Found&lt;br&gt;&lt;br&gt;&quot;Temporary file not found for guid: ..., fileName: ...&quot;&lt;br&gt;Note: code checks filePath before tempDir." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFEBEE;strokeColor=#C62828;fontColor=#B71C1C;arcSize=8;fontSize=14;align=left;spacing=12;" vertex="1" parent="1">
+          <mxGeometry x="965" y="1850" width="335" height="115" as="geometry" />
+        </mxCell>
+
+        <mxCell id="dir_exists" value="tempDir exists?" style="rhombus;whiteSpace=wrap;html=1;fillColor=#FFF8E1;strokeColor=#F9A825;fontColor=#3E2723;fontStyle=1;fontSize=14;spacing=10;" vertex="1" parent="1">
+          <mxGeometry x="560" y="2025" width="280" height="120" as="geometry" />
+        </mxCell>
+
+        <mxCell id="dir_missing" value="404 Not Found&lt;br&gt;&lt;br&gt;&quot;Temporary directory not found for guid: ...&quot;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFEBEE;strokeColor=#C62828;fontColor=#B71C1C;arcSize=8;fontSize=14;align=left;spacing=12;" vertex="1" parent="1">
+          <mxGeometry x="965" y="2025" width="335" height="95" as="geometry" />
+        </mxCell>
+
+        <mxCell id="stream" value="Stream temp file&lt;br&gt;&lt;br&gt;Files.newInputStream(filePath)&lt;br&gt;is.transferTo(output)&lt;br&gt;output.flush()&lt;br&gt;IOException is wrapped as RuntimeException." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E8F5E9;strokeColor=#2E7D32;fontColor=#1B5E20;arcSize=8;fontSize=14;align=left;spacing=14;" vertex="1" parent="1">
+          <mxGeometry x="430" y="2190" width="540" height="130" as="geometry" />
+        </mxCell>
+
+        <mxCell id="download_response" value="200 OK&lt;br&gt;&lt;br&gt;Body: streamingOutput&lt;br&gt;Header: Content-Disposition: attachment; filename=&quot;{fileName}&quot;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E8F5E9;strokeColor=#2E7D32;fontColor=#1B5E20;arcSize=8;fontSize=14;align=left;spacing=14;" vertex="1" parent="1">
+          <mxGeometry x="430" y="2370" width="540" height="100" as="geometry" />
+        </mxCell>
+
+        <mxCell id="cleanup_note" value="Cleanup behavior&lt;br&gt;&lt;br&gt;Neither createZip(...) nor getTempFile(...) deletes temp files. The files remain under {mountFolder}/temp/{guid}." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECEFF1;strokeColor=#546E7A;fontColor=#263238;arcSize=8;fontSize=14;align=left;spacing=14;" vertex="1" parent="1">
+          <mxGeometry x="95" y="2200" width="295" height="115" as="geometry" />
+        </mxCell>
+
+        <mxCell id="done" value="Temp file download complete" style="ellipse;whiteSpace=wrap;html=1;fillColor=#E3F2FD;strokeColor=#1565C0;fontColor=#0D47A1;fontStyle=1;fontSize=16;" vertex="1" parent="1">
+          <mxGeometry x="565" y="2525" width="270" height="60" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e_start_create" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#455A64;fontSize=12;fontColor=#263238;" edge="1" parent="1" source="start" target="create_req">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e_create_get" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#455A64;fontSize=12;fontColor=#263238;" edge="1" parent="1" source="create_req" target="get_dassco">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e_get_decision" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#455A64;fontSize=12;fontColor=#263238;" edge="1" parent="1" source="get_dassco" target="files_decision">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e_files_yes" value="Yes" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#2E7D32;fontSize=12;fontColor=#1B5E20;" edge="1" parent="1" source="files_decision" target="save_temp">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e_files_no" value="No" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#455A64;fontSize=12;fontColor=#263238;" edge="1" parent="1" source="files_decision" target="skip_save">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e_save_zip" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#455A64;fontSize=12;fontColor=#263238;" edge="1" parent="1" source="save_temp" target="create_zip">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e_skip_zip" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#455A64;fontSize=12;fontColor=#263238;" edge="1" parent="1" source="skip_save" target="create_zip">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e_zip_decision" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#455A64;fontSize=12;fontColor=#263238;" edge="1" parent="1" source="create_zip" target="zip_decision">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e_zip_error" value="Yes" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#C62828;fontSize=12;fontColor=#B71C1C;" edge="1" parent="1" source="zip_decision" target="zip_error">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e_zip_ok" value="No" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#2E7D32;fontSize=12;fontColor=#1B5E20;" edge="1" parent="1" source="zip_decision" target="zip_ok">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e_zip_download" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#455A64;fontSize=12;fontColor=#263238;" edge="1" parent="1" source="zip_ok" target="download_start">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e_download_get" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#455A64;fontSize=12;fontColor=#263238;" edge="1" parent="1" source="download_start" target="get_temp">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e_get_resolve" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#455A64;fontSize=12;fontColor=#263238;" edge="1" parent="1" source="get_temp" target="resolve">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e_resolve_file" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#455A64;fontSize=12;fontColor=#263238;" edge="1" parent="1" source="resolve" target="file_exists">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e_file_missing" value="No" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#C62828;fontSize=12;fontColor=#B71C1C;" edge="1" parent="1" source="file_exists" target="file_missing">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e_file_present" value="Yes" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#2E7D32;fontSize=12;fontColor=#1B5E20;" edge="1" parent="1" source="file_exists" target="dir_exists">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e_dir_missing" value="No" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#C62828;fontSize=12;fontColor=#B71C1C;" edge="1" parent="1" source="dir_exists" target="dir_missing">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e_dir_present" value="Yes" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#2E7D32;fontSize=12;fontColor=#1B5E20;" edge="1" parent="1" source="dir_exists" target="stream">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e_stream_response" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#455A64;fontSize=12;fontColor=#263238;" edge="1" parent="1" source="stream" target="download_response">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e_resp_done" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#455A64;fontSize=12;fontColor=#263238;" edge="1" parent="1" source="download_response" target="done">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

@@ -931,8 +931,11 @@ public class FileService {
         }
     }
 
-    public List<String> listFilesInErda(String assetGuid) {
+    public List<String> listFilesInErda(String assetGuid, boolean includethumbnails) {
         List<DasscoFile> files = jdbi.onDemand(FileRepository.class).getSyncFilesByAssetGuid(assetGuid);
+        if(!includethumbnails) {
+            return files.stream().filter(file -> !file.has_thumbnail()).map(DasscoFile::getWorkDirFilePath).toList();
+        }
         return files.stream().map(DasscoFile::getWorkDirFilePath).toList();
     }
 

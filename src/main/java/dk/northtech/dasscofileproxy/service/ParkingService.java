@@ -17,6 +17,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -32,15 +33,18 @@ public class ParkingService {
     private final HttpShareService httpShareService;
     private final FileService fileService;
     private final ShareConfig shareConfig;
+    private final AssetService assetService;
 
-    public ParkingService(Jdbi jdbi, HttpShareService httpShareService, FileService fileService, ShareConfig shareConfig) {
+    public ParkingService(Jdbi jdbi, HttpShareService httpShareService, FileService fileService, ShareConfig shareConfig, AssetService assetService) {
         this.jdbi = jdbi;
         this.httpShareService = httpShareService;
         this.fileService = fileService;
         this.shareConfig = shareConfig;
+        this.assetService = assetService;
     }
 
     public boolean syncParkedFiles(SyncParkingSpaceRequest syncParkingSpaceRequest, User user) {
+        logger.info("Sync parked files: {}", syncParkingSpaceRequest);
         MinimalAsset asset = syncParkingSpaceRequest.asset;
         String basePath = shareConfig.mountFolder() + "/" + shareConfig.parkingFolder() + "/" + asset.institution() + "/" + asset.collection() + "/" + syncParkingSpaceRequest.attachmentLocation;
         logger.info("Syncing parkingspace: " + basePath);
@@ -49,9 +53,9 @@ public class ParkingService {
         if (file.exists() && file.isDirectory()) {
             logger.info("Found files in parkingspace");
             List<File> files = fileService.listFiles(file, new ArrayList<>(), false, false);
-            Optional<Directory> writeableDirectory = fileService.getWriteableDirectory(asset.asset_guid());
-            if (writeableDirectory.isPresent()) {
-                Directory directory = writeableDirectory.get();
+            Optional<Directory> existingWriteableDirectory = fileService.getWriteableDirectory(asset.asset_guid());
+            if (existingWriteableDirectory.isPresent()) {
+                Directory directory = existingWriteableDirectory.get();
                 //deleting existing
                 logger.info("Deleting existing: " + directory);
                 httpShareService.deleteShare(user, asset.asset_guid());
@@ -73,6 +77,7 @@ public class ParkingService {
                         logger.info("Moving file to: " + target);
                         long crc = writeToDiskAndGetCRC(inputStream, target);
                         jdbi.withHandle(h -> {
+                            Optional<Directory> newDirectory = fileService.getWriteableDirectory(asset.asset_guid());
                             FileRepository fileRepository = h.attach(FileRepository.class);
                             String mimetype;
                             try {
@@ -80,7 +85,10 @@ public class ParkingService {
                             } catch (IOException e) {
                                 throw new RuntimeException(e);
                             }
-                            fileRepository.insertFile(new DasscoFile(null, asset.asset_guid(), "/" + asset.institution() + "/" + asset.collection() + "/" + asset.asset_guid() + "/" + renamedFileName, parkedFile.length(), crc, FileSyncStatus.NEW_FILE, mimetype, true));
+                            fileRepository.insertFile(new DasscoFile(null, asset.asset_guid(), "/" + asset.institution() + "/" + asset.collection() + "/" + asset.asset_guid() + "/" + renamedFileName, parkedFile.length(), crc, FileSyncStatus.NEW_FILE, mimetype, false));
+                            System.out.println("test " + user.username);
+                            var dasscoUserId = h.createQuery("SELECT dassco_user_id FROM dassco_user WHERE username = :username").bind("username", user.username).mapTo(Long.class).findOne();
+                            this.assetService.addAssetChange(new AssetChange(null,  "FILE_ADDED", dasscoUserId.orElseThrow(), newDirectory.orElseThrow().directoryId(), asset.asset_guid(), Instant.now()));
                             return h;
                         });
                         deleteParkedFileMetadata(parkedFile.getPath());

@@ -1,0 +1,122 @@
+<mxfile host="app.diagrams.net" modified="2026-06-29T00:00:00.000Z" agent="Codex" version="24.7.17" type="device">
+  <diagram id="asset-file-download-flow" name="Direct asset file download">
+    <mxGraphModel dx="1400" dy="2200" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1400" pageHeight="1920" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <mxCell id="title" value="AssetFiles direct asset file download flow" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=26;fontStyle=1;fontColor=#263238;" vertex="1" parent="1">
+          <mxGeometry x="250" y="30" width="900" height="45" as="geometry" />
+        </mxCell>
+
+        <mxCell id="intro" value="Source: AssetFiles#getFile(...)&lt;br&gt;Endpoint: GET /assetfiles/{institutionName}/{collectionName}/{assetGuid}/{path}&lt;br&gt;Streams one file from the mounted share after the file exists and read access is confirmed." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFDE7;strokeColor=#F9A825;fontColor=#3E2723;arcSize=8;fontSize=14;align=left;spacing=12;" vertex="1" parent="1">
+          <mxGeometry x="120" y="95" width="1160" height="90" as="geometry" />
+        </mxCell>
+
+        <mxCell id="start" value="Client requests an asset file" style="ellipse;whiteSpace=wrap;html=1;fillColor=#E3F2FD;strokeColor=#1565C0;fontColor=#0D47A1;fontStyle=1;fontSize=16;" vertex="1" parent="1">
+          <mxGeometry x="525" y="230" width="350" height="65" as="geometry" />
+        </mxCell>
+
+        <mxCell id="request" value="GET /assetfiles/{institutionName}/{collectionName}/{assetGuid}/{path}&lt;br&gt;&lt;br&gt;JAX-RS route: @GET + @Path(&quot;/{institutionName}/{collectionName}/{assetGuid}/{path: .+}&quot;)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#455A64;fontColor=#263238;arcSize=8;fontSize=14;align=left;spacing=14;" vertex="1" parent="1">
+          <mxGeometry x="445" y="340" width="510" height="115" as="geometry" />
+        </mxCell>
+
+        <mxCell id="build" value="AssetFiles#getFile(...)&lt;br&gt;&lt;br&gt;path = uriInfo.getPathParameters().getFirst(&quot;path&quot;)&lt;br&gt;user = UserMapper.from(securityContext)&lt;br&gt;new FileUploadData(assetGuid, institution, collection, path, 0, null)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#455A64;fontColor=#263238;arcSize=8;fontSize=14;align=left;spacing=14;" vertex="1" parent="1">
+          <mxGeometry x="445" y="500" width="510" height="140" as="geometry" />
+        </mxCell>
+
+        <mxCell id="getfile" value="Lookup local mounted file&lt;br&gt;&lt;br&gt;fileService.getFile(fileUploadData)&lt;br&gt;reads shareConfig.mountFolder() + fileUploadData.getAssetFilePath()" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#455A64;fontColor=#263238;arcSize=8;fontSize=14;align=left;spacing=14;" vertex="1" parent="1">
+          <mxGeometry x="445" y="685" width="510" height="110" as="geometry" />
+        </mxCell>
+
+        <mxCell id="file_decision" value="FileResult present?" style="rhombus;whiteSpace=wrap;html=1;fillColor=#FFF8E1;strokeColor=#F9A825;fontColor=#3E2723;fontStyle=1;fontSize=14;spacing=10;" vertex="1" parent="1">
+          <mxGeometry x="560" y="835" width="280" height="120" as="geometry" />
+        </mxCell>
+
+        <mxCell id="not_found" value="404 Not Found&lt;br&gt;&lt;br&gt;notFound(&quot;Asset file not found for institution: ..., collection: ..., assetGuid: ..., path: ...&quot;)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFEBEE;strokeColor=#C62828;fontColor=#B71C1C;arcSize=8;fontSize=14;align=left;spacing=12;" vertex="1" parent="1">
+          <mxGeometry x="930" y="845" width="330" height="115" as="geometry" />
+        </mxCell>
+
+        <mxCell id="access" value="Check read access&lt;br&gt;&lt;br&gt;fileService.checkAccess(assetGuid, user)&lt;br&gt;POST asset service /api/v1/assets/readaccess?assetGuid=..." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#455A64;fontColor=#263238;arcSize=8;fontSize=14;align=left;spacing=14;" vertex="1" parent="1">
+          <mxGeometry x="445" y="1005" width="510" height="110" as="geometry" />
+        </mxCell>
+
+        <mxCell id="access_decision" value="hasAccess?" style="rhombus;whiteSpace=wrap;html=1;fillColor=#FFF8E1;strokeColor=#F9A825;fontColor=#3E2723;fontStyle=1;fontSize=14;spacing=10;" vertex="1" parent="1">
+          <mxGeometry x="560" y="1155" width="280" height="120" as="geometry" />
+        </mxCell>
+
+        <mxCell id="forbidden" value="Access denied branch&lt;br&gt;&lt;br&gt;Code returns HTTP 400 with DaSSCoErrorCode.FORBIDDEN and message:&lt;br&gt;&quot;User does not have access to download this file&quot;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFEBEE;strokeColor=#C62828;fontColor=#B71C1C;arcSize=8;fontSize=14;align=left;spacing=12;" vertex="1" parent="1">
+          <mxGeometry x="930" y="1150" width="340" height="135" as="geometry" />
+        </mxCell>
+
+        <mxCell id="stream" value="Create StreamingOutput&lt;br&gt;&lt;br&gt;try (InputStream is = fileResult.is()) {&lt;br&gt;  is.transferTo(output);&lt;br&gt;  output.flush();&lt;br&gt;}" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E8F5E9;strokeColor=#2E7D32;fontColor=#1B5E20;arcSize=8;fontSize=14;align=left;spacing=14;" vertex="1" parent="1">
+          <mxGeometry x="445" y="1320" width="510" height="125" as="geometry" />
+        </mxCell>
+
+        <mxCell id="content_type" value="Resolve Content-Type&lt;br&gt;&lt;br&gt;Use fileResult.mime_type() if present; otherwise new Tika().detect(fileResult.filename())." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#455A64;fontColor=#263238;arcSize=8;fontSize=14;align=left;spacing=14;" vertex="1" parent="1">
+          <mxGeometry x="445" y="1490" width="510" height="95" as="geometry" />
+        </mxCell>
+
+        <mxCell id="response" value="200 OK&lt;br&gt;&lt;br&gt;Headers:&lt;br&gt;Content-Disposition: attachment; filename={fileResult.filename()}&lt;br&gt;Content-Type: {mime or detected type}&lt;br&gt;Body: streamingOutput" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E8F5E9;strokeColor=#2E7D32;fontColor=#1B5E20;arcSize=8;fontSize=14;align=left;spacing=14;" vertex="1" parent="1">
+          <mxGeometry x="445" y="1630" width="510" height="140" as="geometry" />
+        </mxCell>
+
+        <mxCell id="cleanup_note" value="Cleanup behavior&lt;br&gt;&lt;br&gt;The file InputStream is closed by try-with-resources after streaming completes. This endpoint does not use RangeRequestHandler." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECEFF1;strokeColor=#546E7A;fontColor=#263238;arcSize=8;fontSize=14;align=left;spacing=14;" vertex="1" parent="1">
+          <mxGeometry x="90" y="1450" width="295" height="120" as="geometry" />
+        </mxCell>
+
+        <mxCell id="done" value="File download complete" style="ellipse;whiteSpace=wrap;html=1;fillColor=#E3F2FD;strokeColor=#1565C0;fontColor=#0D47A1;fontStyle=1;fontSize=16;" vertex="1" parent="1">
+          <mxGeometry x="565" y="1825" width="270" height="60" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e_start_request" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#455A64;fontSize=12;fontColor=#263238;" edge="1" parent="1" source="start" target="request">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e_request_build" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#455A64;fontSize=12;fontColor=#263238;" edge="1" parent="1" source="request" target="build">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e_build_getfile" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#455A64;fontSize=12;fontColor=#263238;" edge="1" parent="1" source="build" target="getfile">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e_getfile_decision" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#455A64;fontSize=12;fontColor=#263238;" edge="1" parent="1" source="getfile" target="file_decision">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e_file_no" value="No" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#C62828;fontSize=12;fontColor=#B71C1C;" edge="1" parent="1" source="file_decision" target="not_found">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e_file_yes" value="Yes" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#2E7D32;fontSize=12;fontColor=#1B5E20;" edge="1" parent="1" source="file_decision" target="access">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e_access_decision" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#455A64;fontSize=12;fontColor=#263238;" edge="1" parent="1" source="access" target="access_decision">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e_access_no" value="No" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#C62828;fontSize=12;fontColor=#B71C1C;" edge="1" parent="1" source="access_decision" target="forbidden">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e_access_yes" value="Yes" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#2E7D32;fontSize=12;fontColor=#1B5E20;" edge="1" parent="1" source="access_decision" target="stream">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e_stream_type" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#455A64;fontSize=12;fontColor=#263238;" edge="1" parent="1" source="stream" target="content_type">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e_type_response" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#455A64;fontSize=12;fontColor=#263238;" edge="1" parent="1" source="content_type" target="response">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e_response_done" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#455A64;fontSize=12;fontColor=#263238;" edge="1" parent="1" source="response" target="done">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

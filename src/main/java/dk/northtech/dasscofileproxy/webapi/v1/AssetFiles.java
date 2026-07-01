@@ -191,9 +191,11 @@ public class AssetFiles {
     @Consumes(APPLICATION_JSON)
     @ApiResponse(responseCode = "200", content = @Content(mediaType = APPLICATION_JSON, array = @ArraySchema(schema = @Schema(implementation = String.class)), examples = { @ExampleObject("[\"test-institution/test-collection/nt_asset_19/example.jpg\", \"test-institution/test-collection/nt_asset_19/example2.jpg\"]")}))
     @ApiResponse(responseCode = "400-599", content = @Content(mediaType = APPLICATION_JSON, schema = @Schema(implementation = DaSSCoError.class)))
-    public List<String> listFilesInErda(@PathParam("assetGuid") String assetGuid, @Context SecurityContext securityContext
+    public List<String> listFilesInErda(@PathParam("assetGuid") String assetGuid
+            , @Context SecurityContext securityContext
+            , @QueryParam("includethumbs") @DefaultValue("false") boolean includethumbnails
     ) {
-        return fileService.listFilesInErda(assetGuid);
+        return fileService.listFilesInErda(assetGuid, includethumbnails);
     }
 
 
